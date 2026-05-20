@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dramepulse.local/schemas/highlight-asset.schema.json",
+  "title": "Highlight Asset",
+  "description": "高光资产，描述短剧中值得触发互动的剧情片段。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "highlight_id",
+    "video_id",
+    "start_time",
+    "end_time",
+    "highlight_type",
+    "emotion",
+    "intensity",
+    "summary",
+    "reason",
+    "confidence"
+  ],
+  "properties": {
+    "highlight_id": {
+      "type": "string",
+      "description": "高光点 ID。"
+    },
+    "video_id": {
+      "type": "string",
+      "description": "所属视频 ID。"
+    },
+    "start_time": {
+      "type": "number",
+      "minimum": 0,
+      "description": "高光开始时间，单位为秒。"
+    },
+    "end_time": {
+      "type": "number",
+      "minimum": 0,
+      "description": "高光结束时间，单位为秒。"
+    },
+    "highlight_type": {
+      "type": "string",
+      "description": "高光类型，例如身份揭露、打脸反杀、甜蜜撒糖、冲突爆发。"
+    },
+    "emotion": {
+      "type": "string",
+      "description": "该高光主要激发的用户情绪，例如震惊、爽感、心动、愤怒。"
+    },
+    "intensity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "情绪强度，取值范围 0 到 1。"
+    },
+    "summary": {
+      "type": "string",
+      "description": "高光剧情摘要。"
+    },
+    "reason": {
+      "type": "string",
+      "description": "为什么该片段适合触发互动。"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "识别置信度，取值范围 0 到 1。"
+    },
+    "highlight_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "结合模型置信度和用户反馈后的高光分数。"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "verified", "active", "disabled"],
+      "description": "高光资产状态。"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "创建时间。"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "更新时间。"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "interaction_id": "i_001",
+  "highlight_id": "h_001",
+  "video_id": "v_001",
+  "trigger_time": 38.0,
+  "expire_time": 46.0,
+  "interaction_type": "danmaku_poll",
+  "question": "这波反转你怎么看？",
+  "options": [
+    {
+      "option_id": "o_001",
+      "text": "卧槽反转了",
+      "danmaku_text": "卧槽反转了！",
+      "rank": 1,
+      "base_score": 0.8
+    },
+    {
+      "option_id": "o_002",
+      "text": "爽到了",
+      "danmaku_text": "这波爽到了！",
+      "rank": 2,
+      "base_score": 0.7
+    }
+  ],
+  "feedback": {
+    "type": "poll_result",
+    "show_ratio": true,
+    "show_resonance_text": true,
+    "resonance_text_template": "你和 {ratio}% 的观众一样选择了「{option}」"
+  },
+  "display_position": "subtitle_safe_area",
+  "status": "active"
+}

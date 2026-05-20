@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dramepulse.local/schemas/user-event.schema.json",
+  "title": "User Event",
+  "description": "用户行为事件，描述用户在播放和互动过程中的反馈。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_type",
+    "user_id",
+    "video_id",
+    "client_time",
+    "timestamp"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "事件 ID。可由服务端生成。"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "interaction_exposure",
+        "option_click",
+        "interaction_dismiss",
+        "feedback_shown",
+        "replay_click",
+        "highlight_jump",
+        "pause",
+        "resume",
+        "seek_forward",
+        "seek_backward",
+        "rewatch_segment",
+        "watch_complete"
+      ],
+      "description": "事件类型。"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "用户 ID。MVP 可使用匿名 demo 用户 ID。"
+    },
+    "video_id": {
+      "type": "string",
+      "description": "所属视频 ID。"
+    },
+    "highlight_id": {
+      "type": "string",
+      "description": "关联高光点 ID。播放类事件可为空。"
+    },
+    "interaction_id": {
+      "type": "string",
+      "description": "关联互动方案 ID。播放类事件可为空。"
+    },
+    "option_id": {
+      "type": "string",
+      "description": "用户点击的选项 ID，仅选项点击类事件需要。"
+    },
+    "client_time": {
+      "type": "number",
+      "minimum": 0,
+      "description": "客户端播放时间，单位为秒。"
+    },
+    "timestamp": {
+      "type": "integer",
+      "description": "事件产生时间，Unix timestamp，单位为秒。"
+    },
+    "server_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "服务端接收时间。"
+    },
+    "extra": {
+      "type": "object",
+      "description": "扩展字段，例如设备类型、互动类型、拖拽区间等。",
+      "additionalProperties": true
+    }
+  }
+}

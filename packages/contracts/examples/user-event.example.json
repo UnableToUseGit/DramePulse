@@ -1,0 +1,16 @@
+{
+  "event_id": "e_001",
+  "event_type": "option_click",
+  "user_id": "u_demo_001",
+  "video_id": "v_001",
+  "highlight_id": "h_001",
+  "interaction_id": "i_001",
+  "option_id": "o_002",
+  "client_time": 45.2,
+  "timestamp": 1779267600,
+  "server_time": "2026-05-20T09:00:01Z",
+  "extra": {
+    "device": "mobile_web",
+    "interaction_type": "danmaku_poll"
+  }
+}

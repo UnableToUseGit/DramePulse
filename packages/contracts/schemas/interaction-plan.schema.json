@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dramepulse.local/schemas/interaction-plan.schema.json",
+  "title": "Interaction Plan",
+  "description": "互动方案，描述某个高光点在前端应该如何触发和渲染互动。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "interaction_id",
+    "highlight_id",
+    "video_id",
+    "trigger_time",
+    "expire_time",
+    "interaction_type",
+    "question",
+    "options",
+    "feedback"
+  ],
+  "properties": {
+    "interaction_id": {
+      "type": "string",
+      "description": "互动方案 ID。"
+    },
+    "highlight_id": {
+      "type": "string",
+      "description": "关联高光点 ID。"
+    },
+    "video_id": {
+      "type": "string",
+      "description": "所属视频 ID。"
+    },
+    "trigger_time": {
+      "type": "number",
+      "minimum": 0,
+      "description": "互动触发时间，单位为秒。"
+    },
+    "expire_time": {
+      "type": "number",
+      "minimum": 0,
+      "description": "互动过期时间，单位为秒。"
+    },
+    "interaction_type": {
+      "type": "string",
+      "enum": ["danmaku_poll", "emotion_pulse", "story_prediction", "role_support", "rewatch_prompt"],
+      "description": "互动类型。MVP 优先使用 danmaku_poll。"
+    },
+    "question": {
+      "type": "string",
+      "description": "展示给用户的互动问题。"
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["option_id", "text", "danmaku_text"],
+        "properties": {
+          "option_id": {
+            "type": "string",
+            "description": "选项 ID。"
+          },
+          "text": {
+            "type": "string",
+            "description": "按钮或选项文案。"
+          },
+          "danmaku_text": {
+            "type": "string",
+            "description": "用户选择后可展示为弹幕的文案。"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "选项排序，数字越小越靠前。"
+          },
+          "base_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "选项初始分数。"
+          },
+          "updated_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "策略更新后的选项分数。"
+          }
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["poll_result", "resonance_text", "danmaku_burst", "none"],
+          "description": "反馈类型。"
+        },
+        "show_ratio": {
+          "type": "boolean",
+          "description": "是否展示投票比例。"
+        },
+        "show_resonance_text": {
+          "type": "boolean",
+          "description": "是否展示共鸣文案。"
+        },
+        "resonance_text_template": {
+          "type": "string",
+          "description": "共鸣反馈模板，例如：你和 {ratio}% 的观众一样选择了「{option}」。"
+        }
+      }
+    },
+    "display_position": {
+      "type": "string",
+      "enum": ["center", "bottom", "right", "subtitle_safe_area"],
+      "description": "前端推荐展示位置。"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "disabled"],
+      "description": "互动方案状态。"
+    }
+  }
+}
