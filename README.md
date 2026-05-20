@@ -57,3 +57,18 @@ docs/
 - `User Event`：用户行为事件，描述用户在播放和互动过程中的反馈。
 
 对应 JSON Schema 位于 `packages/contracts/schemas/`，示例数据位于 `packages/contracts/examples/`。
+
+## GitHub 协作原则
+
+`main` 分支只放确认无误、已经合并的稳定内容。不要直接在 `main` 上开发具体功能。
+
+每位成员应基于 `main` 创建自己的功能分支，例如：
+
+```text
+feature/player-demo
+feature/api-events
+feature/highlight-pipeline
+docs/dataset-construction
+```
+
+具体功能、实验脚本、文档草稿都应先在独立分支中完成，经过自查和必要验证后，再通过 Pull Request 合并到 `main`。

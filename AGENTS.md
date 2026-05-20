@@ -150,6 +150,20 @@ MVP 阶段避免主动扩展：
 
 产品向文档优先使用中文。技术标识符、API 字段名、数据对象名保留英文。
 
+## GitHub 协作原则
+
+`main` 分支只放确认无误、已经合并的稳定内容。不要直接在 `main` 上开发具体功能。
+
+每个具体功能、实验、修复或文档草稿都应在独立分支中完成。推荐分支命名：
+
+- `feature/player-demo`
+- `feature/api-events`
+- `feature/highlight-pipeline`
+- `docs/dataset-construction`
+- `fix/<short-description>`
+
+合并到 `main` 前，应完成自查和必要验证，并通过 Pull Request 合并。代码代理不得在未获明确指令时直接把实验性或未验证内容推到 `main`。
+
 ## 前端体验原则
 
 用户正在移动端观看短剧。互动必须快速、低摩擦，并尽量不打断剧情。
