@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from pipelines.client import OpenAICompatibleLlmClient
+from pipelines.client import VolcArkLlmClient
 from pipelines.highlight_recognition import HighlightRecognitionPipeline
 
 
@@ -56,7 +56,7 @@ def main(
     output_dir = args.output_root / args.video_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    active_pipeline = pipeline or HighlightRecognitionPipeline(llm_client=OpenAICompatibleLlmClient())
+    active_pipeline = pipeline or HighlightRecognitionPipeline(llm_client=VolcArkLlmClient())
     highlight_assets = active_pipeline.run(
         video_id=args.video_id,
         video_file_path=resolved.video_path,

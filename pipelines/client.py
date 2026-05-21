@@ -5,8 +5,7 @@ import json
 from json import JSONDecodeError
 import os
 from pathlib import Path
-from typing import Any
-from typing import Protocol
+from typing import Any, Protocol
 from urllib import error as urllib_error
 from urllib import request as urllib_request
 
@@ -17,13 +16,14 @@ class LlmClientProtocol(Protocol):
         *,
         system_prompt: str,
         user_prompt: str,
-        image_paths: list[Path],
+        image_paths: list[Path] | None = None,
+        video_urls: list[str] | None = None,
         max_tokens: int = 1800,
     ) -> dict[str, Any]:
         ...
 
 
-class OpenAICompatibleLlmClient:
+class _JsonMultimodalClientBase:
     def __init__(
         self,
         *,
@@ -55,19 +55,47 @@ class OpenAICompatibleLlmClient:
             "image_url": {"url": f"data:{mime};base64,{data}"},
         }
 
+    def _video_content_item(self, url: str) -> dict[str, Any] | None:
+        url = url.strip()
+        if not url:
+            return None
+        return {
+            "type": "video_url",
+            "video_url": {"url": url},
+        }
+
+    def _build_user_content(
+        self,
+        *,
+        user_prompt: str,
+        image_paths: list[Path] | None = None,
+        video_urls: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        for path in image_paths or []:
+            item = self._image_content_item(path)
+            if item is not None:
+                content.append(item)
+        for url in video_urls or []:
+            item = self._video_content_item(url)
+            if item is not None:
+                content.append(item)
+        return content
+
     def generate_json_multimodal(
         self,
         *,
         system_prompt: str,
         user_prompt: str,
-        image_paths: list[Path],
+        image_paths: list[Path] | None = None,
+        video_urls: list[str] | None = None,
         max_tokens: int = 1800,
     ) -> dict[str, Any]:
-        content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
-        for path in image_paths:
-            item = self._image_content_item(path)
-            if item is not None:
-                content.append(item)
+        content = self._build_user_content(
+            user_prompt=user_prompt,
+            image_paths=image_paths,
+            video_urls=video_urls,
+        )
         payload = {
             "model": self.model_name,
             "temperature": 0.2,
@@ -105,3 +133,37 @@ class OpenAICompatibleLlmClient:
             return json.loads(content_value)
         except JSONDecodeError as exc:
             raise RuntimeError("LLM response is not valid JSON") from exc
+
+
+class OpenAICompatibleLlmClient(_JsonMultimodalClientBase):
+    def __init__(
+        self,
+        *,
+        api_base_url: str | None = None,
+        api_key: str | None = None,
+        model_name: str | None = None,
+        timeout_sec: int = 90,
+    ) -> None:
+        super().__init__(
+            api_base_url=api_base_url or os.environ.get("LLM_API_BASE_URL", ""),
+            api_key=api_key or os.environ.get("LLM_API_KEY", ""),
+            model_name=model_name or os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+            timeout_sec=timeout_sec,
+        )
+
+
+class VolcArkLlmClient(_JsonMultimodalClientBase):
+    def __init__(
+        self,
+        *,
+        api_base_url: str | None = None,
+        api_key: str | None = None,
+        model_name: str | None = None,
+        timeout_sec: int = 90,
+    ) -> None:
+        super().__init__(
+            api_base_url=api_base_url or os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+            api_key=api_key or os.environ.get("ARK_API_KEY", ""),
+            model_name=model_name or os.environ.get("ARK_MODEL", ""),
+            timeout_sec=timeout_sec,
+        )

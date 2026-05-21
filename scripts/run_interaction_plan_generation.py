@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Sequence
 
-from pipelines.client import OpenAICompatibleLlmClient
+from pipelines.client import VolcArkLlmClient
 from pipelines.interaction_plan_generation import InteractionPlanGenerationPipeline
 from scripts.run_highlight_recognition import ResolvedVideoInputs, resolve_video_inputs
 
@@ -83,7 +83,7 @@ def main(
         video_id=args.video_id,
     )
 
-    active_pipeline = pipeline or InteractionPlanGenerationPipeline(llm_client=OpenAICompatibleLlmClient())
+    active_pipeline = pipeline or InteractionPlanGenerationPipeline(llm_client=VolcArkLlmClient())
     interaction_plans = _run_for_video(
         resolved=resolved,
         highlight_recognition_path=highlight_recognition_path,
