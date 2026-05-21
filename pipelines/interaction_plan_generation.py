@@ -274,7 +274,7 @@ class InteractionPlanGenerationPipeline:
         llm_client: LlmClientProtocol,
         subtitle_context_before_sec: float = 8.0,
         subtitle_context_after_sec: float = 5.0,
-        max_output_tokens: int = 1200,
+        max_output_tokens: int = 4800,
         display_position: str = "subtitle_safe_area",
     ) -> None:
         self.llm_client = llm_client

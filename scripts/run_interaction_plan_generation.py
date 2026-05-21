@@ -13,6 +13,7 @@ if __package__ is None or __package__ == "":
 from pipelines.client import VolcArkLlmClient
 from pipelines.interaction_plan_generation import InteractionPlanGenerationPipeline
 from scripts.run_highlight_recognition import ResolvedVideoInputs, resolve_video_inputs
+from scripts.transcription.env import get_env_value
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -20,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("video_id", help="Video id in the form case1_ep01.")
     parser.add_argument("--data-root", type=Path, default=Path("data"), help="Root data directory.")
     parser.add_argument("--output-root", type=Path, default=Path("output"), help="Directory for outputs.")
+    parser.add_argument("--env-file", type=Path, default=Path(".env"), help="Path to dotenv file. Defaults to .env.")
     parser.add_argument(
         "--highlight-recognition-path",
         type=Path,
@@ -55,6 +57,17 @@ def _default_highlight_recognition_path(*, output_root: Path, video_id: str) -> 
     return output_root / video_id / "highlight_recognition.json"
 
 
+def build_ark_client(*, env_path: Path | None = None) -> VolcArkLlmClient:
+    dotenv_api_key = get_env_value("ARK_API_KEY", env_path=env_path)
+    dotenv_base_url = get_env_value("ARK_BASE_URL", env_path=env_path)
+    dotenv_model = get_env_value("ARK_MODEL", env_path=env_path)
+    return VolcArkLlmClient(
+        api_key=dotenv_api_key or None,
+        base_url=dotenv_base_url or None,
+        model_name=dotenv_model or None,
+    )
+
+
 def _run_for_video(
     *,
     resolved: ResolvedVideoInputs,
@@ -88,7 +101,7 @@ def main(
         video_id=args.video_id,
     )
 
-    active_pipeline = pipeline or InteractionPlanGenerationPipeline(llm_client=VolcArkLlmClient())
+    active_pipeline = pipeline or InteractionPlanGenerationPipeline(llm_client=build_ark_client(env_path=args.env_file))
     interaction_plans = _run_for_video(
         resolved=resolved,
         highlight_recognition_path=highlight_recognition_path,

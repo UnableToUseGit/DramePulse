@@ -53,10 +53,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_ark_client(*, env_path: Path | None = None) -> VolcArkLlmClient:
+    dotenv_api_key = get_env_value("ARK_API_KEY", env_path=env_path)
+    dotenv_base_url = get_env_value("ARK_BASE_URL", env_path=env_path)
+    dotenv_model = get_env_value("ARK_MODEL", env_path=env_path)
     return VolcArkLlmClient(
-        api_key=get_env_value("ARK_API_KEY", env_path=env_path),
-        base_url=get_env_value("ARK_BASE_URL", env_path=env_path),
-        model_name=get_env_value("ARK_MODEL", env_path=env_path),
+        api_key=dotenv_api_key or None,
+        base_url=dotenv_base_url or None,
+        model_name=dotenv_model or None,
     )
 
 

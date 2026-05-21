@@ -8,6 +8,7 @@ Desktop.ini
 
 # Editor and IDE files
 .idea/
+.vscode/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
