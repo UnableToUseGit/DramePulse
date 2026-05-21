@@ -63,11 +63,7 @@ danmaku_poll
 
 模块根据 `Highlight Asset.start_time` 和 `Highlight Asset.end_time` 从视频中抽取高光点附近的关键帧，帮助大模型理解人物表情、画面关系、动作和场景氛围。
 
-第一版可以只抽取少量关键帧，例如：
-
-- 高光开始前 2 秒；
-- 高光中点；
-- 高光结束后 1 秒。
+当前实现会抽取少量关键帧，并将时间戳以文本形式插入多图请求中。
 
 #### subtitle_file_path
 
@@ -81,28 +77,30 @@ danmaku_poll
 [highlight.start_time - 8s, highlight.end_time + 5s]
 ```
 
-具体窗口可以由策略配置控制。
+### 3.2 当前实现的额外输入
 
-### 3.2 模块内部数据源
+#### danmaku_items
 
-#### 历史弹幕
+当前实现直接从 `video_id` 对应的数据文件加载弹幕数组，并作为显式输入传入 pipeline。
 
-历史弹幕不是调用方直接传入的业务输入，而是本模块根据 `Highlight Asset.video_id` 主动查询的内容资源。
+每条弹幕的典型结构参考：
 
-历史弹幕的价值在于提供真实用户语言，包括：
+```json
+{
+  "time_sec": 39.5,
+  "text": "这个反转绝了",
+  "digg_count": 88,
+  "score": 99.0
+}
+```
 
-- 用户在类似剧情下的情绪表达；
-- 该视频里的角色称呼、梗和口语化表达；
-- 用户天然会选择的站队或观点；
-- 适合转化为投票选项的高频表达。
-
-第一版可以通过本地 fixture 或 mock provider 获取弹幕数据。后续接入真实数据源时，保持相同 provider 接口。
+模块会将这些弹幕整理成适合 prompt 阅读的文本上下文。
 
 ### 3.3 可选输入
 
 #### historical_stats
 
-历史用户行为统计暂时保留为可选输入，但 MVP 生成阶段不依赖它。
+历史用户行为统计在概念上仍可作为可选输入，但当前实现未接入。
 
 后续可以用于：
 
@@ -113,19 +111,7 @@ danmaku_poll
 
 #### strategy_config
 
-策略配置用于控制非内容型生成约束。
-
-第一版建议支持：
-
-- `interaction_type` 固定为 `danmaku_poll`；
-- 选项数量限制为 2 到 3 个；
-- 字幕抽取前后窗口；
-- 视频帧抽取数量；
-- 是否展示投票比例；
-- 是否展示共鸣文案；
-- 默认展示位置；
-- 文案长度上限；
-- fallback 模板配置。
+策略配置在概念上仍可保留，但当前实现主要通过 pipeline 参数和 fallback 模板控制。
 
 ## 4. 输出
 
@@ -194,7 +180,7 @@ Highlight Asset
   ↓
 抽取高光附近字幕
   ↓
-根据 video_id 查询历史弹幕
+读取或接收当前视频弹幕
   ↓
 组织大模型输入上下文
 ```
@@ -217,7 +203,7 @@ Highlight Asset
 - `Highlight Asset`；
 - 高光点附近字幕；
 - 高光点附近视频帧；
-- 该视频历史弹幕；
+- 该视频弹幕上下文；
 - 生成约束。
 
 大模型负责生成 `Interaction Plan` 的内容型字段：
@@ -282,9 +268,9 @@ highlight_type = 冲突爆发
 
 fallback 的目标不是生成最优文案，而是保证端到端链路可运行、可演示。
 
-## 6. 推荐接口形态
+## 6. 当前接口形态
 
-第一版可以设计为一个纯业务 pipeline：
+当前代码实现采用纯业务 pipeline：
 
 ```python
 generate_interaction_plan(
@@ -297,18 +283,7 @@ generate_interaction_plan(
 )
 ```
 
-其中 `danmaku_items` 直接使用当前视频的弹幕数据，数据结构参考 `data/case1/ep01.json` 中的 `danmaku` 数组：
-
-```json
-[
-  {
-    "time_sec": 0.585,
-    "text": "坏菜了",
-    "digg_count": 78,
-    "score": 68.1777402742
-  }
-]
-```
+其中 `danmaku_items` 直接使用当前视频的弹幕数据，数据结构参考 `data/case1/ep01.json` 中的 `danmaku` 数组。
 
 这种设计让数据读取职责留在上游数据准备流程中，交互方案生成模块只负责消费已经准备好的视频、字幕、高光和弹幕上下文。
 
@@ -319,7 +294,7 @@ generate_interaction_plan(
 1. 根据高光点组织生成上下文；
 2. 抽取高光附近字幕；
 3. 抽取高光附近视频帧；
-4. 查询该视频历史弹幕；
+4. 消费当前视频弹幕上下文；
 5. 调用大模型生成弹幕投票草稿；
 6. 校验并补全 `Interaction Plan`；
 7. 在生成失败时使用 fallback 模板。
@@ -367,7 +342,7 @@ MVP 阶段，统计策略更新模块不参与交互方案生成。
 2. `danmaku_poll` 一种互动类型；
 3. 字幕窗口抽取；
 4. 少量关键帧抽取；
-5. 本地 mock 历史弹幕 provider；
+5. 当前视频弹幕上下文；
 6. 大模型生成问题和选项；
 7. schema 校验；
 8. fallback 模板。
@@ -381,30 +356,12 @@ MVP 阶段，统计策略更新模块不参与交互方案生成。
 5. 在线学习；
 6. 复杂敏感内容审核系统。
 
-## 10. 需要同步更新的既有文档点
+## 10. 与实现保持一致的说明
 
-后续更新 `docs/develop-docs/architecture-design.md` 时，建议将 “互动方案生成与下发模块” 的输入从：
+当前实现已经固定了以下行为：
 
-```text
-- Highlight Asset；
-- 历史用户行为统计；
-- 互动模板库；
-- 策略配置。
-```
-
-调整为：
-
-```text
-- Highlight Asset；
-- video_file_path；
-- subtitle_file_path；
-- 根据 video_id 查询到的历史弹幕；
-- 策略配置；
-- 可选：历史用户行为统计。
-```
-
-同时说明：
-
-- 模板库属于模块内部能力，不作为外部输入；
-- MVP 阶段只生成 `danmaku_poll`；
-- 历史统计保留接口，但当前版本不参与生成。
+- 交互类型固定为 `danmaku_poll`；
+- 大模型通过多模态 prompt 接收高光截图、字幕和弹幕上下文；
+- `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL` 通过脚本读取 `.env` 后注入；
+- 生成失败时使用内置 fallback；
+- 交互输出写入 `output/<video_id>/interaction_plan_generation.json`。

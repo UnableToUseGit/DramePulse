@@ -32,9 +32,9 @@ packages/
 data/
 ```
 
-存放少量开发与演示所需的数据文件，例如样例字幕、元数据、人工标注、高光识别结果、互动方案 JSON 等。大体积视频数据不建议直接提交到 GitHub，可通过 Hugging Face private dataset 管理。
+存放少量开发与演示所需的数据文件，例如样例视频、样例字幕、弹幕元数据、人工标注、高光识别结果、互动方案 JSON 等。
 
-开发和演示数据应先从 Hugging Face 数据集 `TheThreeKeyboardeers/ShortDramas` 下载，再移动或整理到 `data/` 目录下。不要直接把大体积视频文件提交到 GitHub。
+当前仓库保留了一个轻量协作样例 `data/case1/`，用于端到端调试。更大规模数据仍建议通过 Hugging Face 数据集 `TheThreeKeyboardeers/ShortDramas` 管理。
 
 ```text
 scripts/
@@ -57,6 +57,55 @@ docs/
 - `User Event`：用户行为事件，描述用户在播放和互动过程中的反馈。
 
 对应 JSON Schema 位于 `packages/contracts/schemas/`，示例数据位于 `packages/contracts/examples/`。
+
+## 本地运行算法链路
+
+当前已经提供一个可运行样例：
+
+```text
+data/case1/ep01.mp4
+data/case1/ep01.srt
+data/case1/ep01.json
+```
+
+复制 `.env.example` 为 `.env`，填写火山方舟配置：
+
+```env
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+ARK_API_KEY=你的 API Key
+ARK_MODEL=Doubao-Seed-2.0-pro
+```
+
+运行高光点识别：
+
+```bash
+python scripts/run_highlight_recognition.py case1_ep01
+```
+
+运行交互方案生成：
+
+```bash
+python scripts/run_interaction_plan_generation.py case1_ep01
+```
+
+默认输出目录为：
+
+```text
+output/case1_ep01/highlight_recognition.json
+output/case1_ep01/interaction_plan_generation.json
+```
+
+仓库中也保留了一份可查看的样例输出：
+
+```text
+example_output/case1_ep01/
+```
+
+更多模块设计说明见：
+
+- `docs/develop-docs/module-designs/highlight-recognition.md`
+- `docs/develop-docs/module-designs/interaction-plan-generation.md`
+- `docs/develop-docs/status/current-implementation.md`
 
 ## GitHub 协作原则
 
