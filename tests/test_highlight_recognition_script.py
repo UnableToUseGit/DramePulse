@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.run_highlight_recognition import main, resolve_video_inputs
 
@@ -26,6 +27,82 @@ class ResolveVideoInputsTest(unittest.TestCase):
 
 
 class HighlightRecognitionScriptTest(unittest.TestCase):
+    def test_main_loads_ark_config_from_env_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data_root = root / "data"
+            output_root = root / "output"
+            case_dir = data_root / "case1"
+            case_dir.mkdir(parents=True)
+            (case_dir / "ep01.mp4").write_bytes(b"video")
+            (case_dir / "ep01.json").write_text('{"danmaku": []}', encoding="utf-8")
+            (case_dir / "ep01.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\n第一句\n", encoding="utf-8")
+            env_file = root / ".env"
+            env_file.write_text(
+                "\n".join(
+                    [
+                        "ARK_BASE_URL=https://ark.example.com/api/v3",
+                        "ARK_API_KEY=from-env-file",
+                        "ARK_MODEL=demo-model",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            captured_client_args: dict[str, object] = {}
+
+            class FakeClient:
+                def __init__(self, *, api_key: str | None = None, base_url: str | None = None, model_name: str | None = None, timeout_sec: int = 90) -> None:
+                    captured_client_args.update(
+                        {
+                            "api_key": api_key,
+                            "base_url": base_url,
+                            "model_name": model_name,
+                            "timeout_sec": timeout_sec,
+                        }
+                    )
+
+            class FakePipeline:
+                def __init__(self, *, llm_client: object) -> None:
+                    self.llm_client = llm_client
+
+                def run(self, *, video_id: str, video_file_path: Path, subtitle_file_path: Path) -> list[dict[str, object]]:
+                    return [
+                        {
+                            "highlight_id": "h_case1_ep01_001",
+                            "video_id": video_id,
+                            "start_time": 0.0,
+                            "end_time": 1.0,
+                            "highlight_type": "冲突爆发",
+                            "emotion": "愤怒",
+                            "intensity": 0.7,
+                            "summary": "冲突升级。",
+                            "reason": "测试用高光。",
+                            "confidence": 0.9,
+                        }
+                    ]
+
+            with patch("scripts.run_highlight_recognition.VolcArkLlmClient", FakeClient), patch(
+                "scripts.run_highlight_recognition.HighlightRecognitionPipeline",
+                FakePipeline,
+            ):
+                result = main(
+                    [
+                        "case1_ep01",
+                        "--data-root",
+                        str(data_root),
+                        "--output-root",
+                        str(output_root),
+                        "--env-file",
+                        str(env_file),
+                    ]
+                )
+
+            self.assertEqual(result, 0)
+            self.assertEqual(captured_client_args["api_key"], "from-env-file")
+            self.assertEqual(captured_client_args["base_url"], "https://ark.example.com/api/v3")
+            self.assertEqual(captured_client_args["model_name"], "demo-model")
+
     def test_main_runs_pipeline_and_writes_json_output(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

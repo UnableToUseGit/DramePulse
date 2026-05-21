@@ -28,8 +28,23 @@ def _build_user_prompt(video_id: str, subtitles_timeline: str, timestamps_second
         [
             f"VIDEO_ID: {video_id}",
             "Task: identify the most interaction-worthy highlights in this short drama.",
+            "Output description:",
+            "- Only use evidence visible in the sampled frames and subtitles.",
+            "- Do not invent plot details, character identities, emotions, or motives.",
+            "- Prefer fewer highlights with higher confidence over speculative ones.",
+            "- Keep `summary` and `reason` factual and grounded in the provided context.",
             "Output requirement: return JSON with a `highlights` array.",
-            "Each highlight must include start_time, end_time, highlight_type, emotion, intensity, summary, reason, confidence.",
+            "Each highlight object must follow these field rules:",
+            "- `start_time`: number in seconds, use the sampled frame or subtitle evidence to choose the start of the highlight.",
+            "- `end_time`: number in seconds, must be greater than `start_time`.",
+            "- `highlight_type`: short label in English or Chinese, such as identity_reveal, conflict_escalation, sweet_moment, revenge_hitback.",
+            "- `emotion`: short label for the strongest user emotion, such as shock, anger, joy, sadness, tension.",
+            "- `intensity`: number from 0 to 1 only; 0 means weak, 1 means strongest. Do not use a 5-point scale.",
+            "- `summary`: one concise factual sentence describing the highlight.",
+            "- `reason`: one concise factual sentence explaining why this scene is worth interaction.",
+            "- `confidence`: number from 0 to 1 only; higher means the scene is clearly supported by frames and subtitles.",
+            "- If a field cannot be supported directly, lower the confidence or skip that highlight.",
+            "- Do not include any extra keys.",
             f"FRAME_TIMESTAMPS: {frame_hint}",
             subtitles_timeline,
         ]
@@ -148,6 +163,7 @@ class HighlightRecognitionPipeline:
                 system_prompt=_build_system_prompt(),
                 user_prompt=_build_user_prompt(video_id, subtitles_timeline, timestamps),
                 image_paths=image_paths,
+                frame_timestamps_seconds=timestamps,
                 max_tokens=self.max_output_tokens,
             )
 

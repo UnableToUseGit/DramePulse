@@ -6,8 +6,8 @@ from json import JSONDecodeError
 import os
 from pathlib import Path
 from typing import Any, Protocol
-from urllib import error as urllib_error
-from urllib import request as urllib_request
+
+from volcenginesdkarkruntime import Ark
 
 
 class LlmClientProtocol(Protocol):
@@ -17,69 +17,99 @@ class LlmClientProtocol(Protocol):
         system_prompt: str,
         user_prompt: str,
         image_paths: list[Path] | None = None,
-        video_urls: list[str] | None = None,
-        max_tokens: int = 1800,
+        frame_timestamps_seconds: list[float] | None = None,
+        max_tokens: int = 4800,
     ) -> dict[str, Any]:
         ...
 
 
-class _JsonMultimodalClientBase:
+def _clean_text(value: Any) -> str:
+    return " ".join(str(value).strip().split())
+
+
+def _image_path_to_data_url(path: Path) -> str:
+    suffix = path.suffix.lower()
+    mime_type = "image/jpeg"
+    if suffix == ".png":
+        mime_type = "image/png"
+    elif suffix == ".webp":
+        mime_type = "image/webp"
+    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def _response_content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts: list[str] = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if "text" in item:
+                parts.append(_clean_text(item["text"]))
+        return "\n".join(part for part in parts if part)
+    if content is None:
+        return ""
+    return str(content)
+
+
+def _parse_json_content(content: Any) -> dict[str, Any]:
+    text = _response_content_to_text(content).strip()
+    if not text:
+        raise RuntimeError("LLM response is empty")
+    try:
+        parsed = json.loads(text)
+    except JSONDecodeError as exc:
+        raise RuntimeError("LLM response is not valid JSON") from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError("LLM response JSON must be an object")
+    return parsed
+
+
+class VolcArkLlmClient:
     def __init__(
         self,
         *,
-        api_base_url: str | None = None,
         api_key: str | None = None,
+        base_url: str | None = None,
         model_name: str | None = None,
         timeout_sec: int = 90,
     ) -> None:
-        self.api_base_url = (api_base_url or os.environ.get("LLM_API_BASE_URL", "")).rstrip("/")
-        self.api_key = api_key or os.environ.get("LLM_API_KEY", "")
-        self.model_name = model_name or os.environ.get("LLM_MODEL", "gpt-4o-mini")
+        self.api_key = api_key or os.environ.get("ARK_API_KEY", "")
+        self.base_url = base_url or os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+        self.model_name = model_name or os.environ.get("ARK_MODEL", "doubao-seed-2-0-lite-260215")
         self.timeout_sec = timeout_sec
-
-    def _url(self) -> str:
-        if self.api_base_url.endswith("/chat/completions"):
-            return self.api_base_url
-        return f"{self.api_base_url}/chat/completions"
-
-    def _image_content_item(self, path: Path) -> dict[str, Any] | None:
-        if not path.exists():
-            return None
-        suffix = path.suffix.lower()
-        mime = "image/jpeg"
-        if suffix == ".png":
-            mime = "image/png"
-        data = base64.b64encode(path.read_bytes()).decode("ascii")
-        return {
-            "type": "image_url",
-            "image_url": {"url": f"data:{mime};base64,{data}"},
-        }
-
-    def _video_content_item(self, url: str) -> dict[str, Any] | None:
-        url = url.strip()
-        if not url:
-            return None
-        return {
-            "type": "video_url",
-            "video_url": {"url": url},
-        }
+        self._client = Ark(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            timeout=self.timeout_sec,
+        )
 
     def _build_user_content(
         self,
         *,
         user_prompt: str,
         image_paths: list[Path] | None = None,
-        video_urls: list[str] | None = None,
+        frame_timestamps_seconds: list[float] | None = None,
     ) -> list[dict[str, Any]]:
         content: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
-        for path in image_paths or []:
-            item = self._image_content_item(path)
-            if item is not None:
-                content.append(item)
-        for url in video_urls or []:
-            item = self._video_content_item(url)
-            if item is not None:
-                content.append(item)
+        image_paths = image_paths or []
+        frame_timestamps_seconds = frame_timestamps_seconds or []
+        for index, image_path in enumerate(image_paths):
+            if index < len(frame_timestamps_seconds):
+                content.append(
+                    {
+                        "type": "text",
+                        "text": f"[{frame_timestamps_seconds[index]:.1f} second]",
+                    }
+                )
+            content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": _image_path_to_data_url(image_path)},
+                }
+            )
         return content
 
     def generate_json_multimodal(
@@ -88,82 +118,27 @@ class _JsonMultimodalClientBase:
         system_prompt: str,
         user_prompt: str,
         image_paths: list[Path] | None = None,
-        video_urls: list[str] | None = None,
+        frame_timestamps_seconds: list[float] | None = None,
         max_tokens: int = 1800,
     ) -> dict[str, Any]:
-        content = self._build_user_content(
-            user_prompt=user_prompt,
-            image_paths=image_paths,
-            video_urls=video_urls,
-        )
-        payload = {
-            "model": self.model_name,
-            "temperature": 0.2,
-            "max_tokens": max_tokens,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": content},
-            ],
-            "response_format": {"type": "json_object"},
-        }
-        request = urllib_request.Request(
-            self._url(),
-            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": self._build_user_content(
+                    user_prompt=user_prompt,
+                    image_paths=image_paths,
+                    frame_timestamps_seconds=frame_timestamps_seconds,
+                ),
             },
-            method="POST",
+        ]
+
+        response = self._client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=0.2,
+            extra_body={"thinking": {"type": "disabled"}},
+            response_format={"type": "json_object"},
         )
-        try:
-            with urllib_request.urlopen(request, timeout=self.timeout_sec) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-        except urllib_error.URLError as exc:  # pragma: no cover
-            raise RuntimeError(f"Failed to call LLM endpoint: {exc}") from exc
-        content_value = response_payload["choices"][0]["message"]["content"]
-        if isinstance(content_value, list):
-            parts: list[str] = []
-            for item in content_value:
-                if isinstance(item, dict) and "text" in item:
-                    parts.append(str(item["text"]))
-            content_value = "\n".join(parts)
-        if not isinstance(content_value, str):
-            content_value = str(content_value)
-        try:
-            return json.loads(content_value)
-        except JSONDecodeError as exc:
-            raise RuntimeError("LLM response is not valid JSON") from exc
-
-
-class OpenAICompatibleLlmClient(_JsonMultimodalClientBase):
-    def __init__(
-        self,
-        *,
-        api_base_url: str | None = None,
-        api_key: str | None = None,
-        model_name: str | None = None,
-        timeout_sec: int = 90,
-    ) -> None:
-        super().__init__(
-            api_base_url=api_base_url or os.environ.get("LLM_API_BASE_URL", ""),
-            api_key=api_key or os.environ.get("LLM_API_KEY", ""),
-            model_name=model_name or os.environ.get("LLM_MODEL", "gpt-4o-mini"),
-            timeout_sec=timeout_sec,
-        )
-
-
-class VolcArkLlmClient(_JsonMultimodalClientBase):
-    def __init__(
-        self,
-        *,
-        api_base_url: str | None = None,
-        api_key: str | None = None,
-        model_name: str | None = None,
-        timeout_sec: int = 90,
-    ) -> None:
-        super().__init__(
-            api_base_url=api_base_url or os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
-            api_key=api_key or os.environ.get("ARK_API_KEY", ""),
-            model_name=model_name or os.environ.get("ARK_MODEL", ""),
-            timeout_sec=timeout_sec,
-        )
+        return _parse_json_content(response.choices[0].message.content)

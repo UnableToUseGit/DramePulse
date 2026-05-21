@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import http.client
+import shutil
 import time
 from http import HTTPStatus
 from pathlib import Path
@@ -103,6 +104,9 @@ class AliyunAsrClient:
         ) from last_error
 
     def transcribe_from_url(self, file_url: str) -> list[TranscriptSegment]:
+        return parse_aliyun_transcription_result(self.transcribe_raw_from_url(file_url))
+
+    def transcribe_raw_from_url(self, file_url: str) -> dict[str, Any]:
         try:
             import dashscope
             from dashscope.audio.asr import Transcription
@@ -149,7 +153,7 @@ class AliyunAsrClient:
             for result in results:
                 if result.get("subtask_status") == "FAILED":
                     if self._is_no_words_response(result):
-                        return []
+                        return {"transcripts": []}
                     message = result.get("message", result)
                     if self._is_instance_pool_exhausted(message) and exhausted_retries < 5:
                         exhausted_retries += 1
@@ -196,14 +200,18 @@ class AliyunTranscriber:
         )
 
     def _transcribe_chunk_from_url(self, file_url: str) -> list[TranscriptSegment]:
-        return self.asr_client.transcribe_from_url(file_url)
+        return parse_aliyun_transcription_result(self._transcribe_chunk_raw_from_url(file_url))
+
+    def _transcribe_chunk_raw_from_url(self, file_url: str) -> dict[str, Any]:
+        return self.asr_client.transcribe_raw_from_url(file_url)
 
     def transcribe(self, request: TranscriptionRequest) -> TranscriptionResult:
         normalized_audio_path = self._prepare_audio_for_transcription(request.audio_path)
         chunks = self._split_audio_for_transcription(normalized_audio_path)
+        chunks_dir = chunks[0][0].parent if chunks else None
         total_chunks = len(chunks)
 
-        def transcribe_one(index: int, chunk_path: Path, offset_seconds: float) -> list[TranscriptSegment]:
+        def transcribe_one(index: int, chunk_path: Path, offset_seconds: float) -> tuple[list[TranscriptSegment], dict[str, Any]]:
             started = time.perf_counter()
             log_transcription_event(
                 "transcription_chunk_started",
@@ -219,7 +227,8 @@ class AliyunTranscriber:
             self.artifact_store.upload_file(chunk_path, object_key)
             try:
                 signed_url = self.artifact_store.get_signed_download_url(object_key)
-                chunk_segments = self._transcribe_chunk_from_url(signed_url)
+                raw_result = self._transcribe_chunk_raw_from_url(signed_url)
+                chunk_segments = parse_aliyun_transcription_result(raw_result)
                 merged = [
                     TranscriptSegment(
                         start=segment.start + offset_seconds,
@@ -242,7 +251,15 @@ class AliyunTranscriber:
                     elapsed=format_elapsed_minutes_seconds(elapsed_ms),
                     segment_count=len(merged),
                 )
-                return merged
+                return (
+                    merged,
+                    {
+                        "chunk_index": index,
+                        "chunk_name": chunk_path.name,
+                        "offset_seconds": offset_seconds,
+                        "raw_result": raw_result,
+                    },
+                )
             finally:
                 if self.artifact_store is not None and not self.config.oss.retain_remote_artifacts:
                     try:
@@ -250,21 +267,35 @@ class AliyunTranscriber:
                     except Exception:
                         pass
 
-        chunk_results: dict[int, list[TranscriptSegment]] = {}
-        if len(chunks) > 1 and self.chunk_max_workers > 1:
-            with ThreadPoolExecutor(max_workers=self.chunk_max_workers) as executor:
-                futures = {
-                    executor.submit(transcribe_one, index, chunk_path, offset_seconds): index
-                    for index, (chunk_path, offset_seconds) in enumerate(chunks, start=1)
-                }
-                for future in as_completed(futures):
-                    index = futures[future]
-                    chunk_results[index] = future.result()
-        else:
-            for index, (chunk_path, offset_seconds) in enumerate(chunks, start=1):
-                chunk_results[index] = transcribe_one(index, chunk_path, offset_seconds)
+        chunk_results: dict[int, tuple[list[TranscriptSegment], dict[str, Any]]] = {}
+        try:
+            if len(chunks) > 1 and self.chunk_max_workers > 1:
+                with ThreadPoolExecutor(max_workers=self.chunk_max_workers) as executor:
+                    futures = {
+                        executor.submit(transcribe_one, index, chunk_path, offset_seconds): index
+                        for index, (chunk_path, offset_seconds) in enumerate(chunks, start=1)
+                    }
+                    for future in as_completed(futures):
+                        index = futures[future]
+                        chunk_results[index] = future.result()
+            else:
+                for index, (chunk_path, offset_seconds) in enumerate(chunks, start=1):
+                    chunk_results[index] = transcribe_one(index, chunk_path, offset_seconds)
+        finally:
+            if chunks_dir is not None:
+                shutil.rmtree(chunks_dir, ignore_errors=True)
 
         segments: list[TranscriptSegment] = []
+        raw_chunks: list[dict[str, Any]] = []
         for index in sorted(chunk_results):
-            segments.extend(chunk_results[index])
-        return TranscriptionResult(provider=self.provider_name, segments=segments)
+            chunk_segments, raw_chunk = chunk_results[index]
+            segments.extend(chunk_segments)
+            raw_chunks.append(raw_chunk)
+        return TranscriptionResult(
+            provider=self.provider_name,
+            segments=segments,
+            raw_response={
+                "provider": self.provider_name,
+                "chunks": raw_chunks,
+            },
+        )

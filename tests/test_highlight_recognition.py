@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 import tempfile
 from pathlib import Path
 import unittest
 
-from pipelines.client import OpenAICompatibleLlmClient
 from pipelines.highlight_recognition import (
     HighlightRecognitionPipeline,
     parse_highlight_assets,
@@ -83,12 +81,21 @@ class PipelineSmokeTest(unittest.TestCase):
             def __init__(self) -> None:
                 self.calls: list[dict[str, object]] = []
 
-            def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], max_tokens: int = 1800) -> dict[str, object]:
+            def generate_json_multimodal(
+                self,
+                *,
+                system_prompt: str,
+                user_prompt: str,
+                image_paths: list[Path],
+                frame_timestamps_seconds: list[float] | None = None,
+                max_tokens: int = 1800,
+            ) -> dict[str, object]:
                 self.calls.append(
                     {
                         "system_prompt": system_prompt,
                         "user_prompt": user_prompt,
                         "image_paths": image_paths,
+                        "frame_timestamps_seconds": frame_timestamps_seconds,
                         "max_tokens": max_tokens,
                     }
                 )
@@ -138,6 +145,7 @@ class PipelineSmokeTest(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["video_id"], "v_001")
         self.assertEqual(result[0]["highlight_type"], "冲突爆发")
+        self.assertIn("Do not invent plot details", str(pipeline.llm_client.calls[0]["user_prompt"]))
 
 
 if __name__ == "__main__":

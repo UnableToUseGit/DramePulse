@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+from pathlib import Path as _Path
 from typing import Sequence
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 
 from pipelines.client import VolcArkLlmClient
 from pipelines.interaction_plan_generation import InteractionPlanGenerationPipeline

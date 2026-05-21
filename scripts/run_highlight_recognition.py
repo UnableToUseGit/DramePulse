@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
+from pathlib import Path as _Path
 from typing import Sequence
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 
 from pipelines.client import VolcArkLlmClient
 from pipelines.highlight_recognition import HighlightRecognitionPipeline
+from scripts.transcription.env import get_env_value
 
 
 class ResolvedVideoInputs:
@@ -42,7 +48,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("video_id", help="Video id in the form case1_ep01.")
     parser.add_argument("--data-root", type=Path, default=Path("data"), help="Root data directory.")
     parser.add_argument("--output-root", type=Path, default=Path("output"), help="Directory for outputs.")
+    parser.add_argument("--env-file", type=Path, default=Path(".env"), help="Path to dotenv file. Defaults to .env.")
     return parser
+
+
+def build_ark_client(*, env_path: Path | None = None) -> VolcArkLlmClient:
+    return VolcArkLlmClient(
+        api_key=get_env_value("ARK_API_KEY", env_path=env_path),
+        base_url=get_env_value("ARK_BASE_URL", env_path=env_path),
+        model_name=get_env_value("ARK_MODEL", env_path=env_path),
+    )
 
 
 def main(
@@ -56,7 +71,7 @@ def main(
     output_dir = args.output_root / args.video_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    active_pipeline = pipeline or HighlightRecognitionPipeline(llm_client=VolcArkLlmClient())
+    active_pipeline = pipeline or HighlightRecognitionPipeline(llm_client=build_ark_client(env_path=args.env_file))
     highlight_assets = active_pipeline.run(
         video_id=args.video_id,
         video_file_path=resolved.video_path,

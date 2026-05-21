@@ -26,5 +26,6 @@ class TranscriptionRequest:
 class TranscriptionResult:
     provider: str
     segments: list[TranscriptSegment]
+    raw_response: dict[str, Any] | None = None
     raw_response_ref: str | None = None
     warnings: list[str] = field(default_factory=list)

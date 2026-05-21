@@ -326,6 +326,7 @@ class InteractionPlanGenerationPipeline:
                         frame_timestamps=frame_timestamps,
                     ),
                     image_paths=image_paths,
+                    frame_timestamps_seconds=frame_timestamps,
                     max_tokens=self.max_output_tokens,
                 )
             except Exception:

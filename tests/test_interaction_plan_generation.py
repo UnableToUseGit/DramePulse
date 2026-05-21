@@ -75,6 +75,7 @@ class InteractionPlanGenerationPipelineTest(unittest.TestCase):
                 system_prompt: str,
                 user_prompt: str,
                 image_paths: list[Path],
+                frame_timestamps_seconds: list[float] | None = None,
                 max_tokens: int = 1200,
             ) -> dict[str, object]:
                 self.calls.append(
@@ -82,6 +83,7 @@ class InteractionPlanGenerationPipelineTest(unittest.TestCase):
                         "system_prompt": system_prompt,
                         "user_prompt": user_prompt,
                         "image_paths": image_paths,
+                        "frame_timestamps_seconds": frame_timestamps_seconds,
                         "max_tokens": max_tokens,
                     }
                 )
@@ -161,6 +163,7 @@ class InteractionPlanGenerationPipelineTest(unittest.TestCase):
                 system_prompt: str,
                 user_prompt: str,
                 image_paths: list[Path],
+                frame_timestamps_seconds: list[float] | None = None,
                 max_tokens: int = 1200,
             ) -> dict[str, object]:
                 raise RuntimeError("llm failed")
