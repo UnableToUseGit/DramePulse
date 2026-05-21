@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Callable, Sequence
 
-from .runner import transcribe_video_to_srt
+from scripts.transcription.runner import transcribe_video_to_srt
 
 
 def build_parser() -> argparse.ArgumentParser:

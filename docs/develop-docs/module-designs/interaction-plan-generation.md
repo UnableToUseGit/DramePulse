@@ -291,18 +291,26 @@ generate_interaction_plan(
     highlight_asset,
     video_file_path,
     subtitle_file_path,
+    danmaku_items,
     strategy_config=None,
     historical_stats=None,
 )
 ```
 
-其中历史弹幕由模块内部根据 `highlight_asset["video_id"]` 查询：
+其中 `danmaku_items` 直接使用当前视频的弹幕数据，数据结构参考 `data/case1/ep01.json` 中的 `danmaku` 数组：
 
-```python
-danmaku_items = danmaku_provider.list_by_video_id(video_id)
+```json
+[
+  {
+    "time_sec": 0.585,
+    "text": "坏菜了",
+    "digg_count": 78,
+    "score": 68.1777402742
+  }
+]
 ```
 
-这种设计可以避免上游模块关心弹幕数据源细节。
+这种设计让数据读取职责留在上游数据准备流程中，交互方案生成模块只负责消费已经准备好的视频、字幕、高光和弹幕上下文。
 
 ## 7. 模块边界
 

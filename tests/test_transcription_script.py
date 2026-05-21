@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.transcription.script import main
+from scripts.transcribe_video import main
 
 
 class TranscriptionScriptTest(unittest.TestCase):
