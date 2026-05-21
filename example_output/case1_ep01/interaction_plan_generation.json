@@ -1,0 +1,169 @@
+{
+  "video_id": "case1_ep01",
+  "video_path": "data/case1/ep01.mp4",
+  "source_json_path": "data/case1/ep01.json",
+  "subtitle_path": "data/case1/ep01.srt",
+  "highlight_recognition_path": "output/case1_ep01/highlight_recognition.json",
+  "interaction_plans": [
+    {
+      "interaction_id": "i_h_case1_ep01_001",
+      "highlight_id": "h_case1_ep01_001",
+      "video_id": "case1_ep01",
+      "trigger_time": 8.96,
+      "expire_time": 12.04,
+      "interaction_type": "danmaku_poll",
+      "question": "换你是女主你什么反应？",
+      "options": [
+        {
+          "option_id": "o_h_case1_ep01_001_001",
+          "text": "直接懵了",
+          "danmaku_text": "我人直接傻了啊！",
+          "rank": 1,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_001_002",
+          "text": "长得帅不亏",
+          "danmaku_text": "男主这么帅血赚啊！",
+          "rank": 2,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_001_003",
+          "text": "赶紧跑",
+          "danmaku_text": "什么情况溜了溜了",
+          "rank": 3,
+          "base_score": 0.8
+        }
+      ],
+      "feedback": {
+        "type": "poll_result",
+        "show_ratio": true,
+        "show_resonance_text": true,
+        "resonance_text_template": "你和{ratio}%的观众一样选择了「{option}」"
+      },
+      "display_position": "subtitle_safe_area",
+      "status": "active"
+    },
+    {
+      "interaction_id": "i_h_case1_ep01_002",
+      "highlight_id": "h_case1_ep01_002",
+      "video_id": "case1_ep01",
+      "trigger_time": 33.62,
+      "expire_time": 44.42,
+      "interaction_type": "danmaku_poll",
+      "question": "你觉得女主这穿越奖励值不值？",
+      "options": [
+        {
+          "option_id": "o_h_case1_ep01_002_001",
+          "text": "血赚",
+          "danmaku_text": "这奖励搁我我直接笑醒啊！",
+          "rank": 1,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_002_002",
+          "text": "一般",
+          "danmaku_text": "就给个帅哥？福利还不够啊",
+          "rank": 2,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_002_003",
+          "text": "血亏",
+          "danmaku_text": "好好的现代生活没了啊喂",
+          "rank": 3,
+          "base_score": 0.8
+        }
+      ],
+      "feedback": {
+        "type": "poll_result",
+        "show_ratio": true,
+        "show_resonance_text": true,
+        "resonance_text_template": "你和 {ratio}% 的观众一样选择了「{option}」"
+      },
+      "display_position": "subtitle_safe_area",
+      "status": "active"
+    },
+    {
+      "interaction_id": "i_h_case1_ep01_003",
+      "highlight_id": "h_case1_ep01_003",
+      "video_id": "case1_ep01",
+      "trigger_time": 67.56,
+      "expire_time": 79.01,
+      "interaction_type": "danmaku_poll",
+      "question": "你觉得傅成会答应娶叶双吗？",
+      "options": [
+        {
+          "option_id": "o_h_case1_ep01_003_001",
+          "text": "肯定会",
+          "danmaku_text": "这婚指定得成啊！",
+          "rank": 1,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_003_002",
+          "text": "绝对不会",
+          "danmaku_text": "换我我才不娶！",
+          "rank": 2,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_003_003",
+          "text": "得看后续发展",
+          "danmaku_text": "这剧情猜不透啊",
+          "rank": 3,
+          "base_score": 0.8
+        }
+      ],
+      "feedback": {
+        "type": "poll_result",
+        "show_ratio": true,
+        "show_resonance_text": true,
+        "resonance_text_template": "你和{ratio}%的观众一样选择了「{option}」"
+      },
+      "display_position": "subtitle_safe_area",
+      "status": "active"
+    },
+    {
+      "interaction_id": "i_h_case1_ep01_004",
+      "highlight_id": "h_case1_ep01_004",
+      "video_id": "case1_ep01",
+      "trigger_time": 79.01,
+      "expire_time": 116.12,
+      "interaction_type": "danmaku_poll",
+      "question": "这现场乱成一锅粥，你觉得是谁在搞鬼？",
+      "options": [
+        {
+          "option_id": "o_h_case1_ep01_004_001",
+          "text": "赵盼娣",
+          "danmaku_text": "绝对是赵盼娣这个后妈搞的幺蛾子！",
+          "rank": 1,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_004_002",
+          "text": "王天城",
+          "danmaku_text": "我看王天城也不对劲，哪有喜酒喝失忆的？",
+          "rank": 2,
+          "base_score": 0.8
+        },
+        {
+          "option_id": "o_h_case1_ep01_004_003",
+          "text": "其他人",
+          "danmaku_text": "我觉得还有别的人在背后搞事！",
+          "rank": 3,
+          "base_score": 0.8
+        }
+      ],
+      "feedback": {
+        "type": "poll_result",
+        "show_ratio": true,
+        "show_resonance_text": true,
+        "resonance_text_template": "你和{ratio}%的观众一样选择了「{option}」"
+      },
+      "display_position": "subtitle_safe_area",
+      "status": "active"
+    }
+  ]
+}

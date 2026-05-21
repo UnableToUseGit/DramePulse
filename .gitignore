@@ -104,6 +104,11 @@ data/case*
 data/data.jsonl
 *.tmp
 *.temp
+!data/case1/
+!data/case1/**
+!example_output/
+!example_output/case1_ep01/
+!example_output/case1_ep01/**
 
 # Hugging Face and model caches
 .cache/

@@ -1,0 +1,72 @@
+{
+  "video_id": "case1_ep01",
+  "video_path": "data/case1/ep01.mp4",
+  "source_json_path": "data/case1/ep01.json",
+  "subtitle_path": "data/case1/ep01.srt",
+  "highlight_assets": [
+    {
+      "highlight_id": "h_case1_ep01_001",
+      "video_id": "case1_ep01",
+      "start_time": 8.96,
+      "end_time": 12.04,
+      "highlight_type": "shocking_opening",
+      "emotion": "shock",
+      "intensity": 0.85,
+      "summary": "Ye Shuang wakes up to find herself kissing a man, expressing her shock aloud.",
+      "reason": "The unexpected opening intimate scene and the protagonist's shocked reaction immediately attract viewers' attention and curiosity.",
+      "confidence": 1.0,
+      "highlight_score": 1.0,
+      "status": "verified",
+      "created_at": "2026-05-21T09:39:23.314134Z",
+      "updated_at": "2026-05-21T09:39:23.314134Z"
+    },
+    {
+      "highlight_id": "h_case1_ep01_002",
+      "video_id": "case1_ep01",
+      "start_time": 33.62,
+      "end_time": 44.42,
+      "highlight_type": "transmigration_reveal",
+      "emotion": "surprise",
+      "intensity": 0.9,
+      "summary": "Ye Shuang realizes she was hit by a car after saving someone before, and speculates that she was transmigrated as a reward with a handsome man.",
+      "reason": "The key transmigration setting of the story is revealed, which is the core plot point that hooks the audience.",
+      "confidence": 1.0,
+      "highlight_score": 1.0,
+      "status": "verified",
+      "created_at": "2026-05-21T09:39:23.314134Z",
+      "updated_at": "2026-05-21T09:39:23.314134Z"
+    },
+    {
+      "highlight_id": "h_case1_ep01_003",
+      "video_id": "case1_ep01",
+      "start_time": 67.56,
+      "end_time": 79.01,
+      "highlight_type": "conflict_escalation",
+      "emotion": "tension",
+      "intensity": 0.8,
+      "summary": "Zhao Pandi accuses Fu Cheng of ruining Ye Shuang and demands he marry her, otherwise she will sue him for rape.",
+      "reason": "The sudden family conflict and forced marriage plot create strong dramatic tension, prompting viewers to discuss and follow the follow-up development.",
+      "confidence": 1.0,
+      "highlight_score": 1.0,
+      "status": "verified",
+      "created_at": "2026-05-21T09:39:23.314134Z",
+      "updated_at": "2026-05-21T09:39:23.314134Z"
+    },
+    {
+      "highlight_id": "h_case1_ep01_004",
+      "video_id": "case1_ep01",
+      "start_time": 79.01,
+      "end_time": 116.12,
+      "highlight_type": "family_contradiction",
+      "emotion": "anger",
+      "intensity": 0.85,
+      "summary": "Wang Tiancheng argues with Zhao Pandi, revealing their stepmother-stepson relationship, and the crowd accuses Ye Shuang of drugging Fu Cheng, making the scene chaotic.",
+      "reason": "The intense quarrel between family members, the revelation of the stepmother-stepson identity, and the framing of Ye Shuang further escalate the conflict, which is highly interactive.",
+      "confidence": 1.0,
+      "highlight_score": 1.0,
+      "status": "verified",
+      "created_at": "2026-05-21T09:39:23.314134Z",
+      "updated_at": "2026-05-21T09:39:23.314134Z"
+    }
+  ]
+}
