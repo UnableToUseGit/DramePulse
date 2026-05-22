@@ -30,6 +30,7 @@
         "resume",
         "seek_forward",
         "seek_backward",
+        "playback_rate_change",
         "rewatch_segment",
         "watch_complete"
       ],

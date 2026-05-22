@@ -23,6 +23,8 @@ Desktop.ini
 *.pem
 *.key
 *.crt
+.codex-ssh/
+LOCAL_ACCESS.md
 
 # Logs
 logs/

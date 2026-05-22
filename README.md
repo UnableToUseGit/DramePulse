@@ -131,6 +131,39 @@ npm start
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
+## 本地运行后端 API
+
+当前后端 API 位于：
+
+```text
+services/api/
+```
+
+它是一个 FastAPI 服务，第一版提供 OSS 视频代理播放和播放行为事件记录。视频元数据保存在 MySQL，视频文件本体保存在 OSS，播放器通过后端 `/stream` 接口播放，避免 OSS 默认域名触发下载行为。
+
+安装依赖后，先初始化数据库并从 OSS 导入视频元数据：
+
+```bash
+python -m services.api.scripts.init_db
+python -m services.api.scripts.import_oss_videos
+```
+
+启动服务：
+
+```bash
+uvicorn services.api.main:app --host 0.0.0.0 --port 8000
+```
+
+核心接口：
+
+```text
+GET  /api/health
+GET  /api/videos
+GET  /api/videos/{video_id}
+GET  /api/videos/{video_id}/stream
+POST /api/playback-events
+```
+
 ## GitHub 协作原则
 
 `main` 分支只放确认无误、已经合并的稳定内容。不要直接在 `main` 上开发具体功能。
