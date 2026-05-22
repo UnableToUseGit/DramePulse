@@ -1,0 +1,31 @@
+[project]
+name = "dramepulse"
+version = "0.1.0"
+description = "Instant interaction triggering system for short drama viewing scenarios."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "requests>=2.31.0",
+  "dashscope>=1.25.0",
+  "oss2>=2.19.0",
+  "volcengine-python-sdk>=5.0.0",
+  "opencv-python>=4.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "jsonschema>=4.20.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

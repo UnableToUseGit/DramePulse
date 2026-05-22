@@ -54,6 +54,8 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
+.python-version
+.hypothesis/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -124,6 +126,7 @@ checkpoints/
 playwright-report/
 test-results/
 screenshots/
+.superpowers/
 
 # Keep repository placeholders
 !.gitkeep

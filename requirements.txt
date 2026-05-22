@@ -1,0 +1,10 @@
+# Runtime dependencies for DramePulse pipelines and scripts.
+requests>=2.31.0
+dashscope>=1.25.0
+oss2>=2.19.0
+volcengine-python-sdk>=5.0.0
+opencv-python>=4.8.0
+
+# Development and validation helpers.
+pytest>=8.0.0
+jsonschema>=4.20.0
