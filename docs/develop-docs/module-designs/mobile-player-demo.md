@@ -15,7 +15,7 @@ Interaction Plan
   ↓
 用户低摩擦点击
   ↓
-比例反馈与共鸣弹幕
+比例结果态反馈
   ↓
 端内事件流与本地统计更新
 ```
@@ -30,8 +30,8 @@ Interaction Plan
 2. 高保真贴近红果剧场式竖屏短剧播放页，让评委快速理解使用场景；
 3. 播放到高光点时自动触发互动，不要求用户主动寻找入口；
 4. 互动形式为屏幕中间的弹幕投票条，不暂停播放，不清空普通弹幕；
-5. 用户点击后立即展示投票比例和共鸣弹幕；
-6. 端内记录曝光、点击、反馈展示等事件，并在 debug 面板中展示本地事件流和统计；
+5. 用户点击后立即展示投票比例结果态，结果态短暂停留后自动消失；
+6. 端内记录曝光、点击、反馈展示、自然消失等事件，并在本地状态中维护统计；
 7. 为后续接入真实 `POST /api/events` 和策略更新服务保留数据契约边界。
 
 ## 3. 体验范围
@@ -43,8 +43,8 @@ Interaction Plan
 - 高光点自动触发互动；
 - 中间弹幕投票条；
 - 点击后的比例反馈；
-- 点击后的共鸣弹幕；
-- 右上角 debug 开关；
+- 真实爬取弹幕的移动端采样展示；
+- 播放、暂停、拖拽进度条；
 - 端内事件流；
 - 端内统计计数。
 
@@ -58,6 +58,8 @@ Interaction Plan
 - 真实 `POST /api/events`；
 - 服务端统计聚合；
 - 策略更新服务；
+- 点击后的共鸣弹幕；
+- 右上角 debug 面板；
 - iOS TestFlight 或 Android APK 作为第一版完成条件。
 
 ## 4. 界面设计
@@ -78,7 +80,16 @@ Interaction Plan
 
 互动投票条位于屏幕中间区域。
 
-触发时机来自 `Interaction Plan.trigger_time`。播放器当前时间进入触发窗口后，系统自动展示投票条。
+触发时机来自 `Interaction Plan.trigger_time`。播放器当前时间到达触发点后，系统自动展示投票条。
+
+当前前端不使用 `expire_time` 控制 UI 展示时长。`expire_time` 仍作为后端互动方案字段保留，但它是否进入最终契约还未定稿。
+
+当前 UI 展示时长由前端控制：
+
+- 投票态展示 3 秒；用户未点击则自动消失，并记录 `interaction_dismiss`；
+- 用户点击后进入结果态，结果态展示 2 秒后自动消失；
+- 同一个 `interaction_id` 完成后不重复触发；
+- seek 到未完成互动的触发点之后，可以触发对应投票。
 
 投票条设计原则：
 
@@ -100,27 +111,21 @@ Interaction Plan
 
 ### 4.3 点击反馈
 
-用户点击某个选项后，反馈分两层：
-
-1. 投票条变为结果态，例如：
+用户点击某个选项后，投票条变为结果态，例如：
 
 ```text
 你和 68% 的观众一样选择了「爽到了」
 ```
 
-2. 同时生成 2 到 3 条共鸣弹幕，例如：
-
-```text
-爽到了！
-这波反转绝了
-姐妹们懂我
-```
-
 结果态中的比例数字、被选选项和关键提示使用红橙色强调。普通弹幕继续保留，形成真实观看氛围。
+
+点击后的共鸣弹幕作为下一阶段扩展，不在当前 A 版互动闭环中实现。后续实现时，应复用普通弹幕层的运行模型，而不是增加独立的静态飘层。
 
 ### 4.4 Debug 面板
 
-右上角放置轻量 debug 图标。默认关闭时页面尽量像真实短剧 App；打开后展示 DramePulse 的算法与事件信息。
+右上角预留轻量 debug 入口。当前 A 版播放器仍展示真实 App 的右上角区域，但 debug 面板暂未恢复，以免干扰播放器、弹幕和投票条的基础体验。
+
+后续恢复 debug 面板时，默认关闭时页面尽量像真实短剧 App；打开后展示 DramePulse 的算法与事件信息。
 
 debug 面板展示：
 
@@ -135,9 +140,30 @@ debug 面板展示：
 
 debug 面板只用于评审展示和开发调试，不作为普通用户界面。
 
+### 4.5 普通弹幕
+
+普通弹幕来自真实爬取数据，但移动端不会原样展示全量弹幕。当前实现先做移动端采样：
+
+- 从 `data/case1/ep01.json` 的全量弹幕中读取 `danmaku` 数组；
+- 每 1 秒时间桶最多保留 1 条；
+- 全局相邻展示弹幕间隔必须大于 1 秒；
+- 过滤过长文本；
+- 同桶内优先选择 `digg_count` 和 `score` 更高、文本更短的弹幕。
+
+当前样例中，原始弹幕约 352 条，移动端采样后约 62 条。
+
+弹幕运行模型参考 `docs/references/Danmaku`：
+
+- 弹幕层维护 `runningList`；
+- 每条弹幕进入屏幕后测量实际宽高；
+- 位移按舞台宽度、弹幕宽度和统一速度计算；
+- 只有当 `x + width < 0`，即整条弹幕完全离开屏幕后才移除；
+- 暂停时停止 RAF，保留当前弹幕位置；
+- seek 后清空当前弹幕，重置发射位置，当前时间点之后的弹幕从右侧重新进入。
+
 ## 5. 数据输入
 
-第一版使用本地 fixture，不接真实后端。
+第一版使用本地 fixture，不接真实后端。这里的 fixture 应理解为后端 API response 的本地替身，而不是前端写死策略。
 
 ### 5.1 视频数据
 
@@ -145,7 +171,11 @@ debug 面板只用于评审展示和开发调试，不作为普通用户界面�
 data/case1/ep01.mp4
 ```
 
-用于短剧播放。
+用于短剧播放。Expo app 内复制到：
+
+```text
+apps/player-demo/assets/video/ep01.mp4
+```
 
 ### 5.2 弹幕数据
 
@@ -155,10 +185,18 @@ data/case1/ep01.json
 
 读取其中 `danmaku` 数组，用于普通弹幕展示。
 
+Expo app 内复制到：
+
+```text
+apps/player-demo/src/fixtures/danmaku.json
+```
+
+前端读取后先 normalize，再调用 `sampleMobileDanmaku` 做移动端采样。
+
 ### 5.3 互动方案
 
 ```text
-example_output/case1_ep01/interaction_plan_generation.json
+output/case1_ep01/interaction_plan_generation.json
 ```
 
 读取其中 `interaction_plans` 数组。每个 `Interaction Plan` 至少消费以下字段：
@@ -167,7 +205,6 @@ example_output/case1_ep01/interaction_plan_generation.json
 - `highlight_id`
 - `video_id`
 - `trigger_time`
-- `expire_time`
 - `interaction_type`
 - `question`
 - `options`
@@ -176,6 +213,14 @@ example_output/case1_ep01/interaction_plan_generation.json
 - `status`
 
 第一版只渲染 `interaction_type = "danmaku_poll"`。
+
+当前 Expo app 使用本地文件模拟后端响应：
+
+```text
+apps/player-demo/src/fixtures/interaction-plan-generation.json
+```
+
+当前前端只使用 `trigger_time` 判断是否触发。`expire_time` 暂时不参与前端 UI 控制，字段是否保留等待后续契约确认。
 
 ## 6. 端内事件
 
@@ -221,7 +266,7 @@ example_output/case1_ep01/interaction_plan_generation.json
 
 ## 7. 本地统计
 
-第一版在端内维护最小统计，用于 debug 面板展示闭环效果。
+第一版在端内维护最小统计，用于后续 debug 面板和答辩展示闭环效果。
 
 统计指标：
 
@@ -265,20 +310,24 @@ apps/player-demo/
 
 建议组件边界如下：
 
-- `PlayerScreen`：播放页总入口，负责组合视频、弹幕、互动、debug；
+- `PlayerScreen`：播放页总入口，负责组合视频、弹幕和互动；
 - `VideoStage`：视频播放与当前时间监听；
 - `DanmakuLayer`：普通弹幕展示；
 - `InteractionPollBar`：中间弹幕投票条；
-- `FeedbackBurst`：点击后的共鸣弹幕与结果反馈；
+- `FeedbackBurst`：预留组件，后续用于点击后的共鸣弹幕；
 - `PlayerChrome`：顶部、右侧按钮、底部剧集信息和底部 tab；
-- `DebugPanel`：高光、互动、事件流、统计展示。
+- `DebugPanel`：预留组件，后续用于高光、互动、事件流、统计展示；
+- `danmakuSampling`：将真实全量弹幕采样为适合移动端展示的低密度弹幕；
+- `danmakuScheduler`：维护弹幕 `runningList`、seek 定位和离屏移除；
+- `interactionScheduler`：根据 `trigger_time` 和已完成 interaction 判断是否触发投票；
+- `events`：创建本地 `UserEvent` 并更新端内统计。
 
 核心状态流：
 
 ```text
 VideoStage currentTime
   ↓
-PlayerScreen 判断是否进入 trigger_time
+PlayerScreen 判断是否达到 trigger_time
   ↓
 InteractionPollBar 曝光
   ↓
@@ -288,9 +337,9 @@ InteractionPollBar 曝光
   ↓
 更新本地统计
   ↓
-FeedbackBurst 展示比例反馈和共鸣弹幕
+InteractionPollBar 展示比例结果态
   ↓
-DebugPanel 展示事件与统计
+结果态 2 秒后自动消失
 ```
 
 ## 10. 验收标准
@@ -303,16 +352,20 @@ DebugPanel 展示事件与统计
 4. 普通弹幕可在视频上滚动；
 5. 播放到高光点时，中间弹幕投票条自动出现；
 6. 点击选项后，投票条变为比例结果态；
-7. 点击后出现 2 到 3 条共鸣弹幕；
-8. 右上角 debug 图标可以打开/关闭面板；
-9. debug 面板能看到事件流和本地统计变化；
-10. 页面不依赖真实后端服务即可完成演示。
+7. 用户不点击时，投票条 3 秒后自动消失并记录 dismiss；
+8. 用户点击后，结果态 2 秒后自动消失；
+9. seek 后普通弹幕清空并从当前时间点重新进入；
+10. 普通弹幕不会在未完全离屏前被提前移除；
+11. 页面不依赖真实后端服务即可完成演示。
 
 ## 11. 后续扩展
 
 第一版完成后，可以继续扩展：
 
 - 接入真实 `POST /api/events`；
+- 接入真实 `GET /api/interaction-plans`；
+- 恢复 debug 面板，展示事件流和本地统计变化；
+- 点击后生成 2 到 3 条共鸣弹幕；
 - 增加服务端统计聚合；
 - 接入策略更新模块；
 - 在进度条上展示高光标记；
