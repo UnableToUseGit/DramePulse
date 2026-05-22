@@ -34,6 +34,7 @@ pnpm-debug.log*
 
 # Node.js / frontend
 node_modules/
+.expo/
 .npm/
 .pnpm-store/
 .yarn/cache/
@@ -44,6 +45,7 @@ dist/
 build/
 .next/
 out/
+web-build/
 .nuxt/
 .svelte-kit/
 coverage/
@@ -99,6 +101,8 @@ data/downloads/
 *.wav
 *.aac
 *.flac
+!apps/player-demo/assets/video/
+!apps/player-demo/assets/video/ep01.mp4
 
 # Generated data outputs
 output/

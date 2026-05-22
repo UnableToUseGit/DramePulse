@@ -26,6 +26,12 @@ output/case1_ep01/interaction_plan_generation.json
 - `scripts/run_highlight_recognition.py`
 - `scripts/run_interaction_plan_generation.py`
 
+## 2.1 当前应用入口
+
+- `apps/player-demo/`
+
+该目录是 React Native + Expo 移动端播放器 Demo。当前版本只包含单个竖屏短剧播放页，使用本地 fixture 展示普通弹幕、中间弹幕投票条、比例反馈、共鸣弹幕、debug 面板和端内事件统计。
+
 ## 3. 当前样例数据
 
 - `data/case1/ep01.mp4`
@@ -57,4 +63,7 @@ Doubao-Seed-2.0-pro
 - `thinking` 默认关闭；
 - 交互方案生成当前只支持 `danmaku_poll`；
 - `example_output/` 中保存可直接查看的样例结果；
-- `data/case1/` 中保存当前协作样例短剧数据。
+- `data/case1/` 中保存当前协作样例短剧数据；
+- 移动端播放器 Demo 当前使用本地 fixture 和端内统计，不接真实后端 API；
+- 移动端播放器 Demo 当前通过 Expo Go 预览，尚未配置 EAS Build 安装包；
+- Expo CLI 建议使用 Node 22 LTS；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。

@@ -252,7 +252,7 @@ apps/player-demo/
 - `expo-video` 作为视频播放层；
 - 本地 fixture 作为数据输入；
 - 端内状态管理第一版使用 React state；
-- 图标优先使用 `lucide-react-native` 或 Expo 生态兼容图标。
+- 图标使用 Expo 自带的 `@expo/vector-icons`，避免 React 19 peer dependency 冲突。
 
 交付方式：
 

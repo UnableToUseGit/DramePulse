@@ -105,7 +105,31 @@ example_output/case1_ep01/
 
 - `docs/develop-docs/module-designs/highlight-recognition.md`
 - `docs/develop-docs/module-designs/interaction-plan-generation.md`
+- `docs/develop-docs/module-designs/mobile-player-demo.md`
 - `docs/develop-docs/status/current-implementation.md`
+
+## 本地运行移动端播放器 Demo
+
+当前移动端 Demo 位于：
+
+```text
+apps/player-demo/
+```
+
+它是一个 React Native + Expo App，第一版只包含竖屏短剧播放页。Demo 使用本地样例视频、弹幕和互动方案 fixture，在 iOS 和 Android 上可通过 Expo Go 扫码体验。
+
+安装依赖并启动：
+
+```bash
+cd apps/player-demo
+nvm use
+npm install
+npm start
+```
+
+启动后使用手机上的 Expo Go 扫描终端中的二维码。当前版本不依赖真实后端服务，用户事件和统计在端内模拟。
+
+如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
 ## GitHub 协作原则
 

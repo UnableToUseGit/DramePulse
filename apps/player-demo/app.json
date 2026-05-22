@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "DramePulse Player",
+    "slug": "dramepulse-player-demo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dramepulse",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-video"
+    ]
+  }
+}
