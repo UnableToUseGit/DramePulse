@@ -1,5 +1,6 @@
 import danmakuPayload from "../fixtures/danmaku.json";
 import interactionPlanPayload from "../fixtures/interaction-plan-generation.json";
+import { sampleMobileDanmaku } from "./danmakuSampling";
 import type { DanmakuItem, InteractionFeedback, InteractionPlan, PlayerFixtures } from "./types";
 
 type RawDanmakuPayload = {
@@ -96,9 +97,10 @@ function normalizeInteractionPlans(payload: RawInteractionPayload): InteractionP
 
 export function getDemoFixtures(): PlayerFixtures {
   const interactionPayload = interactionPlanPayload as RawInteractionPayload;
+  const normalizedDanmaku = normalizeDanmakuItems(danmakuPayload as RawDanmakuPayload);
   return {
     videoId: toStringValue(interactionPayload.video_id, "case1_ep01"),
-    danmaku: normalizeDanmakuItems(danmakuPayload as RawDanmakuPayload),
+    danmaku: sampleMobileDanmaku(normalizedDanmaku),
     interactionPlans: normalizeInteractionPlans(interactionPayload)
   };
 }

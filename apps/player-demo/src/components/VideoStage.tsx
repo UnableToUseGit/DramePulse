@@ -1,15 +1,32 @@
 import { useEvent } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors, radii, spacing } from "../theme";
 
 const videoSource = require("../../assets/video/ep01.mp4");
 
-export function VideoStage({ onTimeChange }: { onTimeChange: (time: number) => void }) {
+export interface SeekRequest {
+  id: number;
+  time: number;
+}
+
+export function VideoStage({
+  isStarted,
+  onStart,
+  isPlaying,
+  seekRequest,
+  onTimeChange
+}: {
+  isStarted: boolean;
+  onStart: () => void;
+  isPlaying: boolean;
+  seekRequest: SeekRequest | undefined;
+  onTimeChange: (time: number) => void;
+}) {
   const player = useVideoPlayer(videoSource, (instance) => {
     instance.loop = false;
     instance.timeUpdateEventInterval = 0.25;
-    instance.play();
   });
   const timeUpdate = useEvent(player, "timeUpdate", {
     currentTime: 0,
@@ -22,6 +39,21 @@ export function VideoStage({ onTimeChange }: { onTimeChange: (time: number) => v
     onTimeChange(timeUpdate?.currentTime ?? 0);
   }, [onTimeChange, timeUpdate?.currentTime]);
 
+  useEffect(() => {
+    if (isStarted && isPlaying) {
+      player.play();
+    } else {
+      player.pause();
+    }
+  }, [isPlaying, isStarted, player]);
+
+  useEffect(() => {
+    if (seekRequest) {
+      player.currentTime = seekRequest.time;
+      onTimeChange(seekRequest.time);
+    }
+  }, [onTimeChange, player, seekRequest]);
+
   return (
     <View style={styles.root}>
       <VideoView
@@ -32,6 +64,14 @@ export function VideoStage({ onTimeChange }: { onTimeChange: (time: number) => v
         allowsFullscreen={false}
         allowsPictureInPicture={false}
       />
+      {!isStarted ? (
+        <View style={styles.startOverlay}>
+          <Pressable style={styles.startButton} onPress={onStart}>
+            <Text style={styles.startButtonText}>点击播放短剧</Text>
+          </Pressable>
+          <Text style={styles.startHint}>DramePulse 即时互动 Demo</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -44,5 +84,28 @@ const styles = StyleSheet.create({
   video: {
     width: "100%",
     height: "100%"
+  },
+  startOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.36)"
+  },
+  startButton: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent
+  },
+  startButtonText: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  startHint: {
+    marginTop: spacing.md,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700"
   }
 });

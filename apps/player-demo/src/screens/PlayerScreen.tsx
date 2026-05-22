@@ -1,104 +1,68 @@
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { DanmakuLayer } from "../components/DanmakuLayer";
-import { DebugPanel } from "../components/DebugPanel";
-import { FeedbackBurst } from "../components/FeedbackBurst";
-import { InteractionPollBar } from "../components/InteractionPollBar";
+import { PlaybackHint } from "../components/PlaybackHint";
+import { PlayerControls } from "../components/PlayerControls";
 import { PlayerChrome } from "../components/PlayerChrome";
-import { VideoStage } from "../components/VideoStage";
-import { createInitialStats, createUserEvent, updateStats } from "../domain/events";
+import { SeekRequest, VideoStage } from "../components/VideoStage";
 import { getDemoFixtures } from "../domain/fixtures";
-import type { InteractionOption, InteractionPlan, InteractionStats, UserEvent } from "../domain/types";
 
 export function PlayerScreen() {
   const fixtures = useMemo(() => getDemoFixtures(), []);
   const [currentTime, setCurrentTime] = useState(0);
-  const [debugVisible, setDebugVisible] = useState(false);
-  const [activePlan, setActivePlan] = useState<InteractionPlan | undefined>();
-  const [selectedOption, setSelectedOption] = useState<InteractionOption | undefined>();
-  const [triggeredIds, setTriggeredIds] = useState<Set<string>>(() => new Set());
-  const [events, setEvents] = useState<UserEvent[]>([]);
-  const [stats, setStats] = useState<InteractionStats>(() => createInitialStats());
+  const [isStarted, setIsStarted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
+  const [seekVersion, setSeekVersion] = useState(0);
 
-  const appendEvent = useCallback((event: UserEvent) => {
-    setEvents((current) => [...current, event]);
-    setStats((current) => updateStats(current, event));
+  const handleTimeChange = useCallback((time: number) => {
+    setCurrentTime(time);
   }, []);
 
-  const handleTimeChange = useCallback(
-    (time: number) => {
-      setCurrentTime(time);
-      const nextPlan = fixtures.interactionPlans.find(
-        (plan) => time >= plan.trigger_time && time <= plan.expire_time && !triggeredIds.has(plan.interaction_id)
-      );
-      if (!nextPlan) {
-        if (activePlan && !selectedOption && time > activePlan.expire_time) {
-          appendEvent(
-            createUserEvent({
-              eventType: "interaction_dismiss",
-              plan: activePlan,
-              clientTime: time
-            })
-          );
-          setTriggeredIds((current) => new Set(current).add(activePlan.interaction_id));
-          setActivePlan(undefined);
-        }
-        return;
-      }
+  const handleStart = useCallback(() => {
+    setIsStarted(true);
+    setIsPlaying(true);
+  }, []);
 
-      setActivePlan(nextPlan);
-      setSelectedOption(undefined);
-      setTriggeredIds((current) => new Set(current).add(nextPlan.interaction_id));
-      appendEvent(
-        createUserEvent({
-          eventType: "interaction_exposure",
-          plan: nextPlan,
-          clientTime: time
-        })
-      );
-    },
-    [activePlan, appendEvent, fixtures.interactionPlans, selectedOption, triggeredIds]
-  );
+  const handleTogglePlay = useCallback(() => {
+    if (!isStarted) {
+      handleStart();
+      return;
+    }
+    setIsPlaying((playing) => !playing);
+  }, [handleStart, isStarted]);
 
-  const handleSelect = useCallback(
-    (option: InteractionOption) => {
-      if (!activePlan || selectedOption) {
-        return;
-      }
-      setSelectedOption(option);
-      appendEvent(
-        createUserEvent({
-          eventType: "option_click",
-          plan: activePlan,
-          optionId: option.option_id,
-          clientTime: currentTime
-        })
-      );
-      appendEvent(
-        createUserEvent({
-          eventType: "feedback_shown",
-          plan: activePlan,
-          optionId: option.option_id,
-          clientTime: currentTime
-        })
-      );
-    },
-    [activePlan, appendEvent, currentTime, selectedOption]
-  );
+  const handleSeekCommit = useCallback((time: number) => {
+    setCurrentTime(time);
+    setIsStarted(true);
+    setSeekVersion((version) => version + 1);
+    setSeekRequest({ id: Date.now(), time });
+  }, []);
 
   return (
     <View style={styles.root}>
-      <VideoStage onTimeChange={handleTimeChange} />
-      <DanmakuLayer currentTime={currentTime} danmaku={fixtures.danmaku} />
-      <FeedbackBurst selectedOption={selectedOption} />
-      <InteractionPollBar plan={activePlan} selectedOption={selectedOption} onSelect={handleSelect} />
-      <PlayerChrome onToggleDebug={() => setDebugVisible((visible) => !visible)} />
-      <DebugPanel
-        visible={debugVisible}
+      <VideoStage
+        isStarted={isStarted}
+        isPlaying={isPlaying}
+        seekRequest={seekRequest}
+        onStart={handleStart}
+        onTimeChange={handleTimeChange}
+      />
+      {isStarted ? (
+        <DanmakuLayer
+          currentTime={currentTime}
+          danmaku={fixtures.danmaku}
+          isPlaying={isPlaying}
+          seekVersion={seekVersion}
+        />
+      ) : null}
+      {isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+      <PlaybackHint isStarted={isStarted} isPlaying={isPlaying} />
+      <PlayerChrome onToggleDebug={() => undefined} />
+      <PlayerControls
         currentTime={currentTime}
-        activePlan={activePlan}
-        events={events}
-        stats={stats}
+        duration={120}
+        onSeekCommit={handleSeekCommit}
       />
     </View>
   );
@@ -108,5 +72,8 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#050505"
+  },
+  tapLayer: {
+    ...StyleSheet.absoluteFillObject
   }
 });
