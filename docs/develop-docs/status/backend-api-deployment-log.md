@@ -120,16 +120,16 @@ http://39.96.219.88:8000/api/videos/ep_01/stream
 
 ## 2026-05-23
 
-### Local-first collaboration mode
+### 本地优先协作模式
 
-The backend now supports two runtime modes behind the same public API:
+后端现在支持两种运行模式，并且两种模式共用同一套对外 API：
 
 ```text
 DRAMEPULSE_MODE=local
 DRAMEPULSE_MODE=cloud
 ```
 
-Shared API paths are unchanged:
+对外接口路径保持不变：
 
 ```text
 GET  /api/health
@@ -139,58 +139,58 @@ GET  /api/videos/{video_id}/stream
 POST /api/playback-events
 ```
 
-Local mode is the default for team development after cloning the repository:
+本地模式是团队 clone 仓库后的默认开发方式：
 
-- Video file: `demo_video.mp4`
-- SQLite database: `dramepulse.sqlite`
-- Init command: `python -m services.api.scripts.init_local_dev`
-- Local API: `http://127.0.0.1:8000`
-- Local video row: `video_id=demo_ep01`, `oss_object_key=demo_video.mp4`, `source=local`
+- 视频文件：`demo_video.mp4`
+- SQLite 数据库：`dramepulse.sqlite`
+- 初始化命令：`python -m services.api.scripts.init_local_dev`
+- 本地 API：`http://127.0.0.1:8000`
+- 本地视频记录：`video_id=demo_ep01`，`oss_object_key=demo_video.mp4`，`source=local`
 
-Cloud mode keeps using Aliyun RDS MySQL and Aliyun OSS:
+云端模式继续使用阿里云 RDS MySQL 和阿里云 OSS：
 
-- ECS API: `http://39.96.219.88:8000`
-- ECS service: `dramepulse-api`
-- Service manager: `systemd`
-- Cloud video rows are loaded from MySQL and video bytes are proxied from OSS through `/stream`.
+- ECS API：`http://39.96.219.88:8000`
+- ECS 服务名：`dramepulse-api`
+- 服务管理方式：`systemd`
+- 云端视频元数据从 MySQL 读取，视频文件通过后端 `/stream` 接口从 OSS 代理读取。
 
-### Frontend switching rule
+### 前端切换规则
 
-The player demo now uses one frontend API base URL:
+播放器 Demo 现在只通过一个前端 API Base URL 切换本地和云端：
 
 ```text
 apps/player-demo/src/config/api.ts
 ```
 
-Local:
+本地：
 
 ```ts
 export const API_BASE_URL = "http://127.0.0.1:8000";
 ```
 
-Cloud:
+云端：
 
 ```ts
 export const API_BASE_URL = "http://39.96.219.88:8000";
 ```
 
-The frontend requests `GET /api/videos`, takes the first returned `stream_url`, and plays `{API_BASE_URL}{stream_url}`. It no longer needs to hard-code `demo_ep01` for local mode or `ep_01` for cloud mode.
+前端会先请求 `GET /api/videos`，取返回列表中的第一条 `stream_url`，再播放 `{API_BASE_URL}{stream_url}`。因此前端不再需要在本地模式写死 `demo_ep01`，也不需要在云端模式写死 `ep_01`。
 
-### Collaboration workflow
+### 团队协作流程
 
-- Teammates can clone the repository and run the backend locally without `.env`, MySQL, or OSS credentials.
-- Local debugging reads `dramepulse.sqlite`, streams `demo_video.mp4`, and writes playback events back to SQLite.
-- The maintainer can set `DRAMEPULSE_MODE=cloud` locally to verify cloud MySQL/OSS behavior.
-- After cloud verification, deploy the backend code to ECS and restart `dramepulse-api`.
-- Remote teammates who want cloud videos only need to change frontend `API_BASE_URL` to the ECS API address.
+- 同事 clone 仓库后，可以不配置 `.env`、MySQL 或 OSS 密钥，直接启动本地后端调试。
+- 本地调试时，后端读取 `dramepulse.sqlite`，播放 `demo_video.mp4`，并把播放事件写回 SQLite。
+- 维护者可以在本机设置 `DRAMEPULSE_MODE=cloud`，验证云端 MySQL/OSS 链路。
+- 云端验证通过后，将后端代码部署到 ECS，并重启 `dramepulse-api` 服务。
+- 远程同事如果想看云端视频，只需要把前端 `API_BASE_URL` 改成 ECS API 地址。
 
-### Verification
+### 验证结果
 
-Backend checks passed locally:
+本地后端测试已通过：
 
 ```text
 python -m pytest tests\test_api_routes.py tests\test_api_oss_client.py
 16 passed
 ```
 
-Python syntax checks passed for the modified backend modules and local init script.
+已对修改后的后端模块和本地初始化脚本执行 Python 语法检查。
