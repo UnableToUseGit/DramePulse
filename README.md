@@ -131,15 +131,6 @@ npm start
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
-前端通过 `apps/player-demo/src/config/api.ts` 中的 `API_BASE_URL` 访问后端。切换本地或云端视频时只改这一处：
-
-```ts
-export const API_BASE_URL = "http://127.0.0.1:8000";
-// export const API_BASE_URL = "http://39.96.219.88:8000";
-```
-
-播放器会先请求 `GET /api/videos`，再使用返回的第一条 `stream_url` 播放，因此 local/cloud 不需要写死不同的 video id。
-
 ## 本地运行后端 API
 
 当前后端 API 位于：

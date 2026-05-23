@@ -10,7 +10,6 @@ import { createInitialStats, createUserEvent, updateStats } from "../domain/even
 import { getDemoFixtures } from "../domain/fixtures";
 import { findActiveInteractionPlan } from "../domain/interactionScheduler";
 import type { InteractionOption, InteractionPlan, InteractionStats, UserEvent } from "../domain/types";
-import { fetchFirstVideoStreamUrl } from "../domain/videos";
 
 const POLL_IDLE_TTL_SEC = 3;
 const POLL_RESULT_TTL_SEC = 2;
@@ -29,7 +28,6 @@ export function PlayerScreen() {
   const [completedInteractionIds, setCompletedInteractionIds] = useState<Set<string>>(() => new Set());
   const [events, setEvents] = useState<UserEvent[]>([]);
   const [stats, setStats] = useState<InteractionStats>(() => createInitialStats());
-  const [videoUri, setVideoUri] = useState<string | undefined>();
 
   const appendEvent = useCallback((event: UserEvent) => {
     setEvents((current) => [...current, event]);
@@ -38,24 +36,6 @@ export function PlayerScreen() {
 
   const handleTimeChange = useCallback((time: number) => {
     setCurrentTime(time);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchFirstVideoStreamUrl()
-      .then((streamUrl) => {
-        if (isMounted) {
-          setVideoUri(streamUrl);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setVideoUri(undefined);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   useEffect(() => {
@@ -130,12 +110,9 @@ export function PlayerScreen() {
   ]);
 
   const handleStart = useCallback(() => {
-    if (!videoUri) {
-      return;
-    }
     setIsStarted(true);
     setIsPlaying(true);
-  }, [videoUri]);
+  }, []);
 
   const handleTogglePlay = useCallback(() => {
     if (!isStarted) {
@@ -188,7 +165,6 @@ export function PlayerScreen() {
         seekRequest={seekRequest}
         onStart={handleStart}
         onTimeChange={handleTimeChange}
-        videoUri={videoUri}
       />
       {isStarted ? (
         <DanmakuLayer

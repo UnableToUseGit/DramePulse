@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 
+const videoSource = require("../../assets/video/ep01.mp4");
+
 export interface SeekRequest {
   id: number;
   time: number;
@@ -14,17 +16,15 @@ export function VideoStage({
   onStart,
   isPlaying,
   seekRequest,
-  onTimeChange,
-  videoUri
+  onTimeChange
 }: {
   isStarted: boolean;
   onStart: () => void;
   isPlaying: boolean;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
-  videoUri: string | undefined;
 }) {
-  const player = useVideoPlayer(videoUri ? { uri: videoUri } : null, (instance) => {
+  const player = useVideoPlayer(videoSource, (instance) => {
     instance.loop = false;
     instance.timeUpdateEventInterval = 0.25;
   });
@@ -66,7 +66,7 @@ export function VideoStage({
       />
       {!isStarted ? (
         <View style={styles.startOverlay}>
-          <Pressable style={styles.startButton} onPress={onStart} disabled={!videoUri}>
+          <Pressable style={styles.startButton} onPress={onStart}>
             <Text style={styles.startButtonText}>点击播放短剧</Text>
           </Pressable>
           <Text style={styles.startHint}>DramePulse 即时互动 Demo</Text>

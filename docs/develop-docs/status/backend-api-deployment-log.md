@@ -154,27 +154,15 @@ POST /api/playback-events
 - 服务管理方式：`systemd`
 - 云端视频元数据从 MySQL 读取，视频文件通过后端 `/stream` 接口从 OSS 代理读取。
 
-### 前端切换规则
+### 前端当前状态
 
-播放器 Demo 现在只通过一个前端 API Base URL 切换本地和云端：
+播放器 Demo 当前仍保持前端 fixture 模式，不强制接入后端 API：
 
-```text
-apps/player-demo/src/config/api.ts
-```
+- 视频仍由前端本地资源 `apps/player-demo/assets/video/ep01.mp4` 提供。
+- 弹幕和互动方案仍读取 `apps/player-demo/src/fixtures/` 下的 fixture。
+- 用户事件和统计仍主要保存在前端内存中。
 
-本地：
-
-```ts
-export const API_BASE_URL = "http://127.0.0.1:8000";
-```
-
-云端：
-
-```ts
-export const API_BASE_URL = "http://39.96.219.88:8000";
-```
-
-前端会先请求 `GET /api/videos`，取返回列表中的第一条 `stream_url`，再播放 `{API_BASE_URL}{stream_url}`。因此前端不再需要在本地模式写死 `demo_ep01`，也不需要在云端模式写死 `ep_01`。
+后端的 local/cloud 模式只保证 API 和数据链路可用，不要求前端本轮必须改为调用后端。
 
 ### 团队协作流程
 
@@ -182,7 +170,7 @@ export const API_BASE_URL = "http://39.96.219.88:8000";
 - 本地调试时，后端读取 `dramepulse.sqlite`，播放 `demo_video.mp4`，并把播放事件写回 SQLite。
 - 维护者可以在本机设置 `DRAMEPULSE_MODE=cloud`，验证云端 MySQL/OSS 链路。
 - 云端验证通过后，将后端代码部署到 ECS，并重启 `dramepulse-api` 服务。
-- 远程同事如果想看云端视频，只需要把前端 `API_BASE_URL` 改成 ECS API 地址。
+- 前端同事可以继续使用本地 fixture 调试 UI；后续如需接入真实后端，再单独设计前端 API 对接方案。
 
 ### 验证结果
 
