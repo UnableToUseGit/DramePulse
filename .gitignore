@@ -103,8 +103,7 @@ data/downloads/
 *.wav
 *.aac
 *.flac
-!apps/player-demo/assets/video/
-!apps/player-demo/assets/video/ep01.mp4
+!demo_video.mp4
 
 # Generated data outputs
 output/
@@ -112,8 +111,10 @@ data/case*
 data/data.jsonl
 *.tmp
 *.temp
+!dramepulse.sqlite
 !data/case1/
 !data/case1/**
+data/case1/*.mp4
 !example_output/
 !example_output/case1_ep01/
 !example_output/case1_ep01/**

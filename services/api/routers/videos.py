@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Header, HTTPException, Response, status
-import oss2
 
 from ..oss_client import parse_range_header, read_object_range
 from ..repositories.videos import get_video, get_video_storage, list_active_videos
@@ -64,5 +63,9 @@ def stream_video(video_id: str, range_header: str | None = Header(default=None, 
             "Content-Range": f"bytes {parsed_range.start}-{parsed_range.end}/{total_size}",
         }
         return Response(content=body, status_code=status.HTTP_206_PARTIAL_CONTENT, headers=headers, media_type=content_type)
-    except oss2.exceptions.NoSuchKey as exc:
+    except FileNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OSS object not found") from exc
+    except Exception as exc:
+        if exc.__class__.__name__ == "NoSuchKey":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OSS object not found") from exc
+        raise

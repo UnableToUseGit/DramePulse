@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..db import db_cursor
+from ..config import get_settings
+from ..db import db_cursor, sql_placeholder
+
+
+def _row_to_dict(row: Any) -> dict[str, Any]:
+    return dict(row)
 
 
 def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
@@ -18,7 +23,8 @@ def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def list_active_videos() -> list[dict[str, Any]]:
-    with db_cursor() as cursor:
+    settings = get_settings()
+    with db_cursor(settings) as cursor:
         cursor.execute(
             """
             SELECT video_id, title, episode_no, duration, source
@@ -27,31 +33,36 @@ def list_active_videos() -> list[dict[str, Any]]:
             ORDER BY episode_no IS NULL, episode_no, video_id
             """
         )
-        return [_to_video_response(row) for row in cursor.fetchall()]
+        return [_to_video_response(_row_to_dict(row)) for row in cursor.fetchall()]
 
 
 def get_video(video_id: str) -> dict[str, Any] | None:
-    with db_cursor() as cursor:
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    with db_cursor(settings) as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT video_id, title, episode_no, duration, source
             FROM videos
-            WHERE video_id = %s AND status = 'active'
+            WHERE video_id = {placeholder} AND status = 'active'
             """,
             (video_id,),
         )
         row = cursor.fetchone()
-        return _to_video_response(row) if row else None
+        return _to_video_response(_row_to_dict(row)) if row else None
 
 
 def get_video_storage(video_id: str) -> dict[str, Any] | None:
-    with db_cursor() as cursor:
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    with db_cursor(settings) as cursor:
         cursor.execute(
-            """
+            f"""
             SELECT video_id, oss_bucket, oss_object_key, content_type, size
             FROM videos
-            WHERE video_id = %s AND status = 'active'
+            WHERE video_id = {placeholder} AND status = 'active'
             """,
             (video_id,),
         )
-        return cursor.fetchone()
+        row = cursor.fetchone()
+        return _row_to_dict(row) if row else None

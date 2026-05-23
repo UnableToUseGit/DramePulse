@@ -131,6 +131,15 @@ npm start
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
+前端通过 `apps/player-demo/src/config/api.ts` 中的 `API_BASE_URL` 访问后端。切换本地或云端视频时只改这一处：
+
+```ts
+export const API_BASE_URL = "http://127.0.0.1:8000";
+// export const API_BASE_URL = "http://39.96.219.88:8000";
+```
+
+播放器会先请求 `GET /api/videos`，再使用返回的第一条 `stream_url` 播放，因此 local/cloud 不需要写死不同的 video id。
+
 ## 本地运行后端 API
 
 当前后端 API 位于：
@@ -138,6 +147,48 @@ npm start
 ```text
 services/api/
 ```
+
+### 本地优先调试模式
+
+后端默认使用本地模式，协作者 clone 仓库后可以直接使用同一份调试数据，不依赖远程 RDS MySQL 或 OSS。
+
+根目录提交的共享调试数据：
+
+```text
+demo_video.mp4
+dramepulse.sqlite
+```
+
+默认本地配置：
+
+```env
+DRAMEPULSE_MODE=local
+SQLITE_PATH=dramepulse.sqlite
+LOCAL_OSS_ROOT=.
+LOCAL_OSS_BUCKET=local
+```
+
+初始化或刷新本地 SQLite：
+
+```bash
+python -m services.api.scripts.init_local_dev
+```
+
+本地启动 API：
+
+```bash
+uvicorn services.api.main:app --host 127.0.0.1 --port 8000
+```
+
+本地检查：
+
+```text
+GET http://127.0.0.1:8000/api/health
+GET http://127.0.0.1:8000/api/videos
+GET http://127.0.0.1:8000/api/videos/demo_ep01/stream
+```
+
+如需使用阿里云 RDS MySQL 和 OSS，将 `.env` 中 `DRAMEPULSE_MODE` 改为 `cloud`，并填写 MySQL/OSS 配置。两种模式的 API 路径保持一致。
 
 它是一个 FastAPI 服务，第一版提供 OSS 视频代理播放和播放行为事件记录。视频元数据保存在 MySQL，视频文件本体保存在 OSS，播放器通过后端 `/stream` 接口播放，避免 OSS 默认域名触发下载行为。
 

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from services.api.config import get_settings, require_complete_settings
-from services.api.db import connect
+from services.api.config import get_settings, require_complete_cloud_settings
+from services.api.db import connect_mysql
 
 
 def init_db() -> None:
     settings = get_settings()
-    require_complete_settings(settings)
-    connection = connect(settings, with_database=False)
+    require_complete_cloud_settings(settings)
+    connection = connect_mysql(settings, with_database=False)
     try:
         with connection.cursor() as cursor:
             cursor.execute(

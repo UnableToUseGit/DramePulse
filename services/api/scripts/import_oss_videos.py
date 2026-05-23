@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import PurePosixPath
 
-from services.api.config import get_settings, require_complete_settings
+from services.api.config import get_settings, require_complete_cloud_settings
 from services.api.db import db_cursor
 from services.api.oss_client import get_bucket
 
@@ -28,7 +28,7 @@ def make_title(object_key: str) -> str:
 
 def import_oss_videos() -> int:
     settings = get_settings()
-    require_complete_settings(settings)
+    require_complete_cloud_settings(settings)
     bucket = get_bucket(settings)
     imported = 0
     for obj in bucket.list_objects().object_list:

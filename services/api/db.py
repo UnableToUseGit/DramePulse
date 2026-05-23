@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+import sqlite3
 from typing import Any
-
-import pymysql
-from pymysql.connections import Connection
-from pymysql.cursors import DictCursor
 
 from .config import Settings, get_settings, require_complete_settings
 
 
-def connect(settings: Settings | None = None, *, with_database: bool = True) -> Connection:
+def connect_mysql(settings: Settings | None = None, *, with_database: bool = True) -> Any:
+    import pymysql
+    from pymysql.cursors import DictCursor
+
     resolved = settings or get_settings()
     require_complete_settings(resolved)
     kwargs: dict[str, Any] = {
@@ -33,15 +33,38 @@ def connect(settings: Settings | None = None, *, with_database: bool = True) -> 
     return pymysql.connect(**kwargs)
 
 
+def connect(settings: Settings | None = None, *, with_database: bool = True) -> Any:
+    return connect_mysql(settings, with_database=with_database)
+
+
+def connect_sqlite(settings: Settings | None = None) -> sqlite3.Connection:
+    resolved = settings or get_settings()
+    connection = sqlite3.connect(resolved.sqlite_path)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
 @contextmanager
-def db_cursor(settings: Settings | None = None) -> Iterator[DictCursor]:
-    connection = connect(settings)
+def db_cursor(settings: Settings | None = None) -> Iterator[Any]:
+    resolved = settings or get_settings()
+    connection = connect_sqlite(resolved) if resolved.mode == "local" else connect_mysql(resolved)
+    cursor = connection.cursor()
     try:
-        with connection.cursor() as cursor:
-            yield cursor
+        yield cursor
         connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
+        cursor.close()
         connection.close()
+
+
+def sql_placeholder(settings: Settings | None = None) -> str:
+    resolved = settings or get_settings()
+    return "?" if resolved.mode == "local" else "%s"
+
+
+def utc_now_sql(settings: Settings | None = None) -> str:
+    resolved = settings or get_settings()
+    return "strftime('%Y-%m-%d %H:%M:%f', 'now')" if resolved.mode == "local" else "UTC_TIMESTAMP(6)"

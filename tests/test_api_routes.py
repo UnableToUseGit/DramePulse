@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import os
+from pathlib import Path
+import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
 from services.api.main import create_app
+from services.api.scripts.init_local_dev import init_local_dev
 
 
 class ApiRoutesTest(unittest.TestCase):
@@ -95,6 +100,65 @@ class ApiRoutesTest(unittest.TestCase):
         )
 
         self.assertEqual(response.status_code, 422)
+
+
+class LocalModeApiRoutesTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.previous_env = {
+            name: os.environ.get(name)
+            for name in ["DRAMEPULSE_MODE", "SQLITE_PATH", "LOCAL_OSS_ROOT", "LOCAL_OSS_BUCKET"]
+        }
+        tmp_path = Path(self.tmpdir.name)
+        shutil.copyfile(Path("demo_video.mp4"), tmp_path / "demo_video.mp4")
+        os.environ["DRAMEPULSE_MODE"] = "local"
+        os.environ["SQLITE_PATH"] = str(tmp_path / "dramepulse.sqlite")
+        os.environ["LOCAL_OSS_ROOT"] = str(tmp_path)
+        os.environ["LOCAL_OSS_BUCKET"] = "local"
+        init_local_dev()
+        self.client = TestClient(create_app())
+
+    def tearDown(self) -> None:
+        for name, value in self.previous_env.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
+        self.tmpdir.cleanup()
+
+    def test_local_mode_lists_demo_video(self) -> None:
+        response = self.client.get("/api/videos")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["videos"][0]["video_id"], "demo_ep01")
+        self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/demo_ep01/stream")
+        self.assertEqual(response.json()["videos"][0]["source"], "local")
+
+    def test_local_mode_streams_demo_video(self) -> None:
+        response = self.client.get("/api/videos/demo_ep01/stream")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["content-type"], "video/mp4")
+        self.assertGreater(len(response.content), 1024)
+
+    def test_local_mode_streams_range(self) -> None:
+        response = self.client.get("/api/videos/demo_ep01/stream", headers={"Range": "bytes=0-3"})
+        self.assertEqual(response.status_code, 206)
+        self.assertEqual(len(response.content), 4)
+        self.assertEqual(response.headers["content-range"].split("/")[0], "bytes 0-3")
+
+    def test_local_mode_records_playback_event(self) -> None:
+        response = self.client.post(
+            "/api/playback-events",
+            json={
+                "event_type": "pause",
+                "user_id": "u_demo_001",
+                "video_id": "demo_ep01",
+                "client_time": 12.3,
+                "timestamp": 1779370000,
+                "extra": {"device": "expo_go"},
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["accepted"])
 
 
 if __name__ == "__main__":

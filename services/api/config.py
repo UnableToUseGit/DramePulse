@@ -23,6 +23,10 @@ def _getenv(name: str, default: str = "") -> str:
 
 @dataclass(frozen=True)
 class Settings:
+    mode: str
+    sqlite_path: Path
+    local_oss_root: Path
+    local_oss_bucket: str
     mysql_host: str
     mysql_port: int
     mysql_user: str
@@ -44,7 +48,12 @@ class Settings:
 
 def get_settings() -> Settings:
     _load_env_file()
+    repo_root = Path(__file__).resolve().parents[2]
     return Settings(
+        mode=_getenv("DRAMEPULSE_MODE", "local").lower(),
+        sqlite_path=repo_root / _getenv("SQLITE_PATH", "dramepulse.sqlite"),
+        local_oss_root=repo_root / _getenv("LOCAL_OSS_ROOT", "."),
+        local_oss_bucket=_getenv("LOCAL_OSS_BUCKET", "local"),
         mysql_host=_getenv("MYSQL_HOST"),
         mysql_port=int(_getenv("MYSQL_PORT", "3306")),
         mysql_user=_getenv("MYSQL_USER"),
@@ -59,7 +68,7 @@ def get_settings() -> Settings:
     )
 
 
-def require_complete_settings(settings: Settings) -> None:
+def require_complete_cloud_settings(settings: Settings) -> None:
     missing = [
         name
         for name, value in [
@@ -76,3 +85,8 @@ def require_complete_settings(settings: Settings) -> None:
     ]
     if missing:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+
+
+def require_complete_settings(settings: Settings) -> None:
+    if settings.mode == "cloud":
+        require_complete_cloud_settings(settings)

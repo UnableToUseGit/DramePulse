@@ -118,3 +118,79 @@ http://39.96.219.88:8000/api/videos/ep_01/stream
 当前播放器 Demo 仍然使用本地 fixture 和本地视频资源，尚未改为调用云端 API。
 
 
+## 2026-05-23
+
+### Local-first collaboration mode
+
+The backend now supports two runtime modes behind the same public API:
+
+```text
+DRAMEPULSE_MODE=local
+DRAMEPULSE_MODE=cloud
+```
+
+Shared API paths are unchanged:
+
+```text
+GET  /api/health
+GET  /api/videos
+GET  /api/videos/{video_id}
+GET  /api/videos/{video_id}/stream
+POST /api/playback-events
+```
+
+Local mode is the default for team development after cloning the repository:
+
+- Video file: `demo_video.mp4`
+- SQLite database: `dramepulse.sqlite`
+- Init command: `python -m services.api.scripts.init_local_dev`
+- Local API: `http://127.0.0.1:8000`
+- Local video row: `video_id=demo_ep01`, `oss_object_key=demo_video.mp4`, `source=local`
+
+Cloud mode keeps using Aliyun RDS MySQL and Aliyun OSS:
+
+- ECS API: `http://39.96.219.88:8000`
+- ECS service: `dramepulse-api`
+- Service manager: `systemd`
+- Cloud video rows are loaded from MySQL and video bytes are proxied from OSS through `/stream`.
+
+### Frontend switching rule
+
+The player demo now uses one frontend API base URL:
+
+```text
+apps/player-demo/src/config/api.ts
+```
+
+Local:
+
+```ts
+export const API_BASE_URL = "http://127.0.0.1:8000";
+```
+
+Cloud:
+
+```ts
+export const API_BASE_URL = "http://39.96.219.88:8000";
+```
+
+The frontend requests `GET /api/videos`, takes the first returned `stream_url`, and plays `{API_BASE_URL}{stream_url}`. It no longer needs to hard-code `demo_ep01` for local mode or `ep_01` for cloud mode.
+
+### Collaboration workflow
+
+- Teammates can clone the repository and run the backend locally without `.env`, MySQL, or OSS credentials.
+- Local debugging reads `dramepulse.sqlite`, streams `demo_video.mp4`, and writes playback events back to SQLite.
+- The maintainer can set `DRAMEPULSE_MODE=cloud` locally to verify cloud MySQL/OSS behavior.
+- After cloud verification, deploy the backend code to ECS and restart `dramepulse-api`.
+- Remote teammates who want cloud videos only need to change frontend `API_BASE_URL` to the ECS API address.
+
+### Verification
+
+Backend checks passed locally:
+
+```text
+python -m pytest tests\test_api_routes.py tests\test_api_oss_client.py
+16 passed
+```
+
+Python syntax checks passed for the modified backend modules and local init script.
