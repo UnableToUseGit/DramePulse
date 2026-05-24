@@ -1,20 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DanmakuLayer } from "../components/DanmakuLayer";
-import { InteractionPollBar } from "../components/InteractionPollBar";
 import { PlaybackHint } from "../components/PlaybackHint";
 import { PlayerControls } from "../components/PlayerControls";
 import { PlayerChrome } from "../components/PlayerChrome";
 import { SeekRequest, VideoStage } from "../components/VideoStage";
-import { API_BASE_URL } from "../config";
-import { createInitialStats, createUserEvent, updateStats } from "../domain/events";
-import { findActiveInteractionPlan } from "../domain/interactionScheduler";
+import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import { loadPlayerData, PlayerData } from "../domain/playerApi";
-import type { InteractionOption, InteractionPlan, InteractionStats, UserEvent } from "../domain/types";
+import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
+import { InteractionExampleRenderer } from "../interaction-examples/InteractionExampleRenderer";
+import { InteractionLabControls } from "../interaction-examples/InteractionLabControls";
+import { shouldResetExample, shouldShowExample } from "../interaction-examples/trigger";
+import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
-
-const POLL_IDLE_TTL_SEC = 3;
-const POLL_RESULT_TTL_SEC = 2;
 
 export function PlayerScreen() {
   const [playerData, setPlayerData] = useState<PlayerData | undefined>();
@@ -25,14 +23,9 @@ export function PlayerScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
-  const [activePlan, setActivePlan] = useState<InteractionPlan | undefined>();
-  const [selectedOption, setSelectedOption] = useState<InteractionOption | undefined>();
-  const [activePlanShownAt, setActivePlanShownAt] = useState<number | undefined>();
-  const [selectedAt, setSelectedAt] = useState<number | undefined>();
-  const [completedInteractionIds, setCompletedInteractionIds] = useState<Set<string>>(() => new Set());
-  const [events, setEvents] = useState<UserEvent[]>([]);
-  const [stats, setStats] = useState<InteractionStats>(() => createInitialStats());
-  const interactionPlans = useMemo<InteractionPlan[]>(() => [], []);
+  const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [exampleDismissed, setExampleDismissed] = useState(false);
+  const previousTimeRef = useRef(0);
 
   const fetchPlayerData = useCallback(async () => {
     setLoadState("loading");
@@ -46,6 +39,8 @@ export function PlayerScreen() {
       setIsPlaying(false);
       setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
+      setExampleDismissed(false);
+      previousTimeRef.current = 0;
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
       setLoadState("error");
@@ -61,6 +56,8 @@ export function PlayerScreen() {
         if (!cancelled) {
           setPlayerData(data);
           setLoadState("ready");
+          setExampleDismissed(false);
+          previousTimeRef.current = 0;
         }
       })
       .catch((error: unknown) => {
@@ -74,85 +71,19 @@ export function PlayerScreen() {
     };
   }, []);
 
-  const appendEvent = useCallback((event: UserEvent) => {
-    setEvents((current) => [...current, event]);
-    setStats((current) => updateStats(current, event));
-  }, []);
-
   const handleTimeChange = useCallback((time: number) => {
+    if (
+      shouldResetExample({
+        previousTime: previousTimeRef.current,
+        currentTime: time,
+        triggerTimeSec: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec
+      })
+    ) {
+      setExampleDismissed(false);
+    }
+    previousTimeRef.current = time;
     setCurrentTime(time);
   }, []);
-
-  useEffect(() => {
-    if (!isStarted) {
-      return;
-    }
-
-    if (activePlan) {
-      if (currentTime < activePlan.trigger_time) {
-        setActivePlan(undefined);
-        setSelectedOption(undefined);
-        setActivePlanShownAt(undefined);
-        setSelectedAt(undefined);
-        return;
-      }
-      if (selectedOption) {
-        if (selectedAt !== undefined && currentTime - selectedAt >= POLL_RESULT_TTL_SEC) {
-          setActivePlan(undefined);
-          setSelectedOption(undefined);
-          setActivePlanShownAt(undefined);
-          setSelectedAt(undefined);
-        }
-        return;
-      }
-      if (activePlanShownAt !== undefined && currentTime - activePlanShownAt >= POLL_IDLE_TTL_SEC) {
-        appendEvent(
-          createUserEvent({
-            eventType: "interaction_dismiss",
-            plan: activePlan,
-            clientTime: currentTime
-          })
-        );
-        setCompletedInteractionIds((current) => new Set(current).add(activePlan.interaction_id));
-        setActivePlan(undefined);
-        setSelectedOption(undefined);
-        setActivePlanShownAt(undefined);
-        setSelectedAt(undefined);
-      }
-      return;
-    }
-
-    const nextPlan = findActiveInteractionPlan({
-      plans: interactionPlans,
-      currentTime,
-      completedIds: completedInteractionIds
-    });
-    if (!nextPlan) {
-      return;
-    }
-
-    setActivePlan(nextPlan);
-    setSelectedOption(undefined);
-    setActivePlanShownAt(currentTime);
-    setSelectedAt(undefined);
-    appendEvent(
-      createUserEvent({
-        eventType: "interaction_exposure",
-        plan: nextPlan,
-        clientTime: currentTime
-      })
-    );
-  }, [
-    activePlan,
-    activePlanShownAt,
-    appendEvent,
-    completedInteractionIds,
-    currentTime,
-    interactionPlans,
-    isStarted,
-    selectedAt,
-    selectedOption
-  ]);
 
   const handleStart = useCallback(() => {
     setIsStarted(true);
@@ -169,38 +100,31 @@ export function PlayerScreen() {
 
   const handleSeekCommit = useCallback((time: number) => {
     setCurrentTime(time);
+    previousTimeRef.current = time;
+    if (time < DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec) {
+      setExampleDismissed(false);
+    }
     setIsStarted(true);
     setSeekVersion((version) => version + 1);
     setSeekRequest({ id: Date.now(), time });
   }, []);
 
-  const handleSelectOption = useCallback(
-    (option: InteractionOption) => {
-      if (!activePlan || selectedOption) {
-        return;
-      }
-      setSelectedOption(option);
-      setSelectedAt(currentTime);
-      setCompletedInteractionIds((current) => new Set(current).add(activePlan.interaction_id));
-      appendEvent(
-        createUserEvent({
-          eventType: "option_click",
-          plan: activePlan,
-          optionId: option.option_id,
-          clientTime: currentTime
-        })
-      );
-      appendEvent(
-        createUserEvent({
-          eventType: "feedback_shown",
-          plan: activePlan,
-          optionId: option.option_id,
-          clientTime: currentTime
-        })
-      );
-    },
-    [activePlan, appendEvent, currentTime, selectedOption]
-  );
+  const handleChangePresentationType = useCallback((type: InteractionPresentationType) => {
+    setSelectedPresentationType(type);
+    setExampleDismissed(false);
+  }, []);
+
+  const handleDismissExample = useCallback(() => {
+    setExampleDismissed(true);
+  }, []);
+
+  const isExampleVisible = shouldShowExample({
+    example: DEFAULT_INTERACTION_EXAMPLE,
+    currentTime,
+    isStarted,
+    dismissed: exampleDismissed,
+    presentationType: selectedPresentationType
+  });
 
   if (loadState === "loading") {
     return (
@@ -243,7 +167,15 @@ export function PlayerScreen() {
       ) : null}
       {isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
       <PlaybackHint isStarted={isStarted} isPlaying={isPlaying} />
-      <InteractionPollBar plan={activePlan} selectedOption={selectedOption} onSelect={handleSelectOption} />
+      <InteractionExampleRenderer
+        example={DEFAULT_INTERACTION_EXAMPLE}
+        presentationType={selectedPresentationType}
+        visible={isExampleVisible}
+        onDismiss={handleDismissExample}
+      />
+      {ENABLE_INTERACTION_LAB ? (
+        <InteractionLabControls selectedType={selectedPresentationType} onChange={handleChangePresentationType} />
+      ) : null}
       <PlayerChrome
         onToggleDebug={() => undefined}
         seriesName={playerData.video.seriesName}
