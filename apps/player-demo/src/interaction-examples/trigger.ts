@@ -3,6 +3,7 @@ import type { InteractionExample, InteractionPresentationType } from "./types";
 const LABELS: Record<InteractionPresentationType, string> = {
   none: "Off",
   poll_bar: "Poll Bar",
+  danmaku_poll: "Danmaku Poll",
   emoji_hold: "Emoji Hold"
 };
 

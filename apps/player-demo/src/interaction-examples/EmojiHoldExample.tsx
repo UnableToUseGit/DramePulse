@@ -1,53 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { colors, radii, spacing } from "../theme";
 import type { InteractionExample } from "./types";
 
 const BURST_EMOJIS = ["🔥", "✨", "💥", "🔥", "✨"];
+const HOLD_DURATION_MS = 2000;
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const PROGRESS_RADIUS = 40;
+const PROGRESS_CIRCUMFERENCE = 2 * Math.PI * PROGRESS_RADIUS;
 
 export function EmojiHoldExample({ example, onDismiss }: { example: InteractionExample; onDismiss: () => void }) {
   const [isHolding, setIsHolding] = useState(false);
   const [hasBurst, setHasBurst] = useState(false);
-  const pulse = useRef(new Animated.Value(0)).current;
+  const [isCharging, setIsCharging] = useState(true);
+  const charge = useRef(new Animated.Value(0)).current;
   const burst = useRef(new Animated.Value(0)).current;
+  const holdCompletedRef = useRef(false);
   const primaryReaction = example.reactions[0];
 
   useEffect(() => {
     setIsHolding(false);
     setHasBurst(false);
-    pulse.setValue(0);
+    setIsCharging(true);
+    holdCompletedRef.current = false;
+    charge.setValue(0);
     burst.setValue(0);
-  }, [burst, example.id, pulse]);
-
-  useEffect(() => {
-    if (!isHolding) {
-      pulse.stopAnimation();
-      Animated.timing(pulse, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true
-      }).start();
-      return;
-    }
-
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 620,
-          useNativeDriver: true
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.25,
-          duration: 420,
-          useNativeDriver: true
-        })
-      ])
-    ).start();
-  }, [isHolding, pulse]);
+  }, [burst, charge, example.id]);
 
   const triggerBurst = () => {
+    if (holdCompletedRef.current) {
+      return;
+    }
+    holdCompletedRef.current = true;
     setIsHolding(false);
+    setIsCharging(false);
     setHasBurst(true);
     burst.setValue(0);
     Animated.timing(burst, {
@@ -60,17 +47,51 @@ export function EmojiHoldExample({ example, onDismiss }: { example: InteractionE
     });
   };
 
-  const ringScale = pulse.interpolate({
+  const handlePressIn = () => {
+    if (!isCharging) {
+      return;
+    }
+    setIsHolding(true);
+    charge.setValue(0);
+    Animated.timing(charge, {
+      toValue: 1,
+      duration: HOLD_DURATION_MS,
+      useNativeDriver: false
+    }).start(({ finished }) => {
+      if (finished) {
+        triggerBurst();
+      }
+    });
+  };
+
+  const handlePressOut = () => {
+    if (!isCharging || holdCompletedRef.current) {
+      return;
+    }
+    setIsHolding(false);
+    charge.stopAnimation();
+    Animated.timing(charge, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: false
+    }).start();
+  };
+
+  const ringScale = charge.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.75]
+    outputRange: [1, 1.08]
   });
-  const ringOpacity = pulse.interpolate({
+  const ringOpacity = charge.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.22, 0.02]
+    outputRange: [0.18, 0.82]
   });
-  const buttonScale = pulse.interpolate({
+  const progressOffset = charge.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.12]
+    outputRange: [PROGRESS_CIRCUMFERENCE, 0]
+  });
+  const buttonScale = charge.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.16]
   });
 
   return (
@@ -99,19 +120,42 @@ export function EmojiHoldExample({ example, onDismiss }: { example: InteractionE
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={example.prompt}
-        onPressIn={() => setIsHolding(true)}
-        onPressOut={triggerBurst}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={!isCharging}
       >
         <View style={styles.buttonWrap}>
-          <Animated.View style={[styles.pulseRing, { opacity: ringOpacity, transform: [{ scale: ringScale }] }]} />
+          <Animated.View style={[styles.outerGlow, { opacity: ringOpacity, transform: [{ scale: ringScale }] }]} />
+          <Svg width={94} height={94} style={styles.progressSvg} viewBox="0 0 94 94">
+            <Circle
+              cx={47}
+              cy={47}
+              r={PROGRESS_RADIUS}
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth={5}
+              fill="transparent"
+            />
+            <AnimatedCircle
+              cx={47}
+              cy={47}
+              r={PROGRESS_RADIUS}
+              stroke={colors.gold}
+              strokeWidth={5}
+              fill="transparent"
+              strokeLinecap="round"
+              strokeDasharray={`${PROGRESS_CIRCUMFERENCE} ${PROGRESS_CIRCUMFERENCE}`}
+              strokeDashoffset={progressOffset}
+              transform="rotate(-90 47 47)"
+            />
+          </Svg>
           <Animated.View style={[styles.button, { transform: [{ scale: buttonScale }] }]}>
             <Text style={styles.emoji}>{primaryReaction.emoji}</Text>
           </Animated.View>
         </View>
       </Pressable>
       <View style={styles.caption}>
-        <Text style={styles.prompt}>{example.prompt}</Text>
-        <Text style={styles.hint}>长按释放情绪</Text>
+        <Text style={styles.prompt}>{isHolding ? "继续按住" : example.prompt}</Text>
+        <Text style={styles.hint}>蓄力 2 秒释放</Text>
       </View>
     </View>
   );
@@ -120,28 +164,33 @@ export function EmojiHoldExample({ example, onDismiss }: { example: InteractionE
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    right: spacing.lg,
-    top: "48%",
+    right: 22,
+    bottom: 176,
     alignItems: "center"
   },
   buttonWrap: {
-    width: 82,
-    height: 82,
+    width: 94,
+    height: 94,
     alignItems: "center",
     justifyContent: "center"
   },
-  pulseRing: {
+  outerGlow: {
     position: "absolute",
-    width: 78,
-    height: 78,
-    borderRadius: 39,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     backgroundColor: colors.accent,
     borderWidth: 1,
     borderColor: "rgba(255,213,138,0.9)"
   },
+  progressSvg: {
+    position: "absolute",
+    width: 94,
+    height: 94
+  },
   button: {
-    width: 62,
-    height: 62,
+    width: 66,
+    height: 66,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.pill,
@@ -154,10 +203,10 @@ const styles = StyleSheet.create({
     shadowRadius: 18
   },
   emoji: {
-    fontSize: 30
+    fontSize: 32
   },
   caption: {
-    width: 116,
+    width: 118,
     marginTop: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -181,10 +230,10 @@ const styles = StyleSheet.create({
   },
   burstLayer: {
     position: "absolute",
-    top: -12,
-    right: -6,
-    width: 124,
-    height: 84,
+    top: -22,
+    right: -14,
+    width: 138,
+    height: 96,
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",

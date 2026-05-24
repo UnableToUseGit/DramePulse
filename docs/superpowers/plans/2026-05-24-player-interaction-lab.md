@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a frontend-only Interaction Lab to `apps/player-demo` so developers can switch between `Off`, `Poll Bar`, and `Emoji Hold` UI experiments at a fixed playback trigger.
+**Goal:** Add a frontend-only Interaction Lab to `apps/player-demo` so developers can switch between `Off`, `Poll Bar`, `Danmaku Poll`, and `Emoji Hold` UI experiments at a fixed playback trigger.
 
-**Architecture:** Keep interaction examples separate from backend `InteractionPlan`. Add lightweight local example types, trigger state helpers, dev-only controls, and two UI presentations. `PlayerScreen` owns playback state and passes time/playback context into an `InteractionExampleRenderer`.
+**Architecture:** Keep interaction examples separate from backend `InteractionPlan`. Add lightweight local example types, trigger state helpers, a left-top hamburger dev menu, and three UI presentations. `PlayerScreen` owns playback state and passes time/playback context into an `InteractionExampleRenderer`.
 
 **Tech Stack:** Expo React Native, TypeScript, Jest, existing `StyleSheet` theme tokens.
 
@@ -29,12 +29,14 @@
 - Create: `apps/player-demo/src/interaction-examples/InteractionLabControls.tsx`
 - Create: `apps/player-demo/src/interaction-examples/InteractionExampleRenderer.tsx`
 - Create: `apps/player-demo/src/interaction-examples/PollBarExample.tsx`
+- Create: `apps/player-demo/src/interaction-examples/DanmakuPollExample.tsx`
 - Create: `apps/player-demo/src/interaction-examples/EmojiHoldExample.tsx`
 
-- [ ] Create compact dev-only controls for `Off`, `Poll Bar`, and `Emoji Hold`.
-- [ ] Create a renderer that maps `none` to null, `poll_bar` to `PollBarExample`, and `emoji_hold` to `EmojiHoldExample`.
+- [ ] Create compact dev-only controls behind a left-top hamburger menu for `Off`, `Poll Bar`, `Danmaku Poll`, and `Emoji Hold`.
+- [ ] Create a renderer that maps `none` to null, `poll_bar` to `PollBarExample`, `danmaku_poll` to `DanmakuPollExample`, and `emoji_hold` to `EmojiHoldExample`.
 - [ ] Implement `PollBarExample` as a local baseline UI with prompt, options, and short result state.
-- [ ] Implement `EmojiHoldExample` with long-press visual feedback and release burst state.
+- [ ] Implement `DanmakuPollExample` as the earlier danmaku-style voting UI with local fixed data.
+- [ ] Implement `EmojiHoldExample` in the right-thumb reachable zone with a 2-second charge ring, completion burst, and auto-dismiss.
 
 ### Task 3: PlayerScreen Integration
 

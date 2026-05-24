@@ -173,15 +173,15 @@ export function PlayerScreen() {
         visible={isExampleVisible}
         onDismiss={handleDismissExample}
       />
-      {ENABLE_INTERACTION_LAB ? (
-        <InteractionLabControls selectedType={selectedPresentationType} onChange={handleChangePresentationType} />
-      ) : null}
       <PlayerChrome
         onToggleDebug={() => undefined}
         seriesName={playerData.video.seriesName}
         title={playerData.video.title}
         episodeLabel={playerData.video.episodeLabel}
       />
+      {ENABLE_INTERACTION_LAB ? (
+        <InteractionLabControls selectedType={selectedPresentationType} onChange={handleChangePresentationType} />
+      ) : null}
       <PlayerControls
         currentTime={currentTime}
         duration={playerData.video.duration}

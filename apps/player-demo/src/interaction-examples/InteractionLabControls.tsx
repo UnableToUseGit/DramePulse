@@ -1,9 +1,11 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 import { getPresentationLabel } from "./trigger";
 import type { InteractionPresentationType } from "./types";
 
-const OPTIONS: InteractionPresentationType[] = ["none", "poll_bar", "emoji_hold"];
+const OPTIONS: InteractionPresentationType[] = ["none", "poll_bar", "danmaku_poll", "emoji_hold"];
 
 export function InteractionLabControls({
   selectedType,
@@ -12,29 +14,47 @@ export function InteractionLabControls({
   selectedType: InteractionPresentationType;
   onChange: (type: InteractionPresentationType) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleChange = (type: InteractionPresentationType) => {
+    onChange(type);
+    setIsOpen(false);
+  };
+
   return (
     <View style={styles.root} pointerEvents="box-none">
-      <View style={styles.panel}>
-        <Text style={styles.title}>Interaction Lab</Text>
-        <View style={styles.options}>
-          {OPTIONS.map((type) => {
-            const selected = selectedType === type;
-            return (
-              <Pressable
-                key={type}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[styles.option, selected ? styles.optionSelected : null]}
-                onPress={() => onChange(type)}
-              >
-                <Text style={[styles.optionText, selected ? styles.optionTextSelected : null]}>
-                  {getPresentationLabel(type)}
-                </Text>
-              </Pressable>
-            );
-          })}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open interaction lab"
+        style={[styles.menuButton, isOpen ? styles.menuButtonOpen : null]}
+        onPress={() => setIsOpen((open) => !open)}
+      >
+        <Ionicons name={isOpen ? "close" : "menu"} size={25} color={colors.text} />
+      </Pressable>
+
+      {isOpen ? (
+        <View style={styles.panel}>
+          <Text style={styles.title}>Interaction Lab</Text>
+          <View style={styles.options}>
+            {OPTIONS.map((type) => {
+              const selected = selectedType === type;
+              return (
+                <Pressable
+                  key={type}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  style={[styles.option, selected ? styles.optionSelected : null]}
+                  onPress={() => handleChange(type)}
+                >
+                  <Text style={[styles.optionText, selected ? styles.optionTextSelected : null]}>
+                    {getPresentationLabel(type)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -42,18 +62,33 @@ export function InteractionLabControls({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    top: spacing.lg,
+    top: 44,
     left: spacing.lg,
-    right: spacing.lg,
-    alignItems: "center"
+    alignItems: "flex-start",
+    zIndex: 20
   },
-  panel: {
-    maxWidth: "100%",
-    padding: spacing.xs,
-    borderRadius: radii.panel,
-    backgroundColor: "rgba(0, 0, 0, 0.48)",
+  menuButton: {
+    width: 42,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 21,
+    backgroundColor: "rgba(0,0,0,0.42)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)"
+  },
+  menuButtonOpen: {
+    backgroundColor: "rgba(255,106,26,0.86)",
+    borderColor: "rgba(255,213,138,0.78)"
+  },
+  panel: {
+    width: 178,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.panel,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)"
   },
   title: {
     marginBottom: spacing.xs,
@@ -65,15 +100,13 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   options: {
-    flexDirection: "row",
     gap: spacing.xs
   },
   option: {
-    minWidth: 64,
-    alignItems: "center",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-    borderRadius: radii.pill,
+    alignItems: "flex-start",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.small,
     backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)"
@@ -84,7 +117,7 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: colors.muted,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "900"
   },
   optionTextSelected: {

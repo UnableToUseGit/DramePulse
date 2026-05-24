@@ -5,6 +5,7 @@ describe("interaction example trigger helpers", () => {
   it("maps presentation types to developer-facing labels", () => {
     expect(getPresentationLabel("none")).toBe("Off");
     expect(getPresentationLabel("poll_bar")).toBe("Poll Bar");
+    expect(getPresentationLabel("danmaku_poll")).toBe("Danmaku Poll");
     expect(getPresentationLabel("emoji_hold")).toBe("Emoji Hold");
   });
 
