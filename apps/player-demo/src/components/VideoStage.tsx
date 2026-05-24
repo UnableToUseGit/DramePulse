@@ -15,7 +15,8 @@ export function VideoStage({
   isPlaying,
   seekRequest,
   onTimeChange,
-  streamUrl
+  streamUrl,
+  showStartEntry = true
 }: {
   isStarted: boolean;
   onStart: () => void;
@@ -23,6 +24,7 @@ export function VideoStage({
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
   streamUrl: string;
+  showStartEntry?: boolean;
 }) {
   const player = useVideoPlayer(streamUrl, (instance) => {
     instance.loop = false;
@@ -64,7 +66,7 @@ export function VideoStage({
         allowsFullscreen={false}
         allowsPictureInPicture={false}
       />
-      {!isStarted ? (
+      {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>
           <Pressable style={styles.startButton} onPress={onStart}>
             <Text style={styles.startButtonText}>点击播放短剧</Text>

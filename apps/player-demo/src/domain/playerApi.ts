@@ -117,15 +117,42 @@ export async function loadPlayerData({
   apiBaseUrl: string;
   fetcher?: FetchLike;
 }): Promise<PlayerData> {
-  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"));
-  const rawVideos = isRecord(videosPayload) && Array.isArray(videosPayload.videos) ? videosPayload.videos : [];
-  const video = rawVideos.map((item) => normalizeVideo(item, apiBaseUrl)).find(Boolean);
+  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher });
+  const video = videos[0];
   if (!video) {
     throw new Error("No playable videos returned by API");
   }
-  const danmakuPayload = await fetchJson(fetcher, video.danmakuUrl);
   return {
     video,
-    danmaku: normalizeDanmakuResponse(danmakuPayload)
+    danmaku: await loadVideoDanmaku({ danmakuUrl: video.danmakuUrl, fetcher })
   };
+}
+
+export async function loadPlayerVideos({
+  apiBaseUrl,
+  fetcher = fetch
+}: {
+  apiBaseUrl: string;
+  fetcher?: FetchLike;
+}): Promise<PlayerVideo[]> {
+  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"));
+  const rawVideos = isRecord(videosPayload) && Array.isArray(videosPayload.videos) ? videosPayload.videos : [];
+  const videos = rawVideos
+    .map((item) => normalizeVideo(item, apiBaseUrl))
+    .filter((video): video is PlayerVideo => video !== undefined);
+  if (videos.length === 0) {
+    throw new Error("No playable videos returned by API");
+  }
+  return videos;
+}
+
+export async function loadVideoDanmaku({
+  danmakuUrl,
+  fetcher = fetch
+}: {
+  danmakuUrl: string;
+  fetcher?: FetchLike;
+}): Promise<DanmakuItem[]> {
+  const danmakuPayload = await fetchJson(fetcher, danmakuUrl);
+  return normalizeDanmakuResponse(danmakuPayload);
 }
