@@ -204,6 +204,156 @@ TheThreeKeyboardeers/ShortDramas
 
 后续开发和演示时，应先从该数据集下载数据，再移动或整理到本仓库的 `data/` 目录下。
 
-## 4. 高光点标注
+## 4. 高光点验证集标注
 
-TODO：补充人工标注规范、标注字段和验证集划分方式。
+本阶段先用 `case1_ep01` 跑通验证集制作流程，不急于扩展样本规模，也不急于定义完整高光类型体系。
+
+第一版验证集只服务一个目标：为高光点识别算法提供可重复对照的人工标注结果。后续 prompt、抽帧策略或模型选择发生变化时，可以用同一批人工标注判断识别结果是否更接近人工标准。
+
+### 4.1 第一版流程
+
+```text
+data/case1/ep01.mp4
+data/case1/ep01.srt
+data/case1/ep01.json
+  ↓
+apps/annotation-tool/index.html
+  ↓
+人工标注高光时间段、emotion、reason
+  ↓
+导出 <video_id>.annotation.json
+```
+
+第一版暂不实现自动评测脚本。标注数据格式会预留给后续评测脚本使用。
+
+### 4.2 标注工具
+
+当前标注工具为本地静态页面外壳，但视频、元信息和弹幕数据从后端 API 读取：
+
+```text
+apps/annotation-tool/index.html
+```
+
+标注工具不再内置固定的 `case1_ep01` 路径。进入页面后会请求：
+
+```text
+GET /api/videos
+GET /api/videos/{video_id}
+GET /api/videos/{video_id}/danmaku
+```
+
+其中 `stream_url` 用于设置播放器地址，`danmaku_url` 用于读取右侧弹幕时间轴。默认同源请求 API；如果后端服务和标注页不在同一个 origin，可以通过查询参数指定：
+
+```text
+http://127.0.0.1:8770/apps/annotation-tool/?api_base_url=http://127.0.0.1:8000
+```
+
+也可以指定初始视频：
+
+```text
+http://127.0.0.1:8770/apps/annotation-tool/?api_base_url=http://127.0.0.1:8000&video_id=demo_ep01
+```
+
+如果标注页本身仍通过仓库内置本地服务打开，该服务只负责托管 HTML/JS/CSS，并保留 HTTP Range 支持；实际视频 seek 能力取决于后端 `/api/videos/{video_id}/stream` 是否正确返回 `206 Partial Content`。
+
+```bash
+python scripts/serve_annotation_tool.py --port 8770
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:8770/apps/annotation-tool/
+```
+
+不要直接使用 `python -m http.server` 启动标注工具。Python 标准库静态服务在当前环境下不会为 MP4 返回 `206 Partial Content`，浏览器会认为视频不可 seek，表现为进度条拖拽或按钮跳转后又回到原播放位置。
+
+工具当前能力：
+
+- 从后端视频列表中选择待标注视频；
+- 使用视频对象中的 `stream_url` 播放视频；
+- 使用视频对象中的 `danmaku_url` 读取弹幕；
+- 在播放器右侧展示按时间排序的弹幕列表；
+- 视频播放时自动滚动到当前时间对应的弹幕行；
+- 点击弹幕行可以跳转到对应视频时间；
+- 支持记录 `start_time` 和 `end_time`；
+- 支持填写 `emotion` 和 `reason`；
+- 支持添加、删除标注；
+- 支持导出人工标注 JSON。
+
+### 4.3 标注字段
+
+第一版人工标注字段刻意保持精简：
+
+```json
+{
+  "video_id": "case1_ep01",
+  "video_path": "data/case1/ep01.mp4",
+  "subtitle_path": "data/case1/ep01.srt",
+  "source_json_path": "data/case1/ep01.json",
+  "annotations": [
+    {
+      "annotation_id": "gold_case1_ep01_001",
+      "start_time": 8.96,
+      "end_time": 12.04,
+      "emotion": "shock",
+      "reason": "开场女主醒来发现自己正在亲吻陌生男人，弹幕集中吐槽和震惊，适合作为互动触发点。"
+    }
+  ]
+}
+```
+
+字段说明：
+
+| 字段 | 说明 |
+| --- | --- |
+| `annotation_id` | 人工标注 ID，由导出工具按顺序生成。 |
+| `start_time` | 高光开始时间，单位为秒。 |
+| `end_time` | 高光结束时间，单位为秒，必须大于 `start_time`。 |
+| `emotion` | 该高光主要激发的用户情绪。 |
+| `reason` | 为什么该片段值得触发互动，必须结合剧情内容说明；可引用弹幕共鸣作为辅助证据。 |
+
+第一版暂不标注以下字段：
+
+- `highlight_type`；
+- `intensity`；
+- `interaction_worthiness`；
+- `summary`。
+
+这些字段等标注一批样本、有足够经验后，再根据真实标注分布补充。
+
+### 4.4 标注原则
+
+高光点标注的对象不是普通剧情片段，而是“适合在播放器内触发低摩擦互动”的剧情瞬间。
+
+优先标注以下片段：
+
+- 剧情反转、身份揭露、穿越设定揭示；
+- 冲突升级、威胁、争吵、误会爆发；
+- 打脸、反杀、爽点、情绪释放；
+- 甜蜜撒糖、暧昧、关系推进；
+- 明显引发观众站队、预测、吐槽的位置。
+
+不建议标注以下片段：
+
+- 纯过场、铺垫、环境交代；
+- 只有信息量但缺少情绪表达空间的说明；
+- 弹幕很多但剧情本身不构成互动触发点的位置；
+- 时间跨度过长、难以落到一个明确互动窗口的片段。
+
+弹幕代表观众共鸣，是判断高光点的重要辅助信号。标注时可以重点观察：
+
+- 当前时间附近弹幕是否密集；
+- 是否出现强烈情绪词，例如“爽”“气死”“笑死”“离谱”“磕到了”；
+- 高点赞或高分弹幕是否集中表达同一种情绪或观点；
+- 弹幕是否能帮助判断该片段适合情绪表达还是观点表达。
+
+但弹幕不能替代剧情判断。一个片段是否标为高光，最终仍要看它是否能支撑播放器内即时互动。
+
+### 4.5 时间边界原则
+
+`start_time` 应尽量落在情绪触发点之前或刚出现时。
+
+`end_time` 应覆盖用户能够理解该高光的最短剧情窗口，不宜为了包含后续讨论而拉得过长。
+
+如果一个长片段中连续出现多个独立情绪触发点，应拆成多条标注；如果多个台词共同构成一个反转或冲突，则可以合并为一条标注。
