@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DramePulse 高光标注工具</title>
+    <link rel="icon" href="data:,">
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #111315;
+        --panel: #1b1f22;
+        --panel-soft: #23292d;
+        --line: #374047;
+        --text: #f2f0e8;
+        --muted: #a8b0b4;
+        --soft: #cfd6d9;
+        --accent: #f6c85f;
+        --accent-2: #58d5c9;
+        --danger: #ff7c6e;
+        --shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        margin: 0;
+        height: 100%;
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(246, 200, 95, 0.06), transparent 280px),
+          var(--bg);
+        color: var(--text);
+        font-family: "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 9px 12px;
+        background: var(--panel-soft);
+        color: var(--text);
+        cursor: pointer;
+      }
+
+      button:hover {
+        border-color: var(--accent);
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #1b1609;
+        font-weight: 700;
+      }
+
+      button.ghost {
+        background: transparent;
+        border-color: var(--line);
+      }
+
+      button.danger {
+        color: var(--danger);
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 380px;
+        gap: 18px;
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+        padding: 18px;
+      }
+
+      .workspace,
+      .danmaku-panel,
+      .form-panel,
+      .list-panel {
+        background: rgba(27, 31, 34, 0.96);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+        gap: 14px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        min-width: 0;
+        min-height: 0;
+        padding: 14px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .brand p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .time-readout {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        background: #131719;
+      }
+
+      .time-readout strong {
+        font-variant-numeric: tabular-nums;
+        font-size: 22px;
+      }
+
+      .time-readout span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .video-frame {
+        position: relative;
+        overflow: visible;
+        background: #050607;
+        border: 1px solid #050607;
+      }
+
+      video {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 46vh;
+        background: #000;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .form-panel {
+        padding: 14px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #111618;
+        color: var(--text);
+        padding: 9px 10px;
+        outline: none;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent-2);
+      }
+
+      textarea {
+        min-height: 82px;
+        resize: vertical;
+      }
+
+      .reason-field {
+        grid-column: 1 / -1;
+      }
+
+      .form-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .list-panel {
+        overflow: hidden;
+      }
+
+      .list-head,
+      .danmaku-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .list-head h2,
+      .danmaku-head h2 {
+        margin: 0;
+        font-size: 15px;
+      }
+
+      .annotation-list {
+        display: grid;
+        gap: 8px;
+        max-height: 28vh;
+        overflow: auto;
+        padding: 10px;
+      }
+
+      .annotation-item {
+        display: grid;
+        gap: 6px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        background: #14191b;
+      }
+
+      .annotation-meta {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--soft);
+        font-size: 13px;
+      }
+
+      .annotation-reason {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .side {
+        display: grid;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .danmaku-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .status-pill {
+        border: 1px solid var(--line);
+        color: var(--muted);
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+
+      .danmaku-list {
+        min-height: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
+        scroll-behavior: smooth;
+        padding: 8px;
+      }
+
+      .danmaku-row {
+        display: grid;
+        grid-template-columns: 68px minmax(0, 1fr);
+        gap: 8px;
+        padding: 8px;
+        border-left: 3px solid transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .danmaku-row:hover {
+        background: #20262a;
+        color: var(--text);
+      }
+
+      .danmaku-row.active {
+        border-left-color: var(--accent);
+        background: rgba(246, 200, 95, 0.12);
+        color: var(--text);
+      }
+
+      .danmaku-time {
+        color: var(--accent-2);
+        font-variant-numeric: tabular-nums;
+        font-size: 12px;
+      }
+
+      .danmaku-text {
+        min-width: 0;
+        line-height: 1.35;
+      }
+
+      .danmaku-score {
+        grid-column: 2;
+        color: #7f898e;
+        font-size: 11px;
+      }
+
+      .empty {
+        color: var(--muted);
+        padding: 16px;
+      }
+
+      @media (max-width: 980px) {
+        html,
+        body {
+          height: auto;
+          overflow: auto;
+        }
+
+        .app {
+          grid-template-columns: 1fr;
+          height: auto;
+          min-height: 100vh;
+          overflow: visible;
+        }
+
+        .side {
+          height: min(520px, 70vh);
+          min-height: 420px;
+        }
+
+        .form-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="workspace">
+        <header class="topbar">
+          <div class="brand">
+            <h1>DramePulse 高光标注</h1>
+            <p>case1_ep01 · 精简字段：时间段、emotion、reason</p>
+          </div>
+          <div class="time-readout" aria-live="polite">
+            <strong id="currentTime">00:00.000</strong>
+            <span>current</span>
+          </div>
+        </header>
+
+        <section class="video-frame">
+          <video id="video" controls preload="metadata" src="../../data/case1/ep01.mp4"></video>
+        </section>
+
+        <section class="form-panel" aria-label="高光标注表单">
+          <div class="controls">
+            <button id="markStart" type="button">设为开始</button>
+            <button id="markEnd" type="button">设为结束</button>
+            <button id="jumpStart" type="button" class="ghost">跳到开始</button>
+            <button id="jumpEnd" type="button" class="ghost">跳到结束</button>
+            <button id="exportJson" type="button" class="primary">导出 JSON</button>
+          </div>
+
+          <div class="form-grid" style="margin-top: 12px;">
+            <label>
+              start_time
+              <input id="startTime" inputmode="decimal" placeholder="0.000">
+            </label>
+            <label>
+              end_time
+              <input id="endTime" inputmode="decimal" placeholder="0.000">
+            </label>
+            <label>
+              emotion
+              <select id="emotion">
+                <option value="shock">shock</option>
+                <option value="tension">tension</option>
+                <option value="anger">anger</option>
+                <option value="joy">joy</option>
+                <option value="sweet">sweet</option>
+                <option value="sadness">sadness</option>
+                <option value="curiosity">curiosity</option>
+                <option value="other">other</option>
+              </select>
+            </label>
+            <label>
+              操作
+              <button id="addAnnotation" type="button" class="primary">添加标注</button>
+            </label>
+            <label class="reason-field">
+              reason
+              <textarea id="reason" placeholder="说明为什么这里值得互动，可引用剧情和弹幕共鸣证据。"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="list-panel" aria-label="已标注列表">
+          <div class="list-head">
+            <h2>已标注高光</h2>
+            <span class="status-pill" id="annotationCount">0 条</span>
+          </div>
+          <div id="annotationList" class="annotation-list">
+            <div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光区间。</div>
+          </div>
+        </section>
+      </section>
+
+      <aside class="side">
+        <section class="danmaku-panel" aria-label="弹幕时间轴">
+          <div class="danmaku-head">
+            <h2>弹幕时间轴</h2>
+            <span class="status-pill" id="danmakuStatus">加载中</span>
+          </div>
+          <div id="danmakuList" class="danmaku-list"></div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./annotation_tool.js"></script>
+    <script>
+      const VIDEO_ID = "case1_ep01";
+      const VIDEO_PATH = "data/case1/ep01.mp4";
+      const SUBTITLE_PATH = "data/case1/ep01.srt";
+      const SOURCE_JSON_PATH = "data/case1/ep01.json";
+
+      const video = document.getElementById("video");
+      const currentTimeEl = document.getElementById("currentTime");
+      const startTimeInput = document.getElementById("startTime");
+      const endTimeInput = document.getElementById("endTime");
+      const emotionInput = document.getElementById("emotion");
+      const reasonInput = document.getElementById("reason");
+      const danmakuListEl = document.getElementById("danmakuList");
+      const danmakuStatusEl = document.getElementById("danmakuStatus");
+      const annotationListEl = document.getElementById("annotationList");
+      const annotationCountEl = document.getElementById("annotationCount");
+
+      let danmakuItems = [];
+      let activeDanmakuIndex = -1;
+      let annotations = [];
+
+      function setCurrentTime(value) {
+        video.currentTime = Math.max(0, Number(value) || 0);
+      }
+
+      function renderDanmaku(items) {
+        danmakuListEl.textContent = "";
+        if (!items.length) {
+          danmakuListEl.innerHTML = '<div class="empty">未读取到弹幕。</div>';
+          return;
+        }
+        const fragment = document.createDocumentFragment();
+        items.forEach((item, index) => {
+          const row = document.createElement("button");
+          row.type = "button";
+          row.className = "danmaku-row";
+          row.dataset.index = String(index);
+          row.innerHTML = `
+            <span class="danmaku-time">${AnnotationTool.formatClock(item.time_sec)}</span>
+            <span class="danmaku-text"></span>
+            <span class="danmaku-score">digg ${item.digg_count} · score ${item.score.toFixed(1)}</span>
+          `;
+          row.querySelector(".danmaku-text").textContent = item.text;
+          row.addEventListener("click", () => {
+            setCurrentTime(item.time_sec);
+            video.pause();
+            updateTimeState();
+          });
+          fragment.appendChild(row);
+        });
+        danmakuListEl.appendChild(fragment);
+      }
+
+      function updateActiveDanmaku() {
+        const nextIndex = AnnotationTool.findActiveDanmakuIndex(danmakuItems, video.currentTime);
+        if (nextIndex === activeDanmakuIndex) return;
+        const previous = danmakuListEl.querySelector(`.danmaku-row[data-index="${activeDanmakuIndex}"]`);
+        if (previous) previous.classList.remove("active");
+        activeDanmakuIndex = nextIndex;
+        const current = danmakuListEl.querySelector(`.danmaku-row[data-index="${activeDanmakuIndex}"]`);
+        if (current) {
+          current.classList.add("active");
+          if (!video.paused) {
+            const targetTop = current.offsetTop - danmakuListEl.clientHeight / 2 + current.offsetHeight / 2;
+            danmakuListEl.scrollTo({
+              top: Math.max(0, targetTop),
+              behavior: "smooth",
+            });
+          }
+        }
+      }
+
+      function updateTimeState() {
+        currentTimeEl.textContent = AnnotationTool.formatClock(video.currentTime);
+        updateActiveDanmaku();
+      }
+
+      function renderAnnotations() {
+        annotationCountEl.textContent = `${annotations.length} 条`;
+        annotationListEl.textContent = "";
+        if (!annotations.length) {
+          annotationListEl.innerHTML = '<div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光区间。</div>';
+          return;
+        }
+        annotations.forEach((annotation, index) => {
+          const item = document.createElement("article");
+          item.className = "annotation-item";
+          item.innerHTML = `
+            <div class="annotation-meta">
+              <strong>${AnnotationTool.formatClock(annotation.start_time)} - ${AnnotationTool.formatClock(annotation.end_time)}</strong>
+              <span>${annotation.emotion}</span>
+            </div>
+            <p class="annotation-reason"></p>
+            <div>
+              <button type="button" class="ghost">跳转</button>
+              <button type="button" class="ghost danger">删除</button>
+            </div>
+          `;
+          item.querySelector(".annotation-reason").textContent = annotation.reason;
+          const buttons = item.querySelectorAll("button");
+          buttons[0].addEventListener("click", () => setCurrentTime(annotation.start_time));
+          buttons[1].addEventListener("click", () => {
+            annotations.splice(index, 1);
+            renderAnnotations();
+          });
+          annotationListEl.appendChild(item);
+        });
+      }
+
+      function addAnnotation() {
+        const startTime = AnnotationTool.roundTime(startTimeInput.value);
+        const endTime = AnnotationTool.roundTime(endTimeInput.value);
+        const emotion = emotionInput.value.trim();
+        const reason = reasonInput.value.trim();
+        if (!(endTime > startTime)) {
+          alert("end_time 必须大于 start_time。");
+          return;
+        }
+        if (!emotion || !reason) {
+          alert("emotion 和 reason 不能为空。");
+          return;
+        }
+        annotations.push({
+          start_time: startTime,
+          end_time: endTime,
+          emotion,
+          reason,
+        });
+        annotations.sort((a, b) => a.start_time - b.start_time);
+        reasonInput.value = "";
+        renderAnnotations();
+      }
+
+      function exportJson() {
+        const payload = AnnotationTool.buildAnnotationPayload({
+          videoId: VIDEO_ID,
+          videoPath: VIDEO_PATH,
+          subtitlePath: SUBTITLE_PATH,
+          sourceJsonPath: SOURCE_JSON_PATH,
+          annotations,
+        });
+        const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
+          type: "application/json;charset=utf-8",
+        });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `${VIDEO_ID}.annotation.json`;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          URL.revokeObjectURL(link.href);
+          link.remove();
+        }, 1000);
+      }
+
+      async function loadDanmaku() {
+        try {
+          const response = await fetch("../../data/case1/ep01.json");
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const payload = await response.json();
+          danmakuItems = AnnotationTool.normalizeDanmaku(payload.danmaku);
+          renderDanmaku(danmakuItems);
+          danmakuStatusEl.textContent = `${danmakuItems.length} 条`;
+          updateActiveDanmaku();
+        } catch (error) {
+          danmakuStatusEl.textContent = "加载失败";
+          danmakuListEl.innerHTML = '<div class="empty">无法读取 data/case1/ep01.json。请通过本地 HTTP 服务打开本页面。</div>';
+        }
+      }
+
+      document.getElementById("markStart").addEventListener("click", () => {
+        startTimeInput.value = AnnotationTool.roundTime(video.currentTime).toFixed(3);
+      });
+      document.getElementById("markEnd").addEventListener("click", () => {
+        endTimeInput.value = AnnotationTool.roundTime(video.currentTime).toFixed(3);
+      });
+      document.getElementById("jumpStart").addEventListener("click", () => setCurrentTime(startTimeInput.value));
+      document.getElementById("jumpEnd").addEventListener("click", () => setCurrentTime(endTimeInput.value));
+      document.getElementById("addAnnotation").addEventListener("click", addAnnotation);
+      document.getElementById("exportJson").addEventListener("click", exportJson);
+      video.addEventListener("timeupdate", updateTimeState);
+      video.addEventListener("seeked", updateTimeState);
+      video.addEventListener("play", updateTimeState);
+      video.addEventListener("pause", updateTimeState);
+
+      renderAnnotations();
+      loadDanmaku();
+    </script>
+  </body>
+</html>
