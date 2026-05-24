@@ -136,6 +136,8 @@ playwright-report/
 test-results/
 screenshots/
 .superpowers/
+.worktrees/
+.playwright
 
 # Keep repository placeholders
 !.gitkeep

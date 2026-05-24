@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -27,18 +26,27 @@ class ApiRoutesTest(unittest.TestCase):
             list_active_videos.return_value = [
                 {
                     "video_id": "ep_10",
+                    "series_id": "demo",
+                    "series_name": "测试短剧",
                     "title": "第10集",
                     "episode_no": 10,
+                    "episode_label": "ep10",
                     "duration": None,
                     "stream_url": "/api/videos/ep_10/stream",
+                    "danmaku_url": "/api/videos/ep_10/danmaku",
                     "source": "oss",
+                    "douyin_video_id": "123456",
                 }
             ]
             response = self.client.get("/api/videos")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["videos"][0]["video_id"], "ep_10")
+        self.assertEqual(response.json()["videos"][0]["series_name"], "测试短剧")
+        self.assertEqual(response.json()["videos"][0]["episode_label"], "ep10")
+        self.assertEqual(response.json()["videos"][0]["douyin_video_id"], "123456")
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/ep_10/stream")
+        self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/ep_10/danmaku")
 
     def test_get_video_not_found(self) -> None:
         with patch("services.api.routers.videos.get_video", return_value=None):
@@ -68,6 +76,36 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.headers["accept-ranges"], "bytes")
         self.assertEqual(response.headers["content-range"], "bytes 0-3/10000")
         read_object_range.assert_called_once_with("第10集.mp4", 0, 3, bucket_name="dramepulse")
+
+    def test_get_video_danmaku(self) -> None:
+        with patch("services.api.routers.videos.get_video_danmaku") as get_video_danmaku:
+            get_video_danmaku.return_value = {
+                "video_id": "ep_10",
+                "available": True,
+                "count": 1,
+                "items": [
+                    {
+                        "danmaku_id": "d1",
+                        "time_sec": 1.2,
+                        "text": "太爽了",
+                        "digg_count": 8,
+                        "score": 9.5,
+                    }
+                ],
+            }
+
+            response = self.client.get("/api/videos/ep_10/danmaku")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["video_id"], "ep_10")
+        self.assertEqual(response.json()["available"], True)
+        self.assertEqual(response.json()["items"][0]["text"], "太爽了")
+
+    def test_get_video_danmaku_not_found(self) -> None:
+        with patch("services.api.routers.videos.get_video_danmaku", return_value=None):
+            response = self.client.get("/api/videos/missing/danmaku")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_create_playback_event(self) -> None:
         with patch("services.api.routers.playback_events.create_playback_event", return_value="evt_123"):
@@ -110,7 +148,7 @@ class LocalModeApiRoutesTest(unittest.TestCase):
             for name in ["DRAMEPULSE_MODE", "SQLITE_PATH", "LOCAL_OSS_ROOT", "LOCAL_OSS_BUCKET"]
         }
         tmp_path = Path(self.tmpdir.name)
-        shutil.copyfile(Path("demo_video.mp4"), tmp_path / "demo_video.mp4")
+        (tmp_path / "demo_video.mp4").write_bytes(b"0" * 2048)
         os.environ["DRAMEPULSE_MODE"] = "local"
         os.environ["SQLITE_PATH"] = str(tmp_path / "dramepulse.sqlite")
         os.environ["LOCAL_OSS_ROOT"] = str(tmp_path)
@@ -130,7 +168,10 @@ class LocalModeApiRoutesTest(unittest.TestCase):
         response = self.client.get("/api/videos")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["videos"][0]["video_id"], "demo_ep01")
+        self.assertEqual(response.json()["videos"][0]["series_name"], "DramePulse Demo")
+        self.assertEqual(response.json()["videos"][0]["episode_label"], "ep01")
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/demo_ep01/stream")
+        self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/demo_ep01/danmaku")
         self.assertEqual(response.json()["videos"][0]["source"], "local")
 
     def test_local_mode_streams_demo_video(self) -> None:
