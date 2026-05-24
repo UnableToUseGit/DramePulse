@@ -59,3 +59,54 @@ if ('ignored' in annotation) throw new Error('unexpected extra field exported');
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_annotation_tool_resolves_backend_video_context() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    script = """
+const logic = require('./apps/annotation-tool/annotation_tool.js');
+
+const config = logic.readAnnotationConfig(
+  'http://127.0.0.1:8770/apps/annotation-tool/?video_id=ep_10&api_base_url=http://127.0.0.1:8000/'
+);
+
+if (config.videoId !== 'ep_10') throw new Error('video_id query param not read');
+if (config.apiBaseUrl !== 'http://127.0.0.1:8000') throw new Error(`api_base_url not normalized: ${config.apiBaseUrl}`);
+if (logic.buildApiUrl(config.apiBaseUrl, '/api/videos/ep_10') !== 'http://127.0.0.1:8000/api/videos/ep_10') {
+  throw new Error('absolute API URL not built correctly');
+}
+
+const selected = logic.selectInitialVideo(
+  [
+    { video_id: 'ep_01', title: '第一集', stream_url: '/api/videos/ep_01/stream', danmaku_url: '/api/videos/ep_01/danmaku' },
+    { video_id: 'ep_10', title: '第十集', stream_url: '/api/videos/ep_10/stream', danmaku_url: '/api/videos/ep_10/danmaku' },
+  ],
+  config.videoId
+);
+
+if (selected.video_id !== 'ep_10') throw new Error('requested video was not selected');
+
+const context = logic.normalizeVideoContext(selected, config);
+if (context.videoId !== 'ep_10') throw new Error('context videoId mismatch');
+if (context.title !== '第十集') throw new Error('context title mismatch');
+if (context.videoPath !== 'http://127.0.0.1:8000/api/videos/ep_10/stream') throw new Error(`videoPath mismatch: ${context.videoPath}`);
+if (context.sourceJsonPath !== 'http://127.0.0.1:8000/api/videos/ep_10/danmaku') throw new Error(`sourceJsonPath mismatch: ${context.sourceJsonPath}`);
+"""
+    result = subprocess.run(
+        ["node", "-e", script],
+        cwd=repo_root,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_annotation_tool_page_does_not_reference_static_case_fixture() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    html = (repo_root / "apps/annotation-tool/index.html").read_text(encoding="utf-8")
+
+    assert "data/case1" not in html
+    assert "case1_ep01" not in html

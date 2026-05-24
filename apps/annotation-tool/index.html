@@ -127,6 +127,10 @@
         font-size: 13px;
       }
 
+      .video-picker {
+        min-width: 220px;
+      }
+
       .time-readout {
         display: flex;
         align-items: baseline;
@@ -372,8 +376,11 @@
         <header class="topbar">
           <div class="brand">
             <h1>DramePulse 高光标注</h1>
-            <p>case1_ep01 · 精简字段：时间段、emotion、reason</p>
+            <p id="videoMeta">加载视频列表中 · 精简字段：时间段、emotion、reason</p>
           </div>
+          <select id="videoPicker" class="video-picker" aria-label="选择标注视频" disabled>
+            <option value="">加载中</option>
+          </select>
           <div class="time-readout" aria-live="polite">
             <strong id="currentTime">00:00.000</strong>
             <span>current</span>
@@ -381,7 +388,7 @@
         </header>
 
         <section class="video-frame">
-          <video id="video" controls preload="metadata" src="../../data/case1/ep01.mp4"></video>
+          <video id="video" controls preload="metadata"></video>
         </section>
 
         <section class="form-panel" aria-label="高光标注表单">
@@ -450,12 +457,10 @@
 
     <script src="./annotation_tool.js"></script>
     <script>
-      const VIDEO_ID = "case1_ep01";
-      const VIDEO_PATH = "data/case1/ep01.mp4";
-      const SUBTITLE_PATH = "data/case1/ep01.srt";
-      const SOURCE_JSON_PATH = "data/case1/ep01.json";
-
+      const config = AnnotationTool.readAnnotationConfig(window.location.href);
       const video = document.getElementById("video");
+      const videoMetaEl = document.getElementById("videoMeta");
+      const videoPickerEl = document.getElementById("videoPicker");
       const currentTimeEl = document.getElementById("currentTime");
       const startTimeInput = document.getElementById("startTime");
       const endTimeInput = document.getElementById("endTime");
@@ -469,6 +474,7 @@
       let danmakuItems = [];
       let activeDanmakuIndex = -1;
       let annotations = [];
+      let videoContext = null;
 
       function setCurrentTime(value) {
         video.currentTime = Math.max(0, Number(value) || 0);
@@ -500,6 +506,34 @@
           fragment.appendChild(row);
         });
         danmakuListEl.appendChild(fragment);
+      }
+
+      function renderVideoPicker(videos, selectedVideoId) {
+        videoPickerEl.textContent = "";
+        videos.forEach((item) => {
+          const option = document.createElement("option");
+          option.value = item.video_id;
+          option.textContent = item.episode_label ? `${item.episode_label} · ${item.title}` : item.title;
+          videoPickerEl.appendChild(option);
+        });
+        videoPickerEl.value = selectedVideoId;
+        videoPickerEl.disabled = videos.length <= 1;
+      }
+
+      function setVideoContext(context) {
+        videoContext = context;
+        annotations = [];
+        danmakuItems = [];
+        activeDanmakuIndex = -1;
+        video.src = context.videoPath;
+        video.load();
+        const parts = [context.videoId];
+        if (context.seriesName) parts.push(context.seriesName);
+        if (context.episodeLabel) parts.push(context.episodeLabel);
+        if (context.title && context.title !== context.videoId) parts.push(context.title);
+        videoMetaEl.textContent = `${parts.join(" · ")} · 精简字段：时间段、emotion、reason`;
+        currentTimeEl.textContent = AnnotationTool.formatClock(0);
+        renderAnnotations();
       }
 
       function updateActiveDanmaku() {
@@ -583,11 +617,15 @@
       }
 
       function exportJson() {
+        if (!videoContext) {
+          alert("视频信息尚未加载完成。");
+          return;
+        }
         const payload = AnnotationTool.buildAnnotationPayload({
-          videoId: VIDEO_ID,
-          videoPath: VIDEO_PATH,
-          subtitlePath: SUBTITLE_PATH,
-          sourceJsonPath: SOURCE_JSON_PATH,
+          videoId: videoContext.videoId,
+          videoPath: videoContext.videoPath,
+          subtitlePath: videoContext.subtitlePath,
+          sourceJsonPath: videoContext.sourceJsonPath,
           annotations,
         });
         const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
@@ -595,7 +633,7 @@
         });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `${VIDEO_ID}.annotation.json`;
+        link.download = `${videoContext.videoId}.annotation.json`;
         document.body.appendChild(link);
         link.click();
         setTimeout(() => {
@@ -604,18 +642,55 @@
         }, 1000);
       }
 
-      async function loadDanmaku() {
+      async function loadDanmaku(context) {
         try {
-          const response = await fetch("../../data/case1/ep01.json");
+          if (!context.sourceJsonPath) throw new Error("danmaku_url is empty");
+          const response = await fetch(context.sourceJsonPath);
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const payload = await response.json();
-          danmakuItems = AnnotationTool.normalizeDanmaku(payload.danmaku);
+          danmakuItems = AnnotationTool.normalizeDanmaku(payload.items || payload.danmaku);
           renderDanmaku(danmakuItems);
           danmakuStatusEl.textContent = `${danmakuItems.length} 条`;
           updateActiveDanmaku();
         } catch (error) {
           danmakuStatusEl.textContent = "加载失败";
-          danmakuListEl.innerHTML = '<div class="empty">无法读取 data/case1/ep01.json。请通过本地 HTTP 服务打开本页面。</div>';
+          danmakuListEl.innerHTML = '<div class="empty">无法从后端服务读取弹幕。请确认 API 服务已启动，且视频包含 danmaku_url。</div>';
+        }
+      }
+
+      async function fetchJson(path) {
+        const response = await fetch(AnnotationTool.buildApiUrl(config.apiBaseUrl, path));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      }
+
+      async function loadVideoById(videoId) {
+        danmakuStatusEl.textContent = "加载中";
+        danmakuListEl.innerHTML = '<div class="empty">正在从后端服务读取弹幕。</div>';
+        const videoPayload = await fetchJson(`/api/videos/${encodeURIComponent(videoId)}`);
+        const context = AnnotationTool.normalizeVideoContext(videoPayload, config);
+        setVideoContext(context);
+        await loadDanmaku(context);
+      }
+
+      async function loadInitialVideo() {
+        try {
+          const listPayload = await fetchJson("/api/videos");
+          const videos = AnnotationTool.normalizeVideoList(listPayload);
+          const selected = AnnotationTool.selectInitialVideo(videos, config.videoId);
+          if (!selected) throw new Error(config.videoId ? `Video not found: ${config.videoId}` : "No videos available");
+          renderVideoPicker(videos, selected.video_id);
+          await loadVideoById(selected.video_id);
+        } catch (error) {
+          videoMetaEl.textContent = "视频加载失败 · 请确认后端 API 服务已启动";
+          videoPickerEl.textContent = "";
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "加载失败";
+          videoPickerEl.appendChild(option);
+          videoPickerEl.disabled = true;
+          danmakuStatusEl.textContent = "加载失败";
+          danmakuListEl.innerHTML = '<div class="empty">无法读取 /api/videos。启动后端后可用 ?api_base_url=http://127.0.0.1:8000 指定服务地址。</div>';
         }
       }
 
@@ -629,13 +704,18 @@
       document.getElementById("jumpEnd").addEventListener("click", () => setCurrentTime(endTimeInput.value));
       document.getElementById("addAnnotation").addEventListener("click", addAnnotation);
       document.getElementById("exportJson").addEventListener("click", exportJson);
+      videoPickerEl.addEventListener("change", () => {
+        if (videoPickerEl.value) {
+          loadVideoById(videoPickerEl.value);
+        }
+      });
       video.addEventListener("timeupdate", updateTimeState);
       video.addEventListener("seeked", updateTimeState);
       video.addEventListener("play", updateTimeState);
       video.addEventListener("pause", updateTimeState);
 
       renderAnnotations();
-      loadDanmaku();
+      loadInitialVideo();
     </script>
   </body>
 </html>

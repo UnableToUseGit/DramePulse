@@ -228,13 +228,33 @@ apps/annotation-tool/index.html
 
 ### 4.2 标注工具
 
-当前标注工具为本地静态页面：
+当前标注工具为本地静态页面外壳，但视频、元信息和弹幕数据从后端 API 读取：
 
 ```text
 apps/annotation-tool/index.html
 ```
 
-建议通过仓库内置本地服务打开。该服务支持 HTTP Range 请求，视频原生进度条拖拽、点击跳转，以及工具中的“跳到开始 / 跳到结束”按钮都依赖该能力。
+标注工具不再内置固定的 `case1_ep01` 路径。进入页面后会请求：
+
+```text
+GET /api/videos
+GET /api/videos/{video_id}
+GET /api/videos/{video_id}/danmaku
+```
+
+其中 `stream_url` 用于设置播放器地址，`danmaku_url` 用于读取右侧弹幕时间轴。默认同源请求 API；如果后端服务和标注页不在同一个 origin，可以通过查询参数指定：
+
+```text
+http://127.0.0.1:8770/apps/annotation-tool/?api_base_url=http://127.0.0.1:8000
+```
+
+也可以指定初始视频：
+
+```text
+http://127.0.0.1:8770/apps/annotation-tool/?api_base_url=http://127.0.0.1:8000&video_id=demo_ep01
+```
+
+如果标注页本身仍通过仓库内置本地服务打开，该服务只负责托管 HTML/JS/CSS，并保留 HTTP Range 支持；实际视频 seek 能力取决于后端 `/api/videos/{video_id}/stream` 是否正确返回 `206 Partial Content`。
 
 ```bash
 python scripts/serve_annotation_tool.py --port 8770
@@ -248,10 +268,11 @@ http://127.0.0.1:8770/apps/annotation-tool/
 
 不要直接使用 `python -m http.server` 启动标注工具。Python 标准库静态服务在当前环境下不会为 MP4 返回 `206 Partial Content`，浏览器会认为视频不可 seek，表现为进度条拖拽或按钮跳转后又回到原播放位置。
 
-工具第一版能力：
+工具当前能力：
 
-- 播放 `data/case1/ep01.mp4`；
-- 读取 `data/case1/ep01.json` 中的 `danmaku`；
+- 从后端视频列表中选择待标注视频；
+- 使用视频对象中的 `stream_url` 播放视频；
+- 使用视频对象中的 `danmaku_url` 读取弹幕；
 - 在播放器右侧展示按时间排序的弹幕列表；
 - 视频播放时自动滚动到当前时间对应的弹幕行；
 - 点击弹幕行可以跳转到对应视频时间；
