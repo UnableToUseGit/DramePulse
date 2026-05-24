@@ -2,7 +2,17 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 
-export function PlayerChrome({ onToggleDebug }: { onToggleDebug: () => void }) {
+export function PlayerChrome({
+  onToggleDebug,
+  seriesName,
+  title,
+  episodeLabel
+}: {
+  onToggleDebug: () => void;
+  seriesName?: string;
+  title: string;
+  episodeLabel?: string;
+}) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
       <View style={styles.top}>
@@ -25,16 +35,18 @@ export function PlayerChrome({ onToggleDebug }: { onToggleDebug: () => void }) {
       <View style={styles.meta}>
         <View style={styles.badge}>
           <Ionicons name="play" size={14} color="#fff" />
-          <Text style={styles.badgeText}>i说 系列剧 · 离婚，先问过我么</Text>
+          <Text style={styles.badgeText}>i说 系列剧 · {seriesName ?? "DramePulse"}</Text>
         </View>
-        <Text style={styles.title}>离婚，先问过我公婆再说</Text>
+        <Text numberOfLines={2} style={styles.title}>
+          {title}
+        </Text>
         <View style={styles.tags}>
-          <Text style={styles.tag}>第1季</Text>
+          <Text style={styles.tag}>{episodeLabel ?? "短剧"}</Text>
           <Text style={styles.tag}>都市爱情</Text>
-          <Text style={styles.tag}>演员 · 吴飞雪 徐霜</Text>
+          <Text style={styles.tag}>真实弹幕</Text>
         </View>
         <Text numberOfLines={1} style={styles.description}>
-          第1集｜金牌翻译宋金金穿书成男主陆... 展开
+          后端视频流 · SQLite videos 表
         </Text>
       </View>
 

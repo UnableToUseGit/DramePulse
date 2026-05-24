@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DanmakuLayer } from "../components/DanmakuLayer";
 import { InteractionPollBar } from "../components/InteractionPollBar";
 import { PlaybackHint } from "../components/PlaybackHint";
 import { PlayerControls } from "../components/PlayerControls";
 import { PlayerChrome } from "../components/PlayerChrome";
 import { SeekRequest, VideoStage } from "../components/VideoStage";
+import { API_BASE_URL } from "../config";
 import { createInitialStats, createUserEvent, updateStats } from "../domain/events";
-import { getDemoFixtures } from "../domain/fixtures";
 import { findActiveInteractionPlan } from "../domain/interactionScheduler";
+import { loadPlayerData, PlayerData } from "../domain/playerApi";
 import type { InteractionOption, InteractionPlan, InteractionStats, UserEvent } from "../domain/types";
+import { colors, radii, spacing } from "../theme";
 
 const POLL_IDLE_TTL_SEC = 3;
 const POLL_RESULT_TTL_SEC = 2;
 
 export function PlayerScreen() {
-  const fixtures = useMemo(() => getDemoFixtures(), []);
+  const [playerData, setPlayerData] = useState<PlayerData | undefined>();
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadError, setLoadError] = useState<string | undefined>();
   const [currentTime, setCurrentTime] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -28,6 +32,47 @@ export function PlayerScreen() {
   const [completedInteractionIds, setCompletedInteractionIds] = useState<Set<string>>(() => new Set());
   const [events, setEvents] = useState<UserEvent[]>([]);
   const [stats, setStats] = useState<InteractionStats>(() => createInitialStats());
+  const interactionPlans = useMemo<InteractionPlan[]>(() => [], []);
+
+  const fetchPlayerData = useCallback(async () => {
+    setLoadState("loading");
+    setLoadError(undefined);
+    try {
+      const data = await loadPlayerData({ apiBaseUrl: API_BASE_URL });
+      setPlayerData(data);
+      setLoadState("ready");
+      setCurrentTime(0);
+      setIsStarted(false);
+      setIsPlaying(false);
+      setSeekRequest(undefined);
+      setSeekVersion((version) => version + 1);
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
+      setLoadState("error");
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadState("loading");
+    setLoadError(undefined);
+    loadPlayerData({ apiBaseUrl: API_BASE_URL })
+      .then((data) => {
+        if (!cancelled) {
+          setPlayerData(data);
+          setLoadState("ready");
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
+          setLoadState("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const appendEvent = useCallback((event: UserEvent) => {
     setEvents((current) => [...current, event]);
@@ -78,7 +123,7 @@ export function PlayerScreen() {
     }
 
     const nextPlan = findActiveInteractionPlan({
-      plans: fixtures.interactionPlans,
+      plans: interactionPlans,
       currentTime,
       completedIds: completedInteractionIds
     });
@@ -103,7 +148,7 @@ export function PlayerScreen() {
     appendEvent,
     completedInteractionIds,
     currentTime,
-    fixtures.interactionPlans,
+    interactionPlans,
     isStarted,
     selectedAt,
     selectedOption
@@ -157,6 +202,27 @@ export function PlayerScreen() {
     [activePlan, appendEvent, currentTime, selectedOption]
   );
 
+  if (loadState === "loading") {
+    return (
+      <View style={[styles.root, styles.centerState]}>
+        <Text style={styles.stateTitle}>正在连接后端视频源</Text>
+        <Text style={styles.stateText}>GET {API_BASE_URL}/api/videos</Text>
+      </View>
+    );
+  }
+
+  if (loadState === "error" || !playerData) {
+    return (
+      <View style={[styles.root, styles.centerState]}>
+        <Text style={styles.stateTitle}>无法加载播放器数据</Text>
+        <Text style={styles.stateText}>{loadError ?? "请确认 services/api 已启动"}</Text>
+        <Pressable style={styles.retryButton} onPress={fetchPlayerData}>
+          <Text style={styles.retryText}>重试</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <VideoStage
@@ -165,11 +231,12 @@ export function PlayerScreen() {
         seekRequest={seekRequest}
         onStart={handleStart}
         onTimeChange={handleTimeChange}
+        streamUrl={playerData.video.streamUrl}
       />
       {isStarted ? (
         <DanmakuLayer
           currentTime={currentTime}
-          danmaku={fixtures.danmaku}
+          danmaku={playerData.danmaku}
           isPlaying={isPlaying}
           seekVersion={seekVersion}
         />
@@ -177,10 +244,15 @@ export function PlayerScreen() {
       {isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
       <PlaybackHint isStarted={isStarted} isPlaying={isPlaying} />
       <InteractionPollBar plan={activePlan} selectedOption={selectedOption} onSelect={handleSelectOption} />
-      <PlayerChrome onToggleDebug={() => undefined} />
+      <PlayerChrome
+        onToggleDebug={() => undefined}
+        seriesName={playerData.video.seriesName}
+        title={playerData.video.title}
+        episodeLabel={playerData.video.episodeLabel}
+      />
       <PlayerControls
         currentTime={currentTime}
-        duration={120}
+        duration={playerData.video.duration}
         onSeekCommit={handleSeekCommit}
       />
     </View>
@@ -191,6 +263,36 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#050505"
+  },
+  centerState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.xl
+  },
+  stateTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900",
+    textAlign: "center"
+  },
+  stateText: {
+    marginTop: spacing.sm,
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  retryButton: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.small,
+    backgroundColor: colors.accent
+  },
+  retryText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "900"
   },
   tapLayer: {
     ...StyleSheet.absoluteFillObject

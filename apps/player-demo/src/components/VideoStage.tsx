@@ -4,8 +4,6 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 
-const videoSource = require("../../assets/video/ep01.mp4");
-
 export interface SeekRequest {
   id: number;
   time: number;
@@ -16,15 +14,17 @@ export function VideoStage({
   onStart,
   isPlaying,
   seekRequest,
-  onTimeChange
+  onTimeChange,
+  streamUrl
 }: {
   isStarted: boolean;
   onStart: () => void;
   isPlaying: boolean;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
+  streamUrl: string;
 }) {
-  const player = useVideoPlayer(videoSource, (instance) => {
+  const player = useVideoPlayer(streamUrl, (instance) => {
     instance.loop = false;
     instance.timeUpdateEventInterval = 0.25;
   });
