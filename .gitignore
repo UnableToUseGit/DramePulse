@@ -124,6 +124,8 @@ checkpoints/
 playwright-report/
 test-results/
 screenshots/
+.superpowers/
+.worktrees/
 
 # Keep repository placeholders
 !.gitkeep
