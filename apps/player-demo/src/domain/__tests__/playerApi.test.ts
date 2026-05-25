@@ -1,0 +1,144 @@
+import { loadPlayerData, loadPlayerVideos, loadVideoDanmaku, normalizeDanmakuResponse, normalizeVideo } from "../playerApi";
+
+describe("playerApi", () => {
+  it("normalizes backend video URLs into absolute player data", () => {
+    expect(
+      normalizeVideo(
+        {
+          video_id: "beipai_xunbao_biji_ep63",
+          series_name: "北派寻宝笔记",
+          title: "第63集",
+          episode_label: "ep63",
+          duration: 123.45,
+          stream_url: "/api/videos/beipai_xunbao_biji_ep63/stream",
+          danmaku_url: "/api/videos/beipai_xunbao_biji_ep63/danmaku"
+        },
+        "http://127.0.0.1:8000"
+      )
+    ).toEqual({
+      videoId: "beipai_xunbao_biji_ep63",
+      seriesName: "北派寻宝笔记",
+      title: "第63集",
+      episodeLabel: "ep63",
+      duration: 123.45,
+      streamUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/stream",
+      danmakuUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/danmaku"
+    });
+  });
+
+  it("normalizes available danmaku and removes empty text", () => {
+    const danmaku = normalizeDanmakuResponse({
+      available: true,
+      items: [
+        { danmaku_id: "b", time_sec: 2.2, text: "第二条", digg_count: 1, score: 2 },
+        { danmaku_id: "empty", time_sec: 1.5, text: "" },
+        { danmaku_id: "a", time_sec: 1, text: "第一条", digg_count: 3, score: 4 }
+      ]
+    });
+
+    expect(danmaku).toEqual([
+      { danmaku_id: "a", time_sec: 1, text: "第一条", digg_count: 3, score: 4 },
+      { danmaku_id: "b", time_sec: 2.2, text: "第二条", digg_count: 1, score: 2 }
+    ]);
+  });
+
+  it("returns empty danmaku when backend marks it unavailable", () => {
+    expect(normalizeDanmakuResponse({ available: false, items: [{ time_sec: 1, text: "x" }] })).toEqual([]);
+  });
+
+  it("loads the first playable video and its danmaku", async () => {
+    const fetcher = jest.fn(async (url: string) => {
+      if (url.endsWith("/api/videos")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            videos: [
+              {
+                video_id: "v1",
+                title: "第一集",
+                duration: 60,
+                stream_url: "/api/videos/v1/stream",
+                danmaku_url: "/api/videos/v1/danmaku"
+              }
+            ]
+          })
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          available: true,
+          items: [{ danmaku_id: "d1", time_sec: 1, text: "来了" }]
+        })
+      };
+    });
+
+    const data = await loadPlayerData({ apiBaseUrl: "http://localhost:8000", fetcher });
+
+    expect(data.video.videoId).toBe("v1");
+    expect(data.video.streamUrl).toBe("http://localhost:8000/api/videos/v1/stream");
+    expect(data.danmaku).toEqual([{ danmaku_id: "d1", time_sec: 1, text: "来了" }]);
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos");
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v1/danmaku");
+  });
+
+  it("loads every playable video from the backend feed", async () => {
+    const fetcher = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        videos: [
+          {
+            video_id: "v1",
+            series_name: "北派寻宝笔记",
+            title: "第一集",
+            duration: 60,
+            stream_url: "/api/videos/v1/stream",
+            danmaku_url: "/api/videos/v1/danmaku"
+          },
+          {
+            video_id: "broken",
+            title: "缺少视频流",
+            danmaku_url: "/api/videos/broken/danmaku"
+          },
+          {
+            video_id: "v2",
+            title: "第二集",
+            duration: 66,
+            stream_url: "/api/videos/v2/stream",
+            danmaku_url: "/api/videos/v2/danmaku"
+          }
+        ]
+      })
+    }));
+
+    const videos = await loadPlayerVideos({ apiBaseUrl: "http://localhost:8000", fetcher });
+
+    expect(videos.map((video) => video.videoId)).toEqual(["v1", "v2"]);
+    expect(videos[1].streamUrl).toBe("http://localhost:8000/api/videos/v2/stream");
+    expect(videos[1].danmakuUrl).toBe("http://localhost:8000/api/videos/v2/danmaku");
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos");
+  });
+
+  it("loads danmaku from the selected video danmaku URL", async () => {
+    const fetcher = jest.fn(async (url: string) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        video_id: url.endsWith("/v2/danmaku") ? "v2" : "unknown",
+        available: true,
+        items: [{ danmaku_id: "d2", time_sec: 2, text: "第二集弹幕" }]
+      })
+    }));
+
+    const danmaku = await loadVideoDanmaku({
+      danmakuUrl: "http://localhost:8000/api/videos/v2/danmaku",
+      fetcher
+    });
+
+    expect(danmaku).toEqual([{ danmaku_id: "d2", time_sec: 2, text: "第二集弹幕" }]);
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v2/danmaku");
+  });
+});

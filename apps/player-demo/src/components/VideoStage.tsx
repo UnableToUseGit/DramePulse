@@ -4,8 +4,6 @@ import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 
-const videoSource = require("../../assets/video/ep01.mp4");
-
 export interface SeekRequest {
   id: number;
   time: number;
@@ -16,15 +14,19 @@ export function VideoStage({
   onStart,
   isPlaying,
   seekRequest,
-  onTimeChange
+  onTimeChange,
+  streamUrl,
+  showStartEntry = true
 }: {
   isStarted: boolean;
   onStart: () => void;
   isPlaying: boolean;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
+  streamUrl: string;
+  showStartEntry?: boolean;
 }) {
-  const player = useVideoPlayer(videoSource, (instance) => {
+  const player = useVideoPlayer(streamUrl, (instance) => {
     instance.loop = false;
     instance.timeUpdateEventInterval = 0.25;
   });
@@ -64,7 +66,7 @@ export function VideoStage({
         allowsFullscreen={false}
         allowsPictureInPicture={false}
       />
-      {!isStarted ? (
+      {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>
           <Pressable style={styles.startButton} onPress={onStart}>
             <Text style={styles.startButtonText}>点击播放短剧</Text>

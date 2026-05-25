@@ -19,11 +19,16 @@ def init_db() -> None:
                 """
                 CREATE TABLE IF NOT EXISTS videos (
                     video_id VARCHAR(64) PRIMARY KEY,
+                    series_id VARCHAR(128) NULL,
+                    series_name VARCHAR(255) NULL,
                     title VARCHAR(255) NOT NULL,
                     episode_no INT NULL,
+                    episode_label VARCHAR(32) NULL,
                     duration DOUBLE NULL,
                     oss_bucket VARCHAR(255) NOT NULL,
                     oss_object_key VARCHAR(512) NOT NULL,
+                    douyin_video_id VARCHAR(64) NULL,
+                    douyin_json_path VARCHAR(512) NULL,
                     content_type VARCHAR(128) NOT NULL DEFAULT 'video/mp4',
                     size BIGINT NOT NULL,
                     source VARCHAR(32) NOT NULL DEFAULT 'oss',
@@ -32,7 +37,8 @@ def init_db() -> None:
                     updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                     UNIQUE KEY uk_videos_oss_object (oss_bucket, oss_object_key),
                     KEY idx_videos_episode_no (episode_no),
-                    KEY idx_videos_status (status)
+                    KEY idx_videos_status (status),
+                    KEY idx_videos_series_episode (series_id, episode_no)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """
             )

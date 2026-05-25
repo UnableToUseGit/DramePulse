@@ -21,7 +21,7 @@ class InteractionApiTest(unittest.TestCase):
             for name in ["DRAMEPULSE_MODE", "SQLITE_PATH", "LOCAL_OSS_ROOT", "LOCAL_OSS_BUCKET"]
         }
         tmp_path = Path(self.tmpdir.name)
-        shutil.copyfile(Path("demo_video.mp4"), tmp_path / "demo_video.mp4")
+        shutil.copyfile(Path("apps/player-demo/assets/video/ep01.mp4"), tmp_path / "demo_video.mp4")
         os.environ["DRAMEPULSE_MODE"] = "local"
         os.environ["SQLITE_PATH"] = str(tmp_path / "dramepulse.sqlite")
         os.environ["LOCAL_OSS_ROOT"] = str(tmp_path)
