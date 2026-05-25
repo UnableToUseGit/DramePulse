@@ -38,6 +38,13 @@ class Settings:
     oss_access_key_id: str
     oss_access_key_secret: str
     oss_region: str
+    openai_api_key: str
+    openai_api_base: str
+    openai_model: str
+    openai_embedding_model: str
+    chroma_dir: Path
+    chroma_collection: str
+    similarity_top_k: int
 
     @property
     def oss_endpoint_url(self) -> str:
@@ -65,6 +72,13 @@ def get_settings() -> Settings:
         oss_access_key_id=_getenv("OSS_ACCESS_KEY_ID"),
         oss_access_key_secret=_getenv("OSS_ACCESS_KEY_SECRET"),
         oss_region=_getenv("OSS_REGION", "cn-beijing"),
+        openai_api_key=_getenv("OPENAI_API_KEY"),
+        openai_api_base=_getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
+        openai_model=_getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        openai_embedding_model=_getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
+        chroma_dir=repo_root / _getenv("CHROMA_DIR", "data/chroma"),
+        chroma_collection=_getenv("CHROMA_COLLECTION", "dramepulse_story_qa"),
+        similarity_top_k=int(_getenv("SIMILARITY_TOP_K", "8")),
     )
 
 

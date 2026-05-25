@@ -220,3 +220,26 @@ docs/dataset-construction
 ```
 
 具体功能、实验脚本、文档草稿都应先在独立分支中完成，经过自查和必要验证后，再通过 Pull Request 合并到 `main`。
+## Optional story Q&A RAG
+
+`/api/story-qa/*` is an optional plot Q&A capability for answering questions within the viewer's current playback progress. It uses Chroma, LlamaIndex, and an OpenAI-compatible API, and does not replace highlight recognition, interaction plan generation, or strategy updates.
+
+Endpoints:
+
+```text
+POST /api/story-qa/ask
+POST /api/story-qa/ingest
+GET  /api/story-qa/collections
+```
+
+Real RAG calls require these `.env` values:
+
+```env
+OPENAI_API_KEY=
+OPENAI_API_BASE=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+CHROMA_DIR=data/chroma
+CHROMA_COLLECTION=dramepulse_story_qa
+SIMILARITY_TOP_K=8
+```
