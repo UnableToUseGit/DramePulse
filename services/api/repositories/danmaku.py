@@ -55,6 +55,16 @@ def _load_danmaku_items(path: Path) -> list[dict[str, Any]]:
     )
 
 
+def _persisted_item_to_lightweight(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "danmaku_id": item.get("danmaku_id"),
+        "time_sec": float(item.get("client_time") or 0),
+        "text": str(item.get("text") or ""),
+        "digg_count": item.get("digg_count"),
+        "score": item.get("score"),
+    }
+
+
 def _get_douyin_json_path(video_id: str) -> str | None:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
@@ -80,6 +90,19 @@ def get_video_danmaku(video_id: str) -> dict[str, Any] | None:
         return None
 
     persisted_items = list_danmaku(video_id)
+    if persisted_items:
+        items = sorted(
+            [_persisted_item_to_lightweight(item) for item in persisted_items],
+            key=lambda item: (item["time_sec"], str(item.get("danmaku_id") or "")),
+        )
+        return {
+            "video_id": video_id,
+            "available": True,
+            "count": len(items),
+            "items": items,
+            "danmaku": persisted_items,
+        }
+
     if not relative_path:
         return {
             "video_id": video_id,

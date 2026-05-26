@@ -41,11 +41,11 @@ def list_interaction_plans(video_id: str) -> list[dict[str, Any]]:
         placeholders = ", ".join([placeholder] * len(interaction_ids))
         cursor.execute(
             f"""
-            SELECT option_id, interaction_id, text, danmaku_text, rank, base_score, status
+            SELECT option_id, interaction_id, text, danmaku_text, `rank`, base_score, status
             FROM interaction_options
             WHERE interaction_id IN ({placeholders})
               AND status = 'active'
-            ORDER BY interaction_id, rank, option_id
+            ORDER BY interaction_id, `rank`, option_id
             """,
             tuple(interaction_ids),
         )
@@ -161,7 +161,7 @@ def get_interaction_results(interaction_id: str) -> dict[str, Any] | None:
              AND s.option_id = o.option_id
             WHERE o.interaction_id = {placeholder}
               AND o.status = 'active'
-            ORDER BY o.rank, o.option_id
+            ORDER BY o.`rank`, o.option_id
             """,
             (interaction_id,),
         )

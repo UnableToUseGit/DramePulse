@@ -38,6 +38,7 @@ class Settings:
     oss_access_key_id: str
     oss_access_key_secret: str
     oss_region: str
+    cdn_base_url: str
     openai_api_key: str
     openai_api_base: str
     openai_model: str
@@ -72,6 +73,7 @@ def get_settings() -> Settings:
         oss_access_key_id=_getenv("OSS_ACCESS_KEY_ID"),
         oss_access_key_secret=_getenv("OSS_ACCESS_KEY_SECRET"),
         oss_region=_getenv("OSS_REGION", "cn-beijing"),
+        cdn_base_url=_getenv("CDN_BASE_URL"),
         openai_api_key=_getenv("OPENAI_API_KEY"),
         openai_api_base=_getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
         openai_model=_getenv("OPENAI_MODEL", "gpt-4o-mini"),

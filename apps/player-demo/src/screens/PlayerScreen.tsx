@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
 import { API_BASE_URL } from "../config";
 import { getFeedPageIndex } from "../domain/playerFeed";
@@ -15,6 +24,8 @@ export function PlayerScreen() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const viewport = useWindowDimensions();
+  const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
@@ -60,12 +71,12 @@ export function PlayerScreen() {
       setActiveIndex(
         getFeedPageIndex({
           offsetY: event.nativeEvent.contentOffset.y,
-          pageHeight,
+          pageHeight: resolvedPageHeight,
           itemCount: videos.length
         })
       );
     },
-    [pageHeight, videos.length]
+    [resolvedPageHeight, videos.length]
   );
 
   const handleChangePresentationType = useCallback((type: InteractionPresentationType) => {
@@ -97,10 +108,13 @@ export function PlayerScreen() {
     <View
       style={styles.root}
       onLayout={(event) => {
-        setPageHeight(event.nativeEvent.layout.height);
+        const nextHeight = event.nativeEvent.layout.height;
+        if (nextHeight > 0) {
+          setPageHeight(nextHeight);
+        }
       }}
     >
-      {pageHeight > 0 ? (
+      {resolvedPageHeight > 0 ? (
         <FlatList
           data={videos}
           keyExtractor={(item) => item.videoId}
@@ -108,7 +122,7 @@ export function PlayerScreen() {
             <PlayerPage
               video={item}
               isActive={index === activeIndex}
-              height={pageHeight}
+              height={resolvedPageHeight}
               hasStartedFeed={hasStartedFeed}
               selectedPresentationType={selectedPresentationType}
               onChangePresentationType={handleChangePresentationType}
@@ -119,11 +133,15 @@ export function PlayerScreen() {
           showsVerticalScrollIndicator={false}
           bounces
           decelerationRate="fast"
-          snapToInterval={pageHeight}
+          snapToInterval={resolvedPageHeight}
           snapToAlignment="start"
           disableIntervalMomentum
           onMomentumScrollEnd={handleMomentumScrollEnd}
-          getItemLayout={(_, index) => ({ length: pageHeight, offset: pageHeight * index, index })}
+          getItemLayout={(_, index) => ({
+            length: resolvedPageHeight,
+            offset: resolvedPageHeight * index,
+            index
+          })}
           initialNumToRender={1}
           maxToRenderPerBatch={2}
           windowSize={3}
