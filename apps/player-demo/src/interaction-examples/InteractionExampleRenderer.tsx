@@ -26,5 +26,9 @@ export function InteractionExampleRenderer({
     return <DanmakuPollExample example={example} onDismiss={onDismiss} />;
   }
 
+  if (presentationType === "rapid_tap") {
+    return null;
+  }
+
   return <EmojiHoldExample example={example} onDismiss={onDismiss} />;
 }

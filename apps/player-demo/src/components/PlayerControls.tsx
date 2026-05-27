@@ -13,10 +13,14 @@ function formatTime(value: number) {
 export function PlayerControls({
   currentTime,
   duration,
+  hasNextEpisode,
+  nextEpisodeLabel,
   onSeekCommit
 }: {
   currentTime: number;
   duration: number;
+  hasNextEpisode: boolean;
+  nextEpisodeLabel?: string;
   onSeekCommit: (time: number) => void;
 }) {
   const safeDuration = duration > 0 ? duration : 1;
@@ -24,6 +28,8 @@ export function PlayerControls({
   const onSeekCommitRef = useRef(onSeekCommit);
   const isDragging = dragTime !== undefined;
   const visibleTime = dragTime ?? currentTime;
+  const remainingSeconds = Math.ceil(duration - currentTime);
+  const shouldShowNextEpisodeHint = hasNextEpisode && !isDragging && remainingSeconds >= 1 && remainingSeconds <= 3;
 
   useEffect(() => {
     onSeekCommitRef.current = onSeekCommit;
@@ -31,25 +37,32 @@ export function PlayerControls({
 
   return (
     <View style={styles.root}>
-      <Slider
-        style={styles.track}
-        minimumValue={0}
-        maximumValue={safeDuration}
-        value={visibleTime}
-        minimumTrackTintColor={colors.text}
-        maximumTrackTintColor="rgba(255,255,255,0.3)"
-        thumbTintColor={colors.text}
-        tapToSeek
-        onSlidingStart={(value) => setDragTime(value)}
-        onValueChange={(value) => setDragTime(value)}
-        onSlidingComplete={(value) => {
-          setDragTime(undefined);
-          onSeekCommitRef.current(value);
-        }}
-      />
-      <Text style={[styles.timeText, isDragging ? styles.draggingTimeText : null]}>
-        {formatTime(visibleTime)} / {formatTime(duration)}
-      </Text>
+      <View style={styles.progressRow}>
+        <Slider
+          style={styles.track}
+          minimumValue={0}
+          maximumValue={safeDuration}
+          value={visibleTime}
+          minimumTrackTintColor={colors.text}
+          maximumTrackTintColor="rgba(255,255,255,0.3)"
+          thumbTintColor={colors.text}
+          tapToSeek
+          onSlidingStart={(value) => setDragTime(value)}
+          onValueChange={(value) => setDragTime(value)}
+          onSlidingComplete={(value) => {
+            setDragTime(undefined);
+            onSeekCommitRef.current(value);
+          }}
+        />
+        <Text style={[styles.timeText, isDragging ? styles.draggingTimeText : null]}>
+          {formatTime(visibleTime)} / {formatTime(duration)}
+        </Text>
+      </View>
+      {shouldShowNextEpisodeHint ? (
+        <Text style={styles.nextEpisodeHint} numberOfLines={1}>
+          {remainingSeconds}秒后自动播放下一集{nextEpisodeLabel ? ` · ${nextEpisodeLabel}` : ""}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -60,7 +73,10 @@ const styles = StyleSheet.create({
     left: spacing.lg,
     right: spacing.lg,
     bottom: 76,
-    height: 34,
+    height: 50,
+    justifyContent: "center"
+  },
+  progressRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm
@@ -78,5 +94,12 @@ const styles = StyleSheet.create({
   },
   draggingTimeText: {
     color: colors.gold
+  },
+  nextEpisodeHint: {
+    marginTop: -2,
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "right"
   }
 });

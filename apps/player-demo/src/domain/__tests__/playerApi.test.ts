@@ -6,6 +6,7 @@ describe("playerApi", () => {
       normalizeVideo(
         {
           video_id: "beipai_xunbao_biji_ep63",
+          series_id: "beipai_xunbao_biji",
           series_name: "北派寻宝笔记",
           title: "第63集",
           episode_label: "ep63",
@@ -17,8 +18,10 @@ describe("playerApi", () => {
       )
     ).toEqual({
       videoId: "beipai_xunbao_biji_ep63",
+      seriesId: "beipai_xunbao_biji",
       seriesName: "北派寻宝笔记",
-      title: "第63集",
+      title: "北派寻宝笔记",
+      plotSummary: "第63集",
       episodeLabel: "ep63",
       duration: 123.45,
       streamUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/stream",
@@ -80,8 +83,12 @@ describe("playerApi", () => {
     expect(data.video.videoId).toBe("v1");
     expect(data.video.streamUrl).toBe("http://localhost:8000/api/videos/v1/stream");
     expect(data.danmaku).toEqual([{ danmaku_id: "d1", time_sec: 1, text: "来了" }]);
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos");
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v1/danmaku");
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos", {
+      signal: expect.any(AbortSignal)
+    });
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v1/danmaku", {
+      signal: expect.any(AbortSignal)
+    });
   });
 
   it("loads every playable video from the backend feed", async () => {
@@ -119,7 +126,9 @@ describe("playerApi", () => {
     expect(videos.map((video) => video.videoId)).toEqual(["v1", "v2"]);
     expect(videos[1].streamUrl).toBe("http://localhost:8000/api/videos/v2/stream");
     expect(videos[1].danmakuUrl).toBe("http://localhost:8000/api/videos/v2/danmaku");
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos");
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos", {
+      signal: expect.any(AbortSignal)
+    });
   });
 
   it("loads danmaku from the selected video danmaku URL", async () => {
@@ -139,6 +148,8 @@ describe("playerApi", () => {
     });
 
     expect(danmaku).toEqual([{ danmaku_id: "d2", time_sec: 2, text: "第二集弹幕" }]);
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v2/danmaku");
+    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v2/danmaku", {
+      signal: expect.any(AbortSignal)
+    });
   });
 });

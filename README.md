@@ -116,7 +116,7 @@ example_output/case1_ep01/
 apps/player-demo/
 ```
 
-它是一个 React Native + Expo App，第一版只包含竖屏短剧播放页。Demo 使用本地样例视频、弹幕和互动方案 fixture，在 iOS 和 Android 上可通过 Expo Go 扫码体验。
+它是一个 React Native + Expo App，当前包含竖屏短剧播放页，并通过后端 `GET /api/videos` 获取视频列表、视频流和弹幕数据。在 iOS 和 Android 上可通过 Expo Go 扫码体验。
 
 安装依赖并启动：
 
@@ -127,7 +127,12 @@ npm install
 npm start
 ```
 
-启动后使用手机上的 Expo Go 扫描终端中的二维码。当前版本不依赖真实后端服务，用户事件和统计在端内模拟。
+启动后使用手机上的 Expo Go 扫描终端中的二维码。真机调试时，后端应使用 `--host 0.0.0.0` 启动，保证手机可以通过开发机局域网 IP 访问。前端默认会尝试从 Expo Metro 地址推断 API 主机；如需手动指定，可在启动 Expo 前设置：
+
+```powershell
+$env:EXPO_PUBLIC_API_BASE_URL="http://<your-lan-ip>:8000"
+npm start
+```
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 

@@ -1,7 +1,8 @@
-import { useEvent } from "expo";
+import { useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useEffect } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { SurfaceType, VideoViewProps } from "expo-video";
+import { memo, useEffect, useRef } from "react";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
 
 export interface SeekRequest {
@@ -9,12 +10,34 @@ export interface SeekRequest {
   time: number;
 }
 
-export function VideoStage({
+const DISABLED_FULLSCREEN_OPTIONS: NonNullable<VideoViewProps["fullscreenOptions"]> = { enable: false };
+const VIDEO_SURFACE_TYPE: SurfaceType | undefined = Platform.OS === "android" ? "textureView" : undefined;
+
+function ignoreReleasedPlayerError(action: () => void) {
+  try {
+    action();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const isReleasedPlayerError =
+      message.includes("already released") ||
+      message.includes("shared object") ||
+      (message.includes("VideoPlayer.") && message.includes("rejected"));
+    if (!isReleasedPlayerError) {
+      throw error;
+    }
+  }
+}
+
+export const VideoStage = memo(function VideoStage({
   isStarted,
   onStart,
   isPlaying,
   seekRequest,
   onTimeChange,
+  onDurationChange,
+  onPlayToEnd,
+  onSeekHandled,
+  playbackRate,
   streamUrl,
   showStartEntry = true
 }: {
@@ -23,38 +46,72 @@ export function VideoStage({
   isPlaying: boolean;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
+  onDurationChange: (duration: number) => void;
+  onPlayToEnd: () => void;
+  onSeekHandled: () => void;
+  playbackRate: number;
   streamUrl: string;
   showStartEntry?: boolean;
 }) {
+  const onTimeChangeRef = useRef(onTimeChange);
+  const lastHandledSeekIdRef = useRef<number | undefined>(undefined);
+  const playbackCommandRef = useRef<"idle" | "play" | "pause">("idle");
   const player = useVideoPlayer(streamUrl, (instance) => {
     instance.loop = false;
-    instance.timeUpdateEventInterval = 0.25;
-  });
-  const timeUpdate = useEvent(player, "timeUpdate", {
-    currentTime: 0,
-    currentLiveTimestamp: null,
-    currentOffsetFromLive: null,
-    bufferedPosition: 0
+    instance.timeUpdateEventInterval = 0.5;
+    instance.playbackRate = playbackRate;
   });
 
   useEffect(() => {
-    onTimeChange(timeUpdate?.currentTime ?? 0);
-  }, [onTimeChange, timeUpdate?.currentTime]);
+    onTimeChangeRef.current = onTimeChange;
+  }, [onTimeChange]);
 
-  useEffect(() => {
-    if (isStarted && isPlaying) {
-      player.play();
-    } else {
-      player.pause();
+  useEventListener(player, "timeUpdate", ({ currentTime }) => {
+    onTimeChangeRef.current(currentTime ?? 0);
+  });
+
+  useEventListener(player, "playToEnd", onPlayToEnd);
+  useEventListener(player, "sourceLoad", ({ duration }) => {
+    if (Number.isFinite(duration) && duration > 0) {
+      onDurationChange(duration);
     }
+  });
+
+  useEffect(() => {
+    if (!isStarted) {
+      playbackCommandRef.current = "idle";
+      return;
+    }
+    const nextCommand = isPlaying ? "play" : "pause";
+    if (playbackCommandRef.current === nextCommand) {
+      return;
+    }
+    playbackCommandRef.current = nextCommand;
+    ignoreReleasedPlayerError(() => {
+      if (nextCommand === "play") {
+        player.play();
+      } else {
+        player.pause();
+      }
+    });
   }, [isPlaying, isStarted, player]);
 
   useEffect(() => {
-    if (seekRequest) {
-      player.currentTime = seekRequest.time;
-      onTimeChange(seekRequest.time);
+    ignoreReleasedPlayerError(() => {
+      player.playbackRate = playbackRate;
+    });
+  }, [playbackRate, player]);
+
+  useEffect(() => {
+    if (seekRequest && seekRequest.id !== lastHandledSeekIdRef.current) {
+      lastHandledSeekIdRef.current = seekRequest.id;
+      ignoreReleasedPlayerError(() => {
+        player.currentTime = seekRequest.time;
+      });
+      onTimeChangeRef.current(seekRequest.time);
+      onSeekHandled();
     }
-  }, [onTimeChange, player, seekRequest]);
+  }, [onSeekHandled, player, seekRequest]);
 
   return (
     <View style={styles.root}>
@@ -63,8 +120,9 @@ export function VideoStage({
         player={player}
         nativeControls={false}
         contentFit="cover"
-        allowsFullscreen={false}
+        fullscreenOptions={DISABLED_FULLSCREEN_OPTIONS}
         allowsPictureInPicture={false}
+        surfaceType={VIDEO_SURFACE_TYPE}
       />
       {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>
@@ -76,7 +134,7 @@ export function VideoStage({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: {

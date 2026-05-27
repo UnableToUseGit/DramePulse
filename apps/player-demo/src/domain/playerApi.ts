@@ -1,11 +1,15 @@
 import { sampleMobileDanmaku } from "./danmakuSampling";
 import type { DanmakuItem } from "./types";
 
+export const DEFAULT_API_REQUEST_TIMEOUT_MS = 8000;
+
 export interface ApiVideo {
   video_id: string;
   series_id?: string | null;
   series_name?: string | null;
   title: string;
+  description?: string | null;
+  synopsis?: string | null;
   episode_no?: number | null;
   episode_label?: string | null;
   duration?: number | null;
@@ -17,7 +21,9 @@ export interface ApiVideo {
 
 export interface PlayerVideo {
   videoId: string;
+  seriesId?: string;
   title: string;
+  plotSummary: string;
   seriesName?: string;
   episodeLabel?: string;
   duration: number;
@@ -31,7 +37,7 @@ export interface PlayerData {
 }
 
 export interface FetchLike {
-  (input: string): Promise<{
+  (input: string, init?: { signal?: AbortSignal }): Promise<{
     ok: boolean;
     status: number;
     json: () => Promise<unknown>;
@@ -62,22 +68,48 @@ function joinUrl(baseUrl: string, path: string): string {
   return `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function buildPlotSummary({
+  title,
+  description,
+  synopsis
+}: {
+  title: string;
+  description?: string;
+  synopsis?: string;
+}) {
+  const explicitSummary = synopsis || description;
+  if (explicitSummary) {
+    return explicitSummary;
+  }
+  return title;
+}
+
 export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo | undefined {
   if (!isRecord(value)) {
     return undefined;
   }
   const videoId = toStringValue(value.video_id);
-  const title = toStringValue(value.title);
+  const seriesId = toOptionalString(value.series_id);
+  const rawTitle = toStringValue(value.title);
+  const seriesName = toOptionalString(value.series_name);
+  const episodeLabel = toOptionalString(value.episode_label);
+  const displayTitle = seriesName || rawTitle;
   const streamPath = toStringValue(value.stream_url);
   const danmakuPath = toStringValue(value.danmaku_url);
-  if (!videoId || !title || !streamPath || !danmakuPath) {
+  if (!videoId || !rawTitle || !streamPath || !danmakuPath) {
     return undefined;
   }
   return {
     videoId,
-    title,
-    seriesName: toOptionalString(value.series_name),
-    episodeLabel: toOptionalString(value.episode_label),
+    ...(seriesId ? { seriesId } : {}),
+    title: displayTitle,
+    plotSummary: buildPlotSummary({
+      title: rawTitle,
+      description: toOptionalString(value.description),
+      synopsis: toOptionalString(value.synopsis)
+    }),
+    seriesName,
+    episodeLabel,
     duration: toNumber(value.duration, 120),
     streamUrl: joinUrl(apiBaseUrl, streamPath),
     danmakuUrl: joinUrl(apiBaseUrl, danmakuPath)
@@ -102,40 +134,62 @@ export function normalizeDanmakuResponse(value: unknown): DanmakuItem[] {
   return sampleMobileDanmaku(items);
 }
 
-async function fetchJson(fetcher: FetchLike, url: string): Promise<unknown> {
-  const response = await fetcher(url);
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status}: ${url}`);
+async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS): Promise<unknown> {
+  const abortController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+  const timeoutId =
+    abortController && timeoutMs > 0
+      ? setTimeout(() => {
+          abortController.abort();
+        }, timeoutMs)
+      : undefined;
+  try {
+    const response = await fetcher(url, abortController ? { signal: abortController.signal } : undefined);
+    if (!response.ok) {
+      throw new Error(`Request failed ${response.status}: ${url}`);
+    }
+    return response.json();
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
-  return response.json();
 }
 
 export async function loadPlayerData({
   apiBaseUrl,
-  fetcher = fetch
+  fetcher = fetch,
+  timeoutMs
 }: {
   apiBaseUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<PlayerData> {
-  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher });
+  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher, timeoutMs });
   const video = videos[0];
   if (!video) {
     throw new Error("No playable videos returned by API");
   }
   return {
     video,
-    danmaku: await loadVideoDanmaku({ danmakuUrl: video.danmakuUrl, fetcher })
+    danmaku: await loadVideoDanmaku({ danmakuUrl: video.danmakuUrl, fetcher, timeoutMs })
   };
 }
 
 export async function loadPlayerVideos({
   apiBaseUrl,
-  fetcher = fetch
+  fetcher = fetch,
+  timeoutMs
 }: {
   apiBaseUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<PlayerVideo[]> {
-  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"));
+  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"), timeoutMs);
   const rawVideos = isRecord(videosPayload) && Array.isArray(videosPayload.videos) ? videosPayload.videos : [];
   const videos = rawVideos
     .map((item) => normalizeVideo(item, apiBaseUrl))
@@ -148,11 +202,13 @@ export async function loadPlayerVideos({
 
 export async function loadVideoDanmaku({
   danmakuUrl,
-  fetcher = fetch
+  fetcher = fetch,
+  timeoutMs
 }: {
   danmakuUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<DanmakuItem[]> {
-  const danmakuPayload = await fetchJson(fetcher, danmakuUrl);
+  const danmakuPayload = await fetchJson(fetcher, danmakuUrl, timeoutMs);
   return normalizeDanmakuResponse(danmakuPayload);
 }

@@ -1,24 +1,50 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../theme";
+import { LikeReactionButton } from "./LikeReactionButton";
+import { PlaybackRate, SpeedSelector } from "./SpeedSelector";
 
 export function PlayerChrome({
   onToggleDebug,
-  seriesName,
+  playbackRate,
+  isSpeedMenuOpen,
+  onToggleSpeedMenu,
+  onSelectPlaybackRate,
   title,
+  plotSummary,
   episodeLabel
 }: {
   onToggleDebug: () => void;
-  seriesName?: string;
+  playbackRate: PlaybackRate;
+  isSpeedMenuOpen: boolean;
+  onToggleSpeedMenu: () => void;
+  onSelectPlaybackRate: (rate: PlaybackRate) => void;
   title: string;
+  plotSummary: string;
   episodeLabel?: string;
 }) {
+  const titleCanExpand = Array.from(title).length > 9;
+  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
+  const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
+  useEffect(() => {
+    setIsTitleExpanded(false);
+    setIsSummaryExpanded(false);
+  }, [title, plotSummary]);
+
   return (
     <View pointerEvents="box-none" style={styles.root}>
       <View style={styles.top}>
         <Ionicons name="menu" size={30} color="#fff" />
         <View style={styles.topActions}>
           <Ionicons name="search" size={27} color="#fff" />
+          <SpeedSelector
+            selectedRate={playbackRate}
+            isOpen={isSpeedMenuOpen}
+            onToggle={onToggleSpeedMenu}
+            onSelect={onSelectPlaybackRate}
+          />
           <Pressable style={styles.debugButton} onPress={onToggleDebug}>
             <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={colors.accent} />
           </Pressable>
@@ -28,26 +54,58 @@ export function PlayerChrome({
       <View style={styles.rail}>
         <RailIcon icon="star" count="199.4万" />
         <RailIcon icon="chatbubble-ellipses" count="6626" />
-        <RailIcon icon="heart" count="30.8万" />
+        <LikeReactionButton count="30.8万" />
         <RailIcon icon="arrow-redo" count="5.3万" />
       </View>
 
       <View style={styles.meta}>
-        <View style={styles.badge}>
-          <Ionicons name="play" size={14} color="#fff" />
-          <Text style={styles.badgeText}>i说 系列剧 · {seriesName ?? "DramePulse"}</Text>
-        </View>
-        <Text numberOfLines={2} style={styles.title}>
-          {title}
-        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}
+          disabled={!titleCanExpand}
+          style={styles.titleRow}
+          onPress={() => setIsTitleExpanded((expanded) => !expanded)}
+        >
+          <Text numberOfLines={isTitleExpanded ? undefined : 1} style={styles.title}>
+            {title}
+          </Text>
+          {titleCanExpand ? (
+            <Ionicons
+              name={isTitleExpanded ? "chevron-up" : "chevron-forward"}
+              size={16}
+              color="rgba(255,255,255,0.56)"
+              style={styles.titleArrow}
+            />
+          ) : null}
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isSummaryExpanded ? "收起剧情简介" : "展开剧情简介"}
+          style={styles.summaryCard}
+          onPress={() => setIsSummaryExpanded((expanded) => !expanded)}
+        >
+          <Text numberOfLines={isSummaryExpanded ? undefined : 2} style={styles.summaryText}>
+            {plotSummary}
+          </Text>
+          <View style={styles.summaryArrow}>
+            <Ionicons
+              name={isSummaryExpanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color="rgba(255,255,255,0.56)"
+            />
+          </View>
+        </Pressable>
         <View style={styles.tags}>
-          <Text style={styles.tag}>{episodeLabel ?? "短剧"}</Text>
-          <Text style={styles.tag}>都市爱情</Text>
-          <Text style={styles.tag}>真实弹幕</Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+            {episodeLabel ?? "短剧"}
+          </Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+            都市爱情
+          </Text>
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+            真实弹幕
+          </Text>
         </View>
-        <Text numberOfLines={1} style={styles.description}>
-          后端视频流 · SQLite videos 表
-        </Text>
       </View>
 
       <View style={styles.bottomTab}>
@@ -64,7 +122,9 @@ export function PlayerChrome({
 function RailIcon({ icon, count }: { icon: keyof typeof Ionicons.glyphMap; count: string }) {
   return (
     <View style={styles.railItem}>
-      <Ionicons name={icon} size={42} color="#fff" />
+      <View style={styles.railIconWrap}>
+        <Ionicons name={icon} size={42} color="#fff" />
+      </View>
       <Text style={styles.railText}>{count}</Text>
     </View>
   );
@@ -101,11 +161,18 @@ const styles = StyleSheet.create({
     right: spacing.md,
     bottom: 158,
     alignItems: "center",
-    gap: spacing.lg
+    gap: spacing.sm
   },
   railItem: {
     alignItems: "center",
+    width: 76,
     gap: spacing.xs
+  },
+  railIconWrap: {
+    width: 72,
+    height: 72,
+    alignItems: "center",
+    justifyContent: "center"
   },
   railText: {
     color: colors.text,
@@ -118,49 +185,65 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: spacing.lg,
     right: 88,
-    bottom: 92
+    bottom: 118
   },
-  badge: {
-    alignSelf: "flex-start",
+  title: {
+    flex: 1,
+    paddingRight: 18,
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "900"
+  },
+  titleRow: {
+    alignSelf: "stretch",
+    minHeight: 28,
     flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
+    alignItems: "flex-start"
+  },
+  titleArrow: {
+    position: "absolute",
+    right: 0,
+    top: 5
+  },
+  summaryCard: {
+    alignSelf: "stretch",
+    marginTop: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radii.small,
-    backgroundColor: "rgba(0,0,0,0.44)"
+    backgroundColor: "rgba(0,0,0,0.38)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)"
   },
-  badgeText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "700"
+  summaryText: {
+    paddingRight: 18,
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17
   },
-  title: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900"
+  summaryArrow: {
+    position: "absolute",
+    right: 7,
+    bottom: 4
   },
   tags: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.sm
+    gap: 6,
+    marginTop: spacing.xs,
+    maxHeight: 28,
+    overflow: "hidden"
   },
   tag: {
     overflow: "hidden",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    maxWidth: 76,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: radii.small,
     color: colors.text,
     backgroundColor: "rgba(255,255,255,0.18)",
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  description: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 17,
+    fontSize: 12,
     fontWeight: "700"
   },
   bottomTab: {

@@ -26,13 +26,13 @@ export function InteractionPollBar({
       <View style={[styles.bar, selectedOption ? styles.resultBar : null]}>
         {selectedOption ? (
           <Text style={styles.resultText}>
-            {renderResultText(plan.feedback.resonance_text_template, selectedOption, Math.min(ratio, 86))}
+            {renderResultText(plan?.feedback.resonance_text_template, selectedOption, Math.min(ratio, 86))}
           </Text>
         ) : (
           <>
-            <Text style={styles.question}>{plan.question}</Text>
+            <Text style={styles.question}>{plan?.question ?? "高光互动测试"}</Text>
             <View style={styles.options}>
-              {plan.options.slice(0, 3).map((option) => (
+              {plan?.options.slice(0, 3).map((option) => (
                 <Pressable key={option.option_id} style={styles.option} onPress={() => onSelect(option)}>
                   <Text style={styles.optionText}>{option.text}</Text>
                 </Pressable>
