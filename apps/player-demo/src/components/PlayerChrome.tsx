@@ -4,11 +4,13 @@ import { colors, radii, spacing } from "../theme";
 
 export function PlayerChrome({
   onToggleDebug,
+  onOpenStoryQa,
   seriesName,
   title,
   episodeLabel
 }: {
   onToggleDebug: () => void;
+  onOpenStoryQa: () => void;
   seriesName?: string;
   title: string;
   episodeLabel?: string;
@@ -27,7 +29,7 @@ export function PlayerChrome({
 
       <View style={styles.rail}>
         <RailIcon icon="star" count="199.4万" />
-        <RailIcon icon="chatbubble-ellipses" count="6626" />
+        <RailIcon icon="chatbubble-ellipses" count="6626" onPress={onOpenStoryQa} />
         <RailIcon icon="heart" count="30.8万" />
         <RailIcon icon="arrow-redo" count="5.3万" />
       </View>
@@ -61,18 +63,39 @@ export function PlayerChrome({
   );
 }
 
-function RailIcon({ icon, count }: { icon: keyof typeof Ionicons.glyphMap; count: string }) {
-  return (
-    <View style={styles.railItem}>
+function RailIcon({
+  icon,
+  count,
+  onPress
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  count: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <Ionicons name={icon} size={42} color="#fff" />
       <Text style={styles.railText}>{count}</Text>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel="剧情问答" style={styles.railItem} onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.railItem}>
+      {content}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5
   },
   top: {
     position: "absolute",
@@ -101,11 +124,14 @@ const styles = StyleSheet.create({
     right: spacing.md,
     bottom: 158,
     alignItems: "center",
-    gap: spacing.lg
+    gap: spacing.lg,
+    zIndex: 8
   },
   railItem: {
     alignItems: "center",
-    gap: spacing.xs
+    gap: spacing.xs,
+    minWidth: 56,
+    minHeight: 58
   },
   railText: {
     color: colors.text,

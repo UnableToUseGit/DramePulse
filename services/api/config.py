@@ -46,6 +46,15 @@ class Settings:
     chroma_dir: Path
     chroma_collection: str
     similarity_top_k: int
+    story_qa_backend: str
+    lightrag_working_dir: Path
+    lightrag_query_mode: str
+    lightrag_enable_rerank: bool
+    lightrag_embedding_model: str
+    lightrag_embedding_dim: int
+    lightrag_embedding_api_base: str
+    lightrag_embedding_api_key: str
+    lightrag_embedding_send_dim: bool
 
     @property
     def oss_endpoint_url(self) -> str:
@@ -81,6 +90,18 @@ def get_settings() -> Settings:
         chroma_dir=repo_root / _getenv("CHROMA_DIR", "data/chroma"),
         chroma_collection=_getenv("CHROMA_COLLECTION", "dramepulse_story_qa"),
         similarity_top_k=int(_getenv("SIMILARITY_TOP_K", "8")),
+        story_qa_backend=_getenv("STORY_QA_BACKEND", "chroma").lower(),
+        lightrag_working_dir=repo_root / _getenv(
+            "LIGHTRAG_WORKING_DIR",
+            "data/story_qa/demo-drama/episode-001/lightrag",
+        ),
+        lightrag_query_mode=_getenv("LIGHTRAG_QUERY_MODE", "hybrid"),
+        lightrag_enable_rerank=_getenv("LIGHTRAG_ENABLE_RERANK", "false").lower() in {"1", "true", "yes"},
+        lightrag_embedding_model=_getenv("LIGHTRAG_EMBEDDING_MODEL", _getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")),
+        lightrag_embedding_dim=int(_getenv("LIGHTRAG_EMBEDDING_DIM", "1536")),
+        lightrag_embedding_api_base=_getenv("LIGHTRAG_EMBEDDING_API_BASE", _getenv("OPENAI_API_BASE", "https://api.openai.com/v1")),
+        lightrag_embedding_api_key=_getenv("LIGHTRAG_EMBEDDING_API_KEY", _getenv("OPENAI_API_KEY")),
+        lightrag_embedding_send_dim=_getenv("LIGHTRAG_EMBEDDING_SEND_DIM", "false").lower() in {"1", "true", "yes"},
     )
 
 

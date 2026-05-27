@@ -689,6 +689,8 @@ Story Q&A 辅助服务属于业务层的可选在线能力，用于回答用户�
 
 MVP 阶段该能力作为演示增强项存在。没有配置 OpenAI-compatible API Key 和 Chroma 存储时，核心播放、互动和事件链路仍应可独立运行。
 
+LightRAG 可作为 Story Q&A 的可选后端，通过 `STORY_QA_BACKEND=lightrag` 启用。该模式加载离线构建好的 LightRAG working directory，保持 `/api/story-qa/*` 对外接口不变；知识图谱抽取仍属于离线流程，不进入在线 API 路径。
+
 ---
 
 ### 3.3 数据层模块契约

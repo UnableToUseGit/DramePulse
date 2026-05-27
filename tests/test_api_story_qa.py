@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
+import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -155,6 +158,102 @@ class StoryQaApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {"detail": "rag unavailable"})
+
+    def test_lightrag_ask_returns_answer_with_empty_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_lightrag = types.ModuleType("lightrag")
+            fake_llm = types.ModuleType("lightrag.llm")
+            fake_openai = types.ModuleType("lightrag.llm.openai")
+            fake_utils = types.ModuleType("lightrag.utils")
+
+            class FakeQueryParam:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+            class FakeEmbeddingFunc:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+            class FakeLightRAG:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+                async def initialize_storages(self):
+                    return None
+
+                async def aquery(self, question, param):
+                    self.question = question
+                    self.param = param
+                    return "容遇是纪家长辈，也是前三集的核心人物。"
+
+                async def finalize_storages(self):
+                    return None
+
+            async def fake_complete(*args, **kwargs):
+                return ""
+
+            async def fake_embed(*args, **kwargs):
+                return []
+
+            fake_lightrag.LightRAG = FakeLightRAG
+            fake_lightrag.QueryParam = FakeQueryParam
+            fake_openai.openai_complete_if_cache = fake_complete
+            fake_openai.openai_embed = fake_embed
+            fake_utils.EmbeddingFunc = FakeEmbeddingFunc
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lightrag": fake_lightrag,
+                    "lightrag.llm": fake_llm,
+                    "lightrag.llm.openai": fake_openai,
+                    "lightrag.utils": fake_utils,
+                },
+            ), patch.dict(
+                "os.environ",
+                {
+                    "STORY_QA_BACKEND": "lightrag",
+                    "LIGHTRAG_WORKING_DIR": tmpdir,
+                    "LIGHTRAG_QUERY_MODE": "hybrid",
+                    "LIGHTRAG_ENABLE_RERANK": "false",
+                    "OPENAI_API_KEY": "test-key",
+                },
+            ):
+                response = self.client.post(
+                    "/api/story-qa/ask",
+                    json={
+                        "question": "容遇是谁？",
+                        "series_id": "demo-drama",
+                        "current_episode": 3,
+                        "current_time": 9999,
+                    },
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"answer": "容遇是纪家长辈，也是前三集的核心人物。", "sources": []})
+
+    def test_lightrag_missing_working_dir_returns_400(self) -> None:
+        missing_dir = str(Path(tempfile.gettempdir()) / "dramepulse-missing-lightrag-working-dir")
+        with patch.dict(
+            "os.environ",
+            {
+                "STORY_QA_BACKEND": "lightrag",
+                "LIGHTRAG_WORKING_DIR": missing_dir,
+                "OPENAI_API_KEY": "test-key",
+            },
+        ):
+            response = self.client.post(
+                "/api/story-qa/ask",
+                json={
+                    "question": "容遇是谁？",
+                    "series_id": "demo-drama",
+                    "current_episode": 3,
+                    "current_time": 9999,
+                },
+            )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("LIGHTRAG_WORKING_DIR does not exist", response.json()["detail"])
 
 
 if __name__ == "__main__":

@@ -4,9 +4,15 @@ import json
 import math
 from pathlib import Path
 import re
+import asyncio
+import threading
 from typing import Any, Iterable, Protocol
 
 from services.api.config import Settings, get_settings
+
+
+_LIGHTRAG_LOOP: asyncio.AbstractEventLoop | None = None
+_LIGHTRAG_LOOP_LOCK = threading.Lock()
 
 
 SPOILER_SAFE_PROMPT = """你是短剧剧情问答助手。
@@ -240,6 +246,10 @@ def _uses_local_hash_embedding(settings: Settings) -> bool:
     return settings.openai_embedding_model.lower() in {"local-hash", "local_hash"}
 
 
+def _uses_lightrag(settings: Settings) -> bool:
+    return settings.story_qa_backend == "lightrag"
+
+
 def _hash_embedding(text: str, dimensions: int = 384) -> list[float]:
     tokens = re.findall(r"[\w]+", text.lower(), flags=re.UNICODE)
     tokens.extend(char for char in text if "\u4e00" <= char <= "\u9fff")
@@ -325,11 +335,148 @@ def _ingest_with_local_hash(settings: Settings, documents: list[StoryQaDocument]
     )
 
 
+def _get_lightrag_loop() -> asyncio.AbstractEventLoop:
+    global _LIGHTRAG_LOOP
+    with _LIGHTRAG_LOOP_LOCK:
+        if _LIGHTRAG_LOOP is None or _LIGHTRAG_LOOP.is_closed():
+            loop = asyncio.new_event_loop()
+            thread = threading.Thread(target=loop.run_forever, name="lightrag-event-loop", daemon=True)
+            thread.start()
+            _LIGHTRAG_LOOP = loop
+        return _LIGHTRAG_LOOP
+
+
+def _run_lightrag_async(coro):
+    future = asyncio.run_coroutine_threadsafe(coro, _get_lightrag_loop())
+    return future.result()
+
+
+async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, Any]:
+    if not settings.lightrag_working_dir.exists():
+        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
+
+    from lightrag import LightRAG, QueryParam
+    from lightrag.llm.openai import openai_complete_if_cache, openai_embed
+    from lightrag.utils import EmbeddingFunc
+
+    async def embedding_func(texts: list[str]):
+        return await openai_embed.func(
+            texts,
+            model=settings.lightrag_embedding_model,
+            base_url=settings.lightrag_embedding_api_base,
+            api_key=settings.lightrag_embedding_api_key,
+            embedding_dim=settings.lightrag_embedding_dim if settings.lightrag_embedding_send_dim else None,
+        )
+
+    async def llm_model_func(
+        prompt: str,
+        system_prompt: str | None = None,
+        history_messages: list[dict[str, Any]] | None = None,
+        keyword_extraction: bool = False,
+        **kwargs: Any,
+    ) -> str:
+        try:
+            return await openai_complete_if_cache(
+                settings.openai_model,
+                prompt,
+                system_prompt=system_prompt,
+                history_messages=history_messages or [],
+                keyword_extraction=keyword_extraction,
+                base_url=settings.openai_api_base,
+                api_key=settings.openai_api_key,
+                **kwargs,
+            )
+        except Exception:
+            if keyword_extraction:
+                return await openai_complete_if_cache(
+                    settings.openai_model,
+                    prompt,
+                    system_prompt=system_prompt,
+                    history_messages=history_messages or [],
+                    keyword_extraction=False,
+                    base_url=settings.openai_api_base,
+                    api_key=settings.openai_api_key,
+                    **kwargs,
+                )
+            raise
+
+    rag = LightRAG(
+        working_dir=str(settings.lightrag_working_dir),
+        embedding_func=EmbeddingFunc(
+            embedding_dim=settings.lightrag_embedding_dim,
+            max_token_size=8192,
+            send_dimensions=settings.lightrag_embedding_send_dim,
+            model_name=settings.lightrag_embedding_model,
+            func=embedding_func,
+        ),
+        llm_model_func=llm_model_func,
+    )
+    await rag.initialize_storages()
+    try:
+        answer = await rag.aquery(
+            question,
+            param=QueryParam(
+                mode=settings.lightrag_query_mode,
+                enable_rerank=settings.lightrag_enable_rerank,
+            ),
+        )
+    finally:
+        await rag.finalize_storages()
+
+    return {"answer": str(answer), "sources": []}
+
+
+def _ask_lightrag(settings: Settings, question: str) -> dict[str, Any]:
+    _require_api_key(settings)
+    return _run_lightrag_async(_ask_lightrag_async(settings, question))
+
+
+def _ingest_lightrag(settings: Settings, input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
+    if not settings.lightrag_working_dir.exists():
+        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
+    return {
+        "input_dir": str(input_dir.resolve()),
+        "series_id": series_id,
+        "episode": episode,
+        "documents": 0,
+        "by_type": {"prebuilt_lightrag": 0},
+        "chroma_dir": str(settings.lightrag_working_dir),
+        "collection": "lightrag_prebuilt",
+    }
+
+
+def _collections_lightrag(settings: Settings) -> dict[str, Any]:
+    if not settings.lightrag_working_dir.exists():
+        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
+
+    status_path = settings.lightrag_working_dir / "kv_store_doc_status.json"
+    statuses = _read_json(status_path)
+    episodes = []
+    if statuses:
+        episodes.append(
+            {
+                "series_id": "prebuilt-lightrag",
+                "episode": None,
+                "documents": len(statuses),
+                "source_types": {"prebuilt_lightrag": len(statuses)},
+            }
+        )
+    return {
+        "collection": "lightrag_prebuilt",
+        "chroma_dir": str(settings.lightrag_working_dir),
+        "total_documents": len(statuses),
+        "episodes": episodes,
+    }
+
+
 def ingest(input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
+    settings = get_settings()
+    if _uses_lightrag(settings):
+        return _ingest_lightrag(settings, input_dir, series_id, episode)
+
     _use_pysqlite3()
     from llama_index.core import Document
 
-    settings = get_settings()
     _require_api_key(settings)
     documents = build_documents(input_dir, series_id, episode)
     if not documents:
@@ -359,11 +506,14 @@ def ingest(input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
 
 
 def ask(question: str, series_id: str, current_episode: int, current_time: float) -> dict[str, Any]:
+    settings = get_settings()
+    if _uses_lightrag(settings):
+        return _ask_lightrag(settings, question)
+
     _use_pysqlite3()
     from llama_index.core import Settings as LlamaSettings
     from llama_index.core.vector_stores import ExactMatchFilter, MetadataFilters
 
-    settings = get_settings()
     _require_api_key(settings)
     if _uses_local_hash_embedding(settings):
         collection = _get_chroma_collection(settings)
@@ -425,6 +575,9 @@ def ask(question: str, series_id: str, current_episode: int, current_time: float
 
 def collections() -> dict[str, Any]:
     settings = get_settings()
+    if _uses_lightrag(settings):
+        return _collections_lightrag(settings)
+
     collection = _get_chroma_collection(settings)
     rows = collection.get(include=["metadatas"])
     return summarize_collection_rows(

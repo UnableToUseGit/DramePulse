@@ -17,8 +17,10 @@ export interface ApiVideo {
 
 export interface PlayerVideo {
   videoId: string;
+  seriesId?: string;
   title: string;
   seriesName?: string;
+  episodeNo?: number;
   episodeLabel?: string;
   duration: number;
   streamUrl: string;
@@ -73,15 +75,30 @@ export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo 
   if (!videoId || !title || !streamPath || !danmakuPath) {
     return undefined;
   }
-  return {
+  const video: PlayerVideo = {
     videoId,
     title,
-    seriesName: toOptionalString(value.series_name),
-    episodeLabel: toOptionalString(value.episode_label),
     duration: toNumber(value.duration, 120),
     streamUrl: joinUrl(apiBaseUrl, streamPath),
     danmakuUrl: joinUrl(apiBaseUrl, danmakuPath)
   };
+  const seriesId = toOptionalString(value.series_id);
+  const seriesName = toOptionalString(value.series_name);
+  const episodeNo = typeof value.episode_no === "number" ? value.episode_no : undefined;
+  const episodeLabel = toOptionalString(value.episode_label);
+  if (seriesId) {
+    video.seriesId = seriesId;
+  }
+  if (seriesName) {
+    video.seriesName = seriesName;
+  }
+  if (episodeNo !== undefined) {
+    video.episodeNo = episodeNo;
+  }
+  if (episodeLabel) {
+    video.episodeLabel = episodeLabel;
+  }
+  return video;
 }
 
 export function normalizeDanmakuResponse(value: unknown): DanmakuItem[] {

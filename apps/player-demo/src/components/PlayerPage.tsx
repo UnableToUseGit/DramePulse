@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { ENABLE_INTERACTION_LAB } from "../config";
+import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import { getFeedPlaybackMode } from "../domain/playerFeed";
 import { loadVideoDanmaku, PlayerVideo } from "../domain/playerApi";
+import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
+import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import type { DanmakuItem } from "../domain/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
 import { InteractionExampleRenderer } from "../interaction-examples/InteractionExampleRenderer";
@@ -14,6 +16,7 @@ import { DanmakuLayer } from "./DanmakuLayer";
 import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
+import { StoryQaPanel } from "./StoryQaPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
 
 export function PlayerPage({
@@ -41,7 +44,9 @@ export function PlayerPage({
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
   const [exampleDismissed, setExampleDismissed] = useState(false);
+  const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
+  const storyQaRequestRef = useRef(0);
   const playbackMode = useMemo(
     () => getFeedPlaybackMode({ hasStartedFeed, isActive }),
     [hasStartedFeed, isActive]
@@ -81,6 +86,8 @@ export function PlayerPage({
     setSeekRequest({ id: Date.now(), time: 0 });
     setSeekVersion((version) => version + 1);
     setExampleDismissed(false);
+    storyQaRequestRef.current += 1;
+    setStoryQaState(resetStoryQaState());
     previousTimeRef.current = 0;
   }, [isActive, playbackMode.shouldAutoStart, video.videoId]);
 
@@ -155,6 +162,52 @@ export function PlayerPage({
     setExampleDismissed(true);
   }, []);
 
+  const handleSubmitStoryQa = useCallback(
+    (quickQuestion?: string) => {
+      const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
+      setStoryQaState((state) => ({
+        ...state,
+        question: nextQuestion,
+        error: undefined,
+        answer: undefined
+      }));
+      if (!nextQuestion) {
+        setStoryQaState((state) => ({ ...state, error: "请输入问题" }));
+        return;
+      }
+      const context = resolveStoryQaContext(video);
+      const requestId = storyQaRequestRef.current + 1;
+      storyQaRequestRef.current = requestId;
+      setStoryQaState((state) => ({ ...state, isLoading: true }));
+      askStoryQa({
+        apiBaseUrl: API_BASE_URL,
+        question: nextQuestion,
+        seriesId: context.seriesId,
+        currentEpisode: context.currentEpisode,
+        currentTime
+      })
+        .then((result) => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({ ...state, answer: result.answer }));
+          }
+        })
+        .catch((error: unknown) => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({
+              ...state,
+              error: error instanceof Error ? error.message : "剧情问答暂时不可用"
+            }));
+          }
+        })
+        .finally(() => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({ ...state, isLoading: false }));
+          }
+        });
+    },
+    [currentTime, storyQaState.question, video]
+  );
+
   const isExampleVisible = shouldShowExample({
     example: DEFAULT_INTERACTION_EXAMPLE,
     currentTime,
@@ -188,6 +241,7 @@ export function PlayerPage({
       />
       <PlayerChrome
         onToggleDebug={() => undefined}
+        onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
         seriesName={video.seriesName}
         title={video.title}
         episodeLabel={video.episodeLabel}
@@ -196,6 +250,16 @@ export function PlayerPage({
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
       ) : null}
       <PlayerControls currentTime={currentTime} duration={video.duration} onSeekCommit={handleSeekCommit} />
+      <StoryQaPanel
+        visible={storyQaState.isOpen}
+        question={storyQaState.question}
+        answer={storyQaState.answer}
+        error={storyQaState.error}
+        isLoading={storyQaState.isLoading}
+        onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
+        onSubmit={handleSubmitStoryQa}
+        onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
+      />
     </View>
   );
 }
@@ -206,7 +270,8 @@ const styles = StyleSheet.create({
     overflow: "hidden"
   },
   tapLayer: {
-    ...StyleSheet.absoluteFillObject
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1
   },
   danmakuError: {
     position: "absolute",
