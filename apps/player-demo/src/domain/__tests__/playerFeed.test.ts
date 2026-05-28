@@ -1,4 +1,11 @@
-import { findNextEpisodeIndex, getFeedPageIndex, getFeedPlaybackMode, getSeriesKey } from "../playerFeed";
+import {
+  findNextEpisodeIndex,
+  getFeedPageIndex,
+  getResumePlaybackTime,
+  getVideoPlaybackState,
+  getSeriesKey,
+  shouldPreloadFeedPage
+} from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
 
 function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
@@ -26,18 +33,26 @@ describe("playerFeed", () => {
     expect(getFeedPageIndex({ offsetY: 400, pageHeight: 800, itemCount: 0 })).toBe(0);
   });
 
-  it("shows the manual start entry only before the feed experience has started", () => {
-    expect(getFeedPlaybackMode({ hasStartedFeed: false, isActive: true })).toEqual({
-      shouldShowStartEntry: true,
-      shouldAutoStart: false
+  it("derives video commands from user intent without treating inactive pages as user pauses", () => {
+    expect(getVideoPlaybackState({ isActive: true, userPlaybackIntent: "playing" })).toEqual({
+      isStarted: true,
+      shouldPlay: true,
+      shouldShowPauseHint: false
     });
-    expect(getFeedPlaybackMode({ hasStartedFeed: true, isActive: true })).toEqual({
-      shouldShowStartEntry: false,
-      shouldAutoStart: true
+    expect(getVideoPlaybackState({ isActive: false, userPlaybackIntent: "playing" })).toEqual({
+      isStarted: true,
+      shouldPlay: false,
+      shouldShowPauseHint: false
     });
-    expect(getFeedPlaybackMode({ hasStartedFeed: true, isActive: false })).toEqual({
-      shouldShowStartEntry: false,
-      shouldAutoStart: false
+    expect(getVideoPlaybackState({ isActive: true, userPlaybackIntent: "paused" })).toEqual({
+      isStarted: true,
+      shouldPlay: false,
+      shouldShowPauseHint: true
+    });
+    expect(getVideoPlaybackState({ isActive: false, userPlaybackIntent: "paused" })).toEqual({
+      isStarted: true,
+      shouldPlay: false,
+      shouldShowPauseHint: false
     });
   });
 
@@ -57,5 +72,24 @@ describe("playerFeed", () => {
     expect(findNextEpisodeIndex(videos, 0)).toBe(2);
     expect(findNextEpisodeIndex(videos, 1)).toBeUndefined();
     expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
+  });
+
+  it("preloads the active feed page and its direct neighbors", () => {
+    expect(shouldPreloadFeedPage({ pageIndex: 0, activeIndex: 0 })).toBe(true);
+    expect(shouldPreloadFeedPage({ pageIndex: 1, activeIndex: 0 })).toBe(true);
+    expect(shouldPreloadFeedPage({ pageIndex: 2, activeIndex: 0 })).toBe(false);
+
+    expect(shouldPreloadFeedPage({ pageIndex: 1, activeIndex: 2 })).toBe(true);
+    expect(shouldPreloadFeedPage({ pageIndex: 2, activeIndex: 2 })).toBe(true);
+    expect(shouldPreloadFeedPage({ pageIndex: 3, activeIndex: 2 })).toBe(true);
+    expect(shouldPreloadFeedPage({ pageIndex: 4, activeIndex: 2 })).toBe(false);
+  });
+
+  it("resumes saved playback time unless it is too close to the end", () => {
+    expect(getResumePlaybackTime({ savedTime: undefined, duration: 60 })).toBe(0);
+    expect(getResumePlaybackTime({ savedTime: 30, duration: 60 })).toBe(30);
+    expect(getResumePlaybackTime({ savedTime: -4, duration: 60 })).toBe(0);
+    expect(getResumePlaybackTime({ savedTime: 59, duration: 60 })).toBe(0);
+    expect(getResumePlaybackTime({ savedTime: 59, duration: 0 })).toBe(59);
   });
 });

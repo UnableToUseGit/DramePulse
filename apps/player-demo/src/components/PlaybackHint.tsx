@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, View } from "react-native";
 import { colors, spacing } from "../theme";
 
-export function PlaybackHint({ isStarted, isPlaying }: { isStarted: boolean; isPlaying: boolean }) {
-  if (!isStarted || isPlaying) {
+export function PlaybackHint({ visible }: { visible: boolean }) {
+  if (!visible) {
     return null;
   }
 

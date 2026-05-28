@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
-import { getFeedPlaybackMode } from "../domain/playerFeed";
+import { getResumePlaybackTime, getVideoPlaybackState, UserPlaybackIntent } from "../domain/playerFeed";
 import { PlayerVideo } from "../domain/playerApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
@@ -28,30 +28,29 @@ export function PlayerPage({
   isActive,
   shouldMountVideo,
   height,
-  hasStartedFeed,
+  initialPlaybackTime,
   hasNextEpisode,
   nextEpisodeLabel,
   selectedPresentationType,
   onChangePresentationType,
-  onStartFeed,
+  onPlaybackPositionChange,
   onPlayNextEpisode
 }: {
   video: PlayerVideo;
   isActive: boolean;
   shouldMountVideo: boolean;
   height: number;
-  hasStartedFeed: boolean;
+  initialPlaybackTime?: number;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
   selectedPresentationType: InteractionPresentationType;
   onChangePresentationType: (type: InteractionPresentationType) => void;
-  onStartFeed: () => void;
+  onPlaybackPositionChange: (videoId: string, time: number) => void;
   onPlayNextEpisode: () => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isStarted, setIsStarted] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [userPlaybackIntent, setUserPlaybackIntent] = useState<UserPlaybackIntent>("playing");
   const [resolvedDuration, setResolvedDuration] = useState(video.duration);
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
@@ -62,12 +61,9 @@ export function PlayerPage({
   const didCompleteRef = useRef(false);
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
+  const lastReportedPositionRef = useRef(0);
   const storyQaRequestRef = useRef(0);
-  const playbackMode = useMemo(
-    () => getFeedPlaybackMode({ hasStartedFeed, isActive }),
-    [hasStartedFeed, isActive]
-  );
-  const canPlay = isActive && isStarted && isPlaying;
+  const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
   const {
     dismiss: dismissInteractionExample,
     reset: resetInteractionExample,
@@ -76,50 +72,36 @@ export function PlayerPage({
     currentTime,
     example: DEFAULT_INTERACTION_EXAMPLE,
     isActive,
-    isStarted,
+    isStarted: playbackState.isStarted,
     presentationType: selectedPresentationType,
     resetKey: video.videoId
   });
-
-  const handleStart = useCallback(() => {
-    if (!isActive) {
-      return;
-    }
-    onStartFeed();
-    setIsStarted(true);
-    setIsPlaying(true);
-  }, [isActive, onStartFeed]);
 
   const handleTogglePlay = useCallback(() => {
     if (!isActive) {
       return;
     }
-    if (!isStarted) {
-      handleStart();
-      return;
-    }
-    setIsPlaying((playing) => !playing);
-  }, [handleStart, isActive, isStarted]);
+    setUserPlaybackIntent((intent) => (intent === "playing" ? "paused" : "playing"));
+  }, [isActive]);
 
   const handleResume = useCallback(() => {
     if (!isActive) {
       return;
     }
-    setIsPlaying(true);
+    setUserPlaybackIntent("playing");
   }, [isActive]);
 
   const speedControls = usePlaybackSpeedControls({
     isActive,
-    isStarted,
+    isStarted: playbackState.isStarted,
     onResume: handleResume,
-    onStart: handleStart,
+    onStart: handleResume,
     onTap: handleTogglePlay,
     resetKey: video.videoId
   });
 
   useEffect(() => {
     if (!isActive) {
-      setIsPlaying(false);
       wasActiveRef.current = false;
       return;
     }
@@ -127,33 +109,30 @@ export function PlayerPage({
     const becameActive = !wasActiveRef.current;
     const videoChanged = previousVideoIdRef.current !== video.videoId;
     if (becameActive || videoChanged) {
-      setCurrentTime(0);
+      const resumeTime = getResumePlaybackTime({
+        savedTime: initialPlaybackTime,
+        duration: video.duration
+      });
+      setCurrentTime(resumeTime);
       setResolvedDuration(video.duration);
-      setIsStarted(playbackMode.shouldAutoStart);
-      setIsPlaying(playbackMode.shouldAutoStart);
-      setSeekRequest(undefined);
+      setUserPlaybackIntent("playing");
+      setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
       setSeekVersion((version) => version + 1);
       resetInteractionExample();
       storyQaRequestRef.current += 1;
       setStoryQaState(resetStoryQaState());
-      previousTimeRef.current = 0;
-      lastPublishedTimeRef.current = 0;
+      previousTimeRef.current = resumeTime;
+      lastPublishedTimeRef.current = resumeTime;
+      lastReportedPositionRef.current = resumeTime;
       didCompleteRef.current = false;
       previousVideoIdRef.current = video.videoId;
     }
     wasActiveRef.current = true;
-  }, [isActive, playbackMode.shouldAutoStart, resetInteractionExample, video.duration, video.videoId]);
+  }, [initialPlaybackTime, isActive, resetInteractionExample, video.duration, video.videoId]);
 
   useEffect(() => {
     setResolvedDuration(video.duration);
   }, [video.duration, video.videoId]);
-
-  useEffect(() => {
-    if (playbackMode.shouldAutoStart && !isStarted) {
-      setIsStarted(true);
-      setIsPlaying(true);
-    }
-  }, [isStarted, playbackMode.shouldAutoStart]);
 
   const handleTimeChange = useCallback(
     (time: number) => {
@@ -176,10 +155,13 @@ export function PlayerPage({
           lastPublishedTimeRef.current = time;
           setCurrentTime(time);
         }
+        if (Math.abs(time - lastReportedPositionRef.current) >= UI_TIME_UPDATE_INTERVAL_SEC) {
+          lastReportedPositionRef.current = time;
+          onPlaybackPositionChange(video.videoId, time);
+        }
         if (
           hasNextEpisode &&
-          isStarted &&
-          isPlaying &&
+          playbackState.shouldPlay &&
           resolvedDuration > 0 &&
           time >= Math.max(0, resolvedDuration - 0.2) &&
           !didCompleteRef.current
@@ -189,7 +171,16 @@ export function PlayerPage({
         }
       }
     },
-    [hasNextEpisode, isActive, isPlaying, isStarted, onPlayNextEpisode, resetInteractionExample, resolvedDuration]
+    [
+      hasNextEpisode,
+      isActive,
+      onPlayNextEpisode,
+      onPlaybackPositionChange,
+      playbackState.shouldPlay,
+      resetInteractionExample,
+      resolvedDuration,
+      video.videoId
+    ]
   );
 
   const handleDurationChange = useCallback((duration: number) => {
@@ -216,15 +207,17 @@ export function PlayerPage({
       setCurrentTime(time);
       lastPublishedTimeRef.current = time;
       previousTimeRef.current = time;
+      lastReportedPositionRef.current = time;
+      onPlaybackPositionChange(video.videoId, time);
       didCompleteRef.current = false;
       if (time < DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec) {
         resetInteractionExample();
       }
-      setIsStarted(true);
+      setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
       setSeekRequest({ id: Date.now(), time });
     },
-    [isActive, resetInteractionExample]
+    [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
   const handleSubmitStoryQa = useCallback(
@@ -278,26 +271,26 @@ export function PlayerPage({
       {shouldMountVideo ? (
         <VideoStage
           key={`${video.videoId}:${video.streamUrl}`}
-          isStarted={isStarted}
-          isPlaying={isActive && isStarted && isPlaying}
+          isStarted={playbackState.isStarted}
+          isPlaying={playbackState.shouldPlay}
           seekRequest={seekRequest}
-          onStart={handleStart}
+          onStart={handleResume}
           onTimeChange={handleTimeChange}
           onDurationChange={handleDurationChange}
           onPlayToEnd={handlePlayToEnd}
           onSeekHandled={handleSeekHandled}
           playbackRate={speedControls.effectivePlaybackRate}
-          showStartEntry={playbackMode.shouldShowStartEntry}
+          showStartEntry={false}
           streamUrl={video.streamUrl}
         />
       ) : (
         <View style={styles.inactiveVideoPlaceholder} />
       )}
-      {isActive && isStarted && danmakuState === "ready" ? (
-        <DanmakuLayer currentTime={currentTime} danmaku={danmaku} isPlaying={canPlay} seekVersion={seekVersion} />
+      {isActive && playbackState.isStarted && danmakuState === "ready" ? (
+        <DanmakuLayer currentTime={currentTime} danmaku={danmaku} isPlaying={playbackState.shouldPlay} seekVersion={seekVersion} />
       ) : null}
-      {isActive && isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
-      {isActive && isStarted ? (
+      {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+      {isActive && playbackState.isStarted ? (
         <FastForwardPressLayer
           isHoldingFastForward={speedControls.isHoldingFastForward}
           onPress={speedControls.handleRightPress}
@@ -306,7 +299,7 @@ export function PlayerPage({
         />
       ) : null}
       {isActive && danmakuState === "error" ? <Text style={styles.danmakuError}>弹幕暂不可用</Text> : null}
-      <PlaybackHint isStarted={isStarted} isPlaying={canPlay} />
+      <PlaybackHint visible={playbackState.shouldShowPauseHint} />
       <InteractionExampleRenderer
         example={DEFAULT_INTERACTION_EXAMPLE}
         presentationType={selectedPresentationType}

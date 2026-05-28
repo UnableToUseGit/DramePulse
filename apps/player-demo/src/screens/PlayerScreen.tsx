@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "../config";
-import { findNextEpisodeIndex, getFeedPageIndex } from "../domain/playerFeed";
+import { findNextEpisodeIndex, getFeedPageIndex, shouldPreloadFeedPage } from "../domain/playerFeed";
 import { loadPlayerVideos, PlayerVideo } from "../domain/playerApi";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
@@ -19,7 +19,7 @@ import { colors, radii, spacing } from "../theme";
 export function PlayerScreen() {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [hasStartedFeed, setHasStartedFeed] = useState(false);
+  const [playbackPositions, setPlaybackPositions] = useState<Record<string, number>>({});
   const [pageHeight, setPageHeight] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
@@ -35,7 +35,7 @@ export function PlayerScreen() {
       const nextVideos = await loadPlayerVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
       setVideos(nextVideos);
       setActiveIndex(0);
-      setHasStartedFeed(false);
+      setPlaybackPositions({});
       setLoadState("ready");
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
@@ -52,7 +52,7 @@ export function PlayerScreen() {
         if (!cancelled) {
           setVideos(nextVideos);
           setActiveIndex(0);
-          setHasStartedFeed(false);
+          setPlaybackPositions({});
           setLoadState("ready");
         }
       })
@@ -90,11 +90,22 @@ export function PlayerScreen() {
         return;
       }
       setActiveIndex(nextIndex);
-      setHasStartedFeed(true);
       listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     },
     [videos]
   );
+
+  const handlePlaybackPositionChange = useCallback((videoId: string, time: number) => {
+    setPlaybackPositions((positions) => {
+      if (positions[videoId] === time) {
+        return positions;
+      }
+      return {
+        ...positions,
+        [videoId]: time
+      };
+    });
+  }, []);
 
   if (loadState === "loading") {
     return (
@@ -140,14 +151,14 @@ export function PlayerScreen() {
               <PlayerPage
                 video={item}
                 isActive={index === activeIndex}
-                shouldMountVideo={index === activeIndex}
+                shouldMountVideo={shouldPreloadFeedPage({ pageIndex: index, activeIndex })}
                 height={resolvedPageHeight}
-                hasStartedFeed={hasStartedFeed}
+                initialPlaybackTime={playbackPositions[item.videoId]}
                 hasNextEpisode={nextEpisode !== undefined}
                 nextEpisodeLabel={nextEpisode?.episodeLabel}
                 selectedPresentationType={selectedPresentationType}
                 onChangePresentationType={handleChangePresentationType}
-                onStartFeed={() => setHasStartedFeed(true)}
+                onPlaybackPositionChange={handlePlaybackPositionChange}
                 onPlayNextEpisode={() => handlePlayNextEpisode(index)}
               />
             );
@@ -168,8 +179,8 @@ export function PlayerScreen() {
           onScrollToIndexFailed={(info) => {
             listRef.current?.scrollToOffset({ offset: resolvedPageHeight * info.index, animated: true });
           }}
-          initialNumToRender={1}
-          maxToRenderPerBatch={2}
+          initialNumToRender={2}
+          maxToRenderPerBatch={3}
           windowSize={3}
           removeClippedSubviews={false}
         />
