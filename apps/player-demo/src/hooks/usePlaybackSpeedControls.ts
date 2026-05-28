@@ -5,12 +5,14 @@ export function usePlaybackSpeedControls({
   isActive,
   isStarted,
   onStart,
+  onResume,
   resetKey,
   onTap
 }: {
   isActive: boolean;
   isStarted: boolean;
   onStart: () => void;
+  onResume: () => void;
   resetKey: string;
   onTap: () => void;
 }) {
@@ -59,9 +61,11 @@ export function usePlaybackSpeedControls({
     didLongPressSpeedRef.current = true;
     if (!isStarted) {
       onStart();
+    } else {
+      onResume();
     }
     setIsHoldingFastForward(true);
-  }, [isActive, isStarted, onStart]);
+  }, [isActive, isStarted, onResume, onStart]);
 
   const handleRightPressOut = useCallback(() => {
     setIsHoldingFastForward(false);

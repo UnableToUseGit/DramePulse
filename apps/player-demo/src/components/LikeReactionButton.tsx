@@ -20,7 +20,7 @@ export function LikeReactionButton({
       onPress={onToggle}
     >
       <View style={styles.iconWrap}>
-        <Ionicons name="heart" size={42} color={liked ? "#FF335F" : "#fff"} />
+        <Ionicons name="heart" size={34} color={liked ? "#FF335F" : "#fff"} />
       </View>
       <Text style={styles.railText}>{count}</Text>
     </Pressable>
@@ -30,18 +30,18 @@ export function LikeReactionButton({
 const styles = StyleSheet.create({
   root: {
     alignItems: "center",
-    width: 76,
-    gap: spacing.xs
+    width: 58,
+    gap: 0
   },
   iconWrap: {
-    width: 72,
-    height: 72,
+    width: 54,
+    height: 46,
     alignItems: "center",
     justifyContent: "center"
   },
   railText: {
     color: colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     textShadowColor: "rgba(0,0,0,0.68)",
     textShadowRadius: 4

@@ -96,9 +96,17 @@ export function PlayerPage({
     setIsPlaying((playing) => !playing);
   }, [handleStart, isActive, isStarted]);
 
+  const handleResume = useCallback(() => {
+    if (!isActive) {
+      return;
+    }
+    setIsPlaying(true);
+  }, [isActive]);
+
   const speedControls = usePlaybackSpeedControls({
     isActive,
     isStarted,
+    onResume: handleResume,
     onStart: handleStart,
     onTap: handleTogglePlay,
     resetKey: video.videoId

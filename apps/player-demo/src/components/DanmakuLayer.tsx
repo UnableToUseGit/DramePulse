@@ -16,7 +16,7 @@ const SPEED_PX_PER_SEC = 58;
 const MAX_PENDING_PER_TICK = 2;
 const ESTIMATED_TEXT_WIDTH = 180;
 const ESTIMATED_TEXT_HEIGHT = 28;
-const MIN_RENDER_INTERVAL_MS = 250;
+const MIN_RENDER_INTERVAL_MS = 16;
 
 export function DanmakuLayer({
   currentTime,
@@ -48,10 +48,7 @@ export function DanmakuLayer({
 
   useEffect(() => {
     currentTimeRef.current = currentTime;
-    if (!isPlaying) {
-      clockSecRef.current = currentTime;
-    }
-  }, [currentTime, isPlaying]);
+  }, [currentTime]);
 
   useEffect(() => {
     positionRef.current = findStartPositionAfterSeek(danmaku, currentTime);
@@ -71,8 +68,6 @@ export function DanmakuLayer({
       lastFrameMs.current = undefined;
       return;
     }
-
-    clockSecRef.current = currentTimeRef.current;
 
     const tick = (frameMs: number) => {
       const previousFrameMs = lastFrameMs.current ?? frameMs;

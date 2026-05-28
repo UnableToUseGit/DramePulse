@@ -18,13 +18,13 @@ export function PlayerTopBar({
     <View style={styles.root}>
       <Ionicons name="menu" size={30} color="#fff" />
       <View style={styles.actions}>
-        <Ionicons name="search" size={27} color="#fff" />
         <SpeedSelector
           selectedRate={playbackRate}
           isOpen={isSpeedMenuOpen}
           onToggle={onToggleSpeedMenu}
           onSelect={onSelectPlaybackRate}
         />
+        <Ionicons name="search" size={27} color="#fff" />
       </View>
     </View>
   );

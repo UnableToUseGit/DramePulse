@@ -42,6 +42,17 @@ export function PlayerMeta({
           />
         ) : null}
       </Pressable>
+      <View style={styles.tags}>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+          {episodeLabel ?? "短剧"}
+        </Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+          都市爱情
+        </Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+          真实弹幕
+        </Text>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isSummaryExpanded ? "收起剧情简介" : "展开剧情简介"}
@@ -59,17 +70,6 @@ export function PlayerMeta({
           />
         </View>
       </Pressable>
-      <View style={styles.tags}>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          {episodeLabel ?? "短剧"}
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          都市爱情
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          真实弹幕
-        </Text>
-      </View>
     </View>
   );
 }
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   root: {
     position: "absolute",
     left: spacing.lg,
-    right: 88,
+    right: 100,
     bottom: 118
   },
   title: {
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     alignSelf: "stretch",
-    marginTop: spacing.xs,
+    marginTop: 6,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radii.small,
