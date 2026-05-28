@@ -1,4 +1,17 @@
-import { getFeedPageIndex, getFeedPlaybackMode } from "../playerFeed";
+import { findNextEpisodeIndex, getFeedPageIndex, getFeedPlaybackMode, getSeriesKey } from "../playerFeed";
+import type { PlayerVideo } from "../playerApi";
+
+function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
+  return {
+    videoId: "video",
+    title: "短剧",
+    plotSummary: "剧情",
+    duration: 60,
+    streamUrl: "http://localhost/video.mp4",
+    danmakuUrl: "http://localhost/danmaku",
+    ...overrides
+  };
+}
 
 describe("playerFeed", () => {
   it("rounds vertical scroll offset to the nearest feed page", () => {
@@ -26,5 +39,23 @@ describe("playerFeed", () => {
       shouldShowStartEntry: false,
       shouldAutoStart: false
     });
+  });
+
+  it("builds stable series keys from series id before series name", () => {
+    expect(getSeriesKey(makeVideo({ seriesId: "s1", seriesName: "短剧 A" }))).toBe("id:s1");
+    expect(getSeriesKey(makeVideo({ seriesName: "短剧 A" }))).toBe("name:短剧 A");
+    expect(getSeriesKey(makeVideo({}))).toBeUndefined();
+  });
+
+  it("finds the next episode in the same series", () => {
+    const videos = [
+      makeVideo({ videoId: "s1e1", seriesId: "s1" }),
+      makeVideo({ videoId: "other", seriesId: "s2" }),
+      makeVideo({ videoId: "s1e2", seriesId: "s1" })
+    ];
+
+    expect(findNextEpisodeIndex(videos, 0)).toBe(2);
+    expect(findNextEpisodeIndex(videos, 1)).toBeUndefined();
+    expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
   });
 });

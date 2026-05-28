@@ -10,32 +10,10 @@ import {
 } from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "../config";
-import { getFeedPageIndex } from "../domain/playerFeed";
+import { findNextEpisodeIndex, getFeedPageIndex } from "../domain/playerFeed";
 import { loadPlayerVideos, PlayerVideo } from "../domain/playerApi";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
-
-function getSeriesKey(video: PlayerVideo) {
-  if (video.seriesId) {
-    return `id:${video.seriesId}`;
-  }
-  if (video.seriesName) {
-    return `name:${video.seriesName}`;
-  }
-  return undefined;
-}
-
-function findNextEpisodeIndex(videos: PlayerVideo[], currentIndex: number) {
-  const currentVideo = videos[currentIndex];
-  if (!currentVideo) {
-    return undefined;
-  }
-  const currentSeriesKey = getSeriesKey(currentVideo);
-  if (!currentSeriesKey) {
-    return undefined;
-  }
-  return videos.findIndex((video, index) => index > currentIndex && getSeriesKey(video) === currentSeriesKey);
-}
 
 export function PlayerScreen() {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
@@ -105,7 +83,7 @@ export function PlayerScreen() {
   const handlePlayNextEpisode = useCallback(
     (currentIndex: number) => {
       const nextIndex = findNextEpisodeIndex(videos, currentIndex);
-      if (nextIndex === undefined || nextIndex < 0) {
+      if (nextIndex === undefined) {
         return;
       }
       setActiveIndex(nextIndex);
@@ -151,8 +129,7 @@ export function PlayerScreen() {
           keyExtractor={(item) => item.videoId}
           renderItem={({ item, index }) => {
             const nextEpisodeIndex = findNextEpisodeIndex(videos, index);
-            const nextEpisode =
-              nextEpisodeIndex !== undefined && nextEpisodeIndex >= 0 ? videos[nextEpisodeIndex] : undefined;
+            const nextEpisode = nextEpisodeIndex !== undefined ? videos[nextEpisodeIndex] : undefined;
             return (
               <PlayerPage
                 video={item}

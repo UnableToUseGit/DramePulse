@@ -4,8 +4,7 @@ const LABELS: Record<InteractionPresentationType, string> = {
   none: "Off",
   poll_bar: "Poll Bar",
   danmaku_poll: "Danmaku Poll",
-  emoji_hold: "Emoji Hold",
-  rapid_tap: "连点测试"
+  emoji_hold: "Emoji Hold"
 };
 
 export function getPresentationLabel(type: InteractionPresentationType) {

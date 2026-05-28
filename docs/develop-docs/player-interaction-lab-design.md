@@ -14,7 +14,7 @@
 
 1. 提供一个开发用控制入口，可以切换互动呈现方式；
 2. 固定同一个视频时间点和同一个问题；
-3. 支持 `poll_bar`、`danmaku_poll`、`emoji_hold` 和 `rapid_tap` 四种 UI example；
+3. 支持 `poll_bar`、`danmaku_poll` 和 `emoji_hold` 三种 UI example；
 4. 纯前端演示，不从后端获取 interaction plan；
 5. 不记录用户事件，不做统计，不回传后端；
 6. 不影响现有视频播放、进度条、弹幕和后端数据加载。
@@ -38,7 +38,7 @@ Interaction Lab 是开发工具，不是正式播放器功能。
 开发模式：
 
 - 显示一个轻量控制入口；
-- 可以通过左上角汉堡菜单打开面板，切换 `Off`、`Poll Bar`、`Danmaku Poll`、`Emoji Hold`、`Rapid Tap`；
+- 可以通过左上角汉堡菜单打开面板，切换 `Off`、`Poll Bar`、`Danmaku Poll`、`Emoji Hold`；
 - 选中后立即影响当前播放器的互动 UI；
 - 用于开发人员和产品同学快速比较不同方案。
 
@@ -83,7 +83,6 @@ none
 poll_bar
 danmaku_poll
 emoji_hold
-rapid_tap
 ```
 
 ### 6.1 none
@@ -108,7 +107,7 @@ rapid_tap
 - 结果态短暂停留后消失；
 - 不记录事件，不更新统计。
 
-实现上可以复用现有 `InteractionPollBar` 的视觉基础，但不要继续依赖后端 `InteractionPlan` 数据源。必要时可以新增一个 example 专用的轻量组件，避免把实验代码和正式业务模型强绑在一起。
+实现上使用 example 专用的轻量组件，不依赖后端 `InteractionPlan` 数据源，避免把实验代码和正式业务模型强绑在一起。
 
 ### 6.3 danmaku_poll
 
@@ -140,18 +139,6 @@ rapid_tap
 
 这个形态的目的不是收集投票结果，而是验证“低摩擦情绪表达”的手感。
 
-### 6.5 rapid_tap
-
-连续点击反馈互动。
-
-行为要求：
-
-- 到达固定触发时间后，在右侧中下区域展示半透明花朵入口；
-- 花朵以低强度呼吸闪烁提示可点击，不显示覆盖剧情的说明卡片；
-- 用户连续点击花朵时，立即展示当前连点反馈和短促爆发效果；
-- 花朵显示范围与实际点击区域一致，避免误触周围播放内容；
-- 仅作为本地前端手感实验，不记录事件，不更新统计，不回传后端。
-
 ## 7. 推荐代码结构
 
 建议新增一个前端本地目录：
@@ -165,8 +152,6 @@ apps/player-demo/src/interaction-examples/
   PollBarExample.tsx
   DanmakuPollExample.tsx
   EmojiHoldExample.tsx
-  RapidTapInteraction.tsx
-  RapidTapSurprise.tsx
 ```
 
 职责划分：
@@ -178,7 +163,6 @@ apps/player-demo/src/interaction-examples/
 - `PollBarExample.tsx`：底部投票条 example；
 - `DanmakuPollExample.tsx`：弹幕投票 example；
 - `EmojiHoldExample.tsx`：长按 emoji example。
-- `RapidTapInteraction.tsx` / `RapidTapSurprise.tsx`：连续点击入口与即时爆发反馈。
 
 `PlayerScreen` 只负责传入当前播放时间、播放状态和当前选中的 example，不承载具体互动 UI 细节。
 
@@ -187,7 +171,7 @@ apps/player-demo/src/interaction-examples/
 第一版可以使用轻量本地类型，不直接复用后端 `InteractionPlan`：
 
 ```ts
-export type InteractionPresentationType = "none" | "poll_bar" | "danmaku_poll" | "emoji_hold" | "rapid_tap";
+export type InteractionPresentationType = "none" | "poll_bar" | "danmaku_poll" | "emoji_hold";
 
 export type InteractionReaction = {
   id: string;
@@ -244,7 +228,6 @@ Interaction Lab 控制入口：
 
 - `poll_bar` 放在底部安全区域上方，避免压住进度条；
 - `emoji_hold` 可放在右侧中下区域或底部偏右区域；
-- `rapid_tap` 使用右侧中下区域的半透明呼吸花朵作为点击入口；
 - 避免遮挡字幕、人脸和关键剧情区域；
 - 视觉反馈应短促，不应长时间覆盖视频。
 
@@ -252,7 +235,7 @@ Interaction Lab 控制入口：
 
 1. 开发模式下可以看到 Interaction Lab 控制入口；
 2. 可以从左上角汉堡菜单展开 Interaction Lab 面板；
-3. 可以切换 `Off`、`Poll Bar`、`Danmaku Poll`、`Emoji Hold`、`Rapid Tap`；
+3. 可以切换 `Off`、`Poll Bar`、`Danmaku Poll`、`Emoji Hold`；
 4. `Off` 模式下固定触发点不会出现互动 UI；
 5. `Poll Bar` 模式下，到达固定触发时间后出现底部投票条；
 6. `Poll Bar` 点击选项后出现短暂结果态；
@@ -261,12 +244,11 @@ Interaction Lab 控制入口：
 9. `Emoji Hold` 模式下，到达固定触发时间后在右侧中下区域出现 emoji 按钮；
 10. `Emoji Hold` 按住时圆圈边缘进度在 2 秒内走完一圈；
 11. `Emoji Hold` 进度完成后触发特效并自动消失；
-12. `Rapid Tap` 模式下触发点出现呼吸闪烁的半透明花朵入口，连续点击后出现即时反馈；
-13. 切换模式或 seek 回触发点前，互动 UI 状态会重置；
-14. 不调用后端 interaction plan 或 event 上报接口；
-15. 不破坏视频播放、弹幕、进度条拖拽和后端视频加载；
-16. `npm run typecheck` 通过；
-17. 相关前端测试通过。
+12. 切换模式或 seek 回触发点前，互动 UI 状态会重置；
+13. 不调用后端 interaction plan 或 event 上报接口；
+14. 不破坏视频播放、弹幕、进度条拖拽和后端视频加载；
+15. `npm run typecheck` 通过；
+16. 相关前端测试通过。
 
 ## 12. 建议实现顺序
 
