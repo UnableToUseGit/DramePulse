@@ -91,8 +91,11 @@ class ImportVideoManifestTest(unittest.TestCase):
         self.assertIn("series_id", columns)
         self.assertIn("series_name", columns)
         self.assertIn("episode_label", columns)
+        self.assertIn("duration", columns)
         self.assertIn("douyin_video_id", columns)
         self.assertIn("douyin_json_path", columns)
+        self.assertIn("created_at", columns)
+        self.assertIn("updated_at", columns)
 
     def test_ensure_video_schema_migrates_existing_videos_table(self) -> None:
         connection = sqlite3.connect(self.tmp_path / "dramepulse.sqlite")
@@ -128,8 +131,11 @@ class ImportVideoManifestTest(unittest.TestCase):
         self.assertIn("series_id", columns)
         self.assertIn("series_name", columns)
         self.assertIn("episode_label", columns)
+        self.assertIn("duration", columns)
         self.assertIn("douyin_video_id", columns)
         self.assertIn("douyin_json_path", columns)
+        self.assertIn("created_at", columns)
+        self.assertIn("updated_at", columns)
 
     def test_import_video_manifest_upserts_video_row(self) -> None:
         manifest_path = self.write_manifest()

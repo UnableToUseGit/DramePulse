@@ -59,9 +59,54 @@ class DanmakuRepositoryTest(unittest.TestCase):
                     video_id, title, episode_no, duration, oss_bucket,
                     oss_object_key, douyin_json_path, content_type, size, source, status
                 )
-                VALUES (?, '第1集', 1, 10.0, 'local', 'raw/demo/ep01/video.mp4', ?, 'video/mp4', 10, 'local', 'active')
+                VALUES (?, 'Episode 1', 1, 10.0, 'local', 'raw/demo/ep01/video.mp4', ?, 'video/mp4', 10, 'local', 'active')
                 """,
                 ("demo_ep01", douyin_json_path),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def create_danmaku_table(self) -> None:
+        connection = sqlite3.connect(self.tmp_path / "dramepulse.sqlite")
+        try:
+            connection.execute(
+                """
+                CREATE TABLE danmaku_items (
+                    danmaku_id TEXT PRIMARY KEY,
+                    video_id TEXT NOT NULL,
+                    user_id TEXT NULL,
+                    client_time REAL NOT NULL,
+                    time_ms INTEGER NOT NULL,
+                    text TEXT NOT NULL,
+                    source TEXT NOT NULL DEFAULT 'user',
+                    digg_count INTEGER NOT NULL DEFAULT 0,
+                    score REAL NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    raw_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+    def insert_persisted_danmaku(self) -> None:
+        connection = sqlite3.connect(self.tmp_path / "dramepulse.sqlite")
+        try:
+            connection.executemany(
+                """
+                INSERT INTO danmaku_items (
+                    danmaku_id, video_id, user_id, client_time, time_ms, text,
+                    source, digg_count, score, status, raw_json, created_at
+                )
+                VALUES (?, 'demo_ep01', NULL, ?, ?, ?, 'douyin', ?, ?, 'active', '{}', '')
+                """,
+                [
+                    ("persisted_2", 2.0, 2000, "second persisted", 3, 1.5),
+                    ("persisted_1", 1.0, 1000, "first persisted", 8, 9.5),
+                ],
             )
             connection.commit()
         finally:
@@ -79,7 +124,7 @@ class DanmakuRepositoryTest(unittest.TestCase):
                             {
                                 "danmaku_id": "d2",
                                 "time_sec": 2.0,
-                                "text": "第二条",
+                                "text": "second raw",
                                 "digg_count": 3,
                                 "score": 1.5,
                                 "raw": {"large": "payload"},
@@ -87,7 +132,7 @@ class DanmakuRepositoryTest(unittest.TestCase):
                             {
                                 "danmaku_id": "d1",
                                 "time_sec": 1.0,
-                                "text": "第一条",
+                                "text": "first raw",
                                 "digg_count": 8,
                                 "score": 9.5,
                             },
@@ -115,14 +160,44 @@ class DanmakuRepositoryTest(unittest.TestCase):
                 {
                     "danmaku_id": "d1",
                     "time_sec": 1.0,
-                    "text": "第一条",
+                    "text": "first raw",
                     "digg_count": 8,
                     "score": 9.5,
                 },
                 {
                     "danmaku_id": "d2",
                     "time_sec": 2.0,
-                    "text": "第二条",
+                    "text": "second raw",
+                    "digg_count": 3,
+                    "score": 1.5,
+                },
+            ],
+        )
+
+    def test_get_video_danmaku_prefers_persisted_items(self) -> None:
+        self.create_videos_table(douyin_json_path="raw/demo/ep01/missing.json")
+        self.create_danmaku_table()
+        self.insert_persisted_danmaku()
+
+        payload = danmaku.get_video_danmaku("demo_ep01")
+
+        self.assertEqual(payload["video_id"], "demo_ep01")
+        self.assertTrue(payload["available"])
+        self.assertEqual(payload["count"], 2)
+        self.assertEqual(
+            payload["items"],
+            [
+                {
+                    "danmaku_id": "persisted_1",
+                    "time_sec": 1.0,
+                    "text": "first persisted",
+                    "digg_count": 8,
+                    "score": 9.5,
+                },
+                {
+                    "danmaku_id": "persisted_2",
+                    "time_sec": 2.0,
+                    "text": "second persisted",
                     "digg_count": 3,
                     "score": 1.5,
                 },
@@ -134,7 +209,10 @@ class DanmakuRepositoryTest(unittest.TestCase):
 
         payload = danmaku.get_video_danmaku("demo_ep01")
 
-        self.assertEqual(payload, {"video_id": "demo_ep01", "available": False, "count": 0, "items": []})
+        self.assertEqual(
+            payload,
+            {"video_id": "demo_ep01", "available": False, "count": 0, "items": [], "danmaku": []},
+        )
 
     def test_get_video_danmaku_returns_none_for_missing_video(self) -> None:
         self.create_videos_table(douyin_json_path=None)

@@ -116,7 +116,7 @@ example_output/case1_ep01/
 apps/player-demo/
 ```
 
-它是一个 React Native + Expo App，当前包含竖屏短剧播放页，并通过后端 `GET /api/videos` 获取视频列表、视频流和弹幕数据。在 iOS 和 Android 上可通过 Expo Go 扫码体验。
+它是一个 React Native + Expo App，包含竖屏短剧播放页、弹幕互动和播放中剧情问答入口。Demo 从后端读取视频列表、视频流和弹幕，在 iOS 和 Android 上可通过 Expo Go 扫码体验。
 
 安装依赖并启动：
 
@@ -133,6 +133,14 @@ npm start
 $env:EXPO_PUBLIC_API_BASE_URL="http://<your-lan-ip>:8000"
 npm start
 ```
+
+macOS/Linux 可使用：
+
+```bash
+EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:8000 npm start
+```
+
+播放页右侧评论按钮可打开“剧情问答”面板，前端调用 `POST /api/story-qa/ask`。如果后端设置 `STORY_QA_BACKEND=lightrag`，该接口会通过 LightRAG working directory 回答剧情问题。
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
@@ -225,3 +233,43 @@ docs/dataset-construction
 ```
 
 具体功能、实验脚本、文档草稿都应先在独立分支中完成，经过自查和必要验证后，再通过 Pull Request 合并到 `main`。
+## Optional story Q&A RAG
+
+`/api/story-qa/*` is an optional plot Q&A capability for answering questions within the viewer's current playback progress. The default backend uses Chroma, LlamaIndex, and an OpenAI-compatible API. A LightRAG backend can also load a prebuilt working directory for graph-based plot Q&A. This feature does not replace highlight recognition, interaction plan generation, or strategy updates.
+
+Endpoints:
+
+```text
+POST /api/story-qa/ask
+POST /api/story-qa/ingest
+GET  /api/story-qa/collections
+```
+
+Real RAG calls require these `.env` values:
+
+```env
+STORY_QA_BACKEND=chroma
+OPENAI_API_KEY=
+OPENAI_API_BASE=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+CHROMA_DIR=data/chroma
+CHROMA_COLLECTION=dramepulse_story_qa
+SIMILARITY_TOP_K=8
+```
+
+To use the optional LightRAG backend, build the LightRAG knowledge graph offline and copy the whole working directory into `data/story_qa/.../lightrag`. Then set:
+
+```env
+STORY_QA_BACKEND=lightrag
+LIGHTRAG_WORKING_DIR=data/story_qa/demo-drama/episode-001/lightrag
+LIGHTRAG_QUERY_MODE=hybrid
+LIGHTRAG_ENABLE_RERANK=false
+LIGHTRAG_EMBEDDING_MODEL=text-embedding-3-small
+LIGHTRAG_EMBEDDING_DIM=1536
+LIGHTRAG_EMBEDDING_API_BASE=https://api.openai.com/v1
+LIGHTRAG_EMBEDDING_API_KEY=
+LIGHTRAG_EMBEDDING_SEND_DIM=false
+```
+
+The player Q&A panel uses the same `/api/story-qa/ask` endpoint. The current LightRAG demo index is built from prebuilt plot material and may not strictly enforce second-level playback progress spoiler filtering.

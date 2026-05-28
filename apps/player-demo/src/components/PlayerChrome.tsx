@@ -8,6 +8,7 @@ import { PlayerTopBar } from "./PlayerTopBar";
 export function PlayerChrome({
   liked,
   onToggleLike,
+  onOpenStoryQa,
   playbackRate,
   isSpeedMenuOpen,
   onToggleSpeedMenu,
@@ -18,6 +19,7 @@ export function PlayerChrome({
 }: {
   liked: boolean;
   onToggleLike: () => void;
+  onOpenStoryQa: () => void;
   playbackRate: PlaybackRate;
   isSpeedMenuOpen: boolean;
   onToggleSpeedMenu: () => void;
@@ -34,7 +36,7 @@ export function PlayerChrome({
         onToggleSpeedMenu={onToggleSpeedMenu}
         onSelectPlaybackRate={onSelectPlaybackRate}
       />
-      <PlayerActionRail liked={liked} onToggleLike={onToggleLike} />
+      <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} />
       <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} />
       <PlayerBottomTabs />
     </View>

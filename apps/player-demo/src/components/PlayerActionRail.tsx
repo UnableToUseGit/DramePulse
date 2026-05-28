@@ -1,32 +1,56 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "../theme";
 import { LikeReactionButton } from "./LikeReactionButton";
 
 export function PlayerActionRail({
   liked,
-  onToggleLike
+  onToggleLike,
+  onOpenStoryQa
 }: {
   liked: boolean;
   onToggleLike: () => void;
+  onOpenStoryQa: () => void;
 }) {
   return (
     <View style={styles.root}>
       <RailIcon icon="star" count="199.4万" />
-      <RailIcon icon="chatbubble-ellipses" count="6626" />
+      <RailIcon icon="chatbubble-ellipses" count="6626" accessibilityLabel="剧情问答" onPress={onOpenStoryQa} />
       <LikeReactionButton count="30.8万" liked={liked} onToggle={onToggleLike} />
       <RailIcon icon="arrow-redo" count="5.3万" />
     </View>
   );
 }
 
-function RailIcon({ icon, count }: { icon: keyof typeof Ionicons.glyphMap; count: string }) {
-  return (
-    <View style={styles.item}>
+function RailIcon({
+  icon,
+  count,
+  accessibilityLabel,
+  onPress
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  count: string;
+  accessibilityLabel?: string;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <View style={styles.iconWrap}>
         <Ionicons name={icon} size={34} color="#fff" />
       </View>
       <Text style={styles.text}>{count}</Text>
+    </>
+  );
+  if (onPress) {
+    return (
+      <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={styles.item} onPress={onPress}>
+        {content}
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.item}>
+      {content}
     </View>
   );
 }

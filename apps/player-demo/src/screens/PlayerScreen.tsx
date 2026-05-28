@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View
 } from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
@@ -24,6 +25,8 @@ export function PlayerScreen() {
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
   const listRef = useRef<FlatList<PlayerVideo>>(null);
+  const viewport = useWindowDimensions();
+  const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
@@ -68,12 +71,12 @@ export function PlayerScreen() {
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const nextIndex = getFeedPageIndex({
         offsetY: event.nativeEvent.contentOffset.y,
-        pageHeight,
+        pageHeight: resolvedPageHeight,
         itemCount: videos.length
       });
       setActiveIndex(nextIndex);
     },
-    [pageHeight, videos.length]
+    [resolvedPageHeight, videos.length]
   );
 
   const handleChangePresentationType = useCallback((type: InteractionPresentationType) => {
@@ -119,10 +122,13 @@ export function PlayerScreen() {
     <View
       style={styles.root}
       onLayout={(event) => {
-        setPageHeight(event.nativeEvent.layout.height);
+        const nextHeight = event.nativeEvent.layout.height;
+        if (nextHeight > 0) {
+          setPageHeight(nextHeight);
+        }
       }}
     >
-      {pageHeight > 0 ? (
+      {resolvedPageHeight > 0 ? (
         <FlatList
           ref={listRef}
           data={videos}
@@ -135,7 +141,7 @@ export function PlayerScreen() {
                 video={item}
                 isActive={index === activeIndex}
                 shouldMountVideo={index === activeIndex}
-                height={pageHeight}
+                height={resolvedPageHeight}
                 hasStartedFeed={hasStartedFeed}
                 hasNextEpisode={nextEpisode !== undefined}
                 nextEpisodeLabel={nextEpisode?.episodeLabel}
@@ -150,13 +156,17 @@ export function PlayerScreen() {
           showsVerticalScrollIndicator={false}
           bounces
           decelerationRate="fast"
-          snapToInterval={pageHeight}
+          snapToInterval={resolvedPageHeight}
           snapToAlignment="start"
           disableIntervalMomentum
           onMomentumScrollEnd={handleMomentumScrollEnd}
-          getItemLayout={(_, index) => ({ length: pageHeight, offset: pageHeight * index, index })}
+          getItemLayout={(_, index) => ({
+            length: resolvedPageHeight,
+            offset: resolvedPageHeight * index,
+            index
+          })}
           onScrollToIndexFailed={(info) => {
-            listRef.current?.scrollToOffset({ offset: pageHeight * info.index, animated: true });
+            listRef.current?.scrollToOffset({ offset: resolvedPageHeight * info.index, animated: true });
           }}
           initialNumToRender={1}
           maxToRenderPerBatch={2}

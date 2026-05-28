@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 from ..config import get_settings
 from ..db import db_cursor, sql_placeholder
@@ -10,8 +11,19 @@ def _row_to_dict(row: Any) -> dict[str, Any]:
     return dict(row)
 
 
+def _video_stream_url(video_id: str, row: dict[str, Any]) -> str:
+    settings = get_settings()
+    if settings.mode == "cloud" and settings.cdn_base_url:
+        object_key = str(row.get("oss_object_key") or "").strip()
+        if object_key:
+            return f"{settings.cdn_base_url.rstrip('/')}/{quote(object_key, safe='/')}"
+    return f"/api/videos/{video_id}/stream"
+
+
 def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
     video_id = str(row["video_id"])
+    stream_url = _video_stream_url(video_id, row)
+    source = "cdn" if stream_url.startswith(("http://", "https://")) else row.get("source") or "oss"
     return {
         "video_id": video_id,
         "series_id": row.get("series_id"),
@@ -20,9 +32,9 @@ def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
         "episode_no": row.get("episode_no"),
         "episode_label": row.get("episode_label"),
         "duration": row.get("duration"),
-        "stream_url": f"/api/videos/{video_id}/stream",
+        "stream_url": stream_url,
         "danmaku_url": f"/api/videos/{video_id}/danmaku",
-        "source": row.get("source") or "oss",
+        "source": source,
         "douyin_video_id": row.get("douyin_video_id"),
     }
 
@@ -40,6 +52,7 @@ def list_active_videos() -> list[dict[str, Any]]:
                 episode_no,
                 episode_label,
                 duration,
+                oss_object_key,
                 source,
                 douyin_video_id
             FROM videos
@@ -64,6 +77,7 @@ def get_video(video_id: str) -> dict[str, Any] | None:
                 episode_no,
                 episode_label,
                 duration,
+                oss_object_key,
                 source,
                 douyin_video_id
             FROM videos

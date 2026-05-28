@@ -17,16 +17,22 @@ VIDEO_COLUMNS_SQLITE = {
     "series_id": "TEXT NULL",
     "series_name": "TEXT NULL",
     "episode_label": "TEXT NULL",
+    "duration": "REAL NULL",
     "douyin_video_id": "TEXT NULL",
     "douyin_json_path": "TEXT NULL",
+    "created_at": "TEXT NOT NULL DEFAULT ''",
+    "updated_at": "TEXT NOT NULL DEFAULT ''",
 }
 
 VIDEO_COLUMNS_MYSQL = {
     "series_id": "VARCHAR(128) NULL",
     "series_name": "VARCHAR(255) NULL",
     "episode_label": "VARCHAR(32) NULL",
+    "duration": "DOUBLE NULL",
     "douyin_video_id": "VARCHAR(64) NULL",
     "douyin_json_path": "VARCHAR(512) NULL",
+    "created_at": "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)",
+    "updated_at": "DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)",
 }
 
 
@@ -227,7 +233,8 @@ def _upsert_sql(settings: Settings) -> str:
             content_type = VALUES(content_type),
             size = VALUES(size),
             source = VALUES(source),
-            status = VALUES(status)
+            status = VALUES(status),
+            updated_at = UTC_TIMESTAMP(6)
     """
 
 

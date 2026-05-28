@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { ENABLE_INTERACTION_LAB } from "../config";
+import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import { getFeedPlaybackMode } from "../domain/playerFeed";
 import { PlayerVideo } from "../domain/playerApi";
+import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
+import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
@@ -16,6 +18,7 @@ import { FastForwardPressLayer } from "./FastForwardPressLayer";
 import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
+import { StoryQaPanel } from "./StoryQaPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
@@ -53,11 +56,13 @@ export function PlayerPage({
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
+  const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
+  const storyQaRequestRef = useRef(0);
   const playbackMode = useMemo(
     () => getFeedPlaybackMode({ hasStartedFeed, isActive }),
     [hasStartedFeed, isActive]
@@ -129,6 +134,8 @@ export function PlayerPage({
       setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
       resetInteractionExample();
+      storyQaRequestRef.current += 1;
+      setStoryQaState(resetStoryQaState());
       previousTimeRef.current = 0;
       lastPublishedTimeRef.current = 0;
       didCompleteRef.current = false;
@@ -139,7 +146,7 @@ export function PlayerPage({
 
   useEffect(() => {
     setResolvedDuration(video.duration);
-  }, [video.videoId]);
+  }, [video.duration, video.videoId]);
 
   useEffect(() => {
     if (playbackMode.shouldAutoStart && !isStarted) {
@@ -165,10 +172,7 @@ export function PlayerPage({
         const isCloseToEnd = resolvedDuration > 0 && resolvedDuration - time <= 4;
         const didCountdownSecondChange =
           isCloseToEnd && Math.ceil(resolvedDuration - time) !== Math.ceil(resolvedDuration - previousPublishedTime);
-        if (
-          Math.abs(time - previousPublishedTime) >= UI_TIME_UPDATE_INTERVAL_SEC ||
-          didCountdownSecondChange
-        ) {
+        if (Math.abs(time - previousPublishedTime) >= UI_TIME_UPDATE_INTERVAL_SEC || didCountdownSecondChange) {
           lastPublishedTimeRef.current = time;
           setCurrentTime(time);
         }
@@ -223,6 +227,52 @@ export function PlayerPage({
     [isActive, resetInteractionExample]
   );
 
+  const handleSubmitStoryQa = useCallback(
+    (quickQuestion?: string) => {
+      const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
+      setStoryQaState((state) => ({
+        ...state,
+        question: nextQuestion,
+        error: undefined,
+        answer: undefined
+      }));
+      if (!nextQuestion) {
+        setStoryQaState((state) => ({ ...state, error: "请输入问题" }));
+        return;
+      }
+      const context = resolveStoryQaContext(video);
+      const requestId = storyQaRequestRef.current + 1;
+      storyQaRequestRef.current = requestId;
+      setStoryQaState((state) => ({ ...state, isLoading: true }));
+      askStoryQa({
+        apiBaseUrl: API_BASE_URL,
+        question: nextQuestion,
+        seriesId: context.seriesId,
+        currentEpisode: context.currentEpisode,
+        currentTime
+      })
+        .then((result) => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({ ...state, answer: result.answer }));
+          }
+        })
+        .catch((error: unknown) => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({
+              ...state,
+              error: error instanceof Error ? error.message : "剧情问答暂时不可用"
+            }));
+          }
+        })
+        .finally(() => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({ ...state, isLoading: false }));
+          }
+        });
+    },
+    [currentTime, storyQaState.question, video]
+  );
+
   return (
     <View style={[styles.root, { height }]}>
       {shouldMountVideo ? (
@@ -266,6 +316,7 @@ export function PlayerPage({
       <PlayerChrome
         liked={liked}
         onToggleLike={() => setLiked((current) => !current)}
+        onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
         playbackRate={speedControls.playbackRate}
         isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
         onToggleSpeedMenu={speedControls.toggleSpeedMenu}
@@ -283,6 +334,16 @@ export function PlayerPage({
         hasNextEpisode={hasNextEpisode}
         nextEpisodeLabel={nextEpisodeLabel}
         onSeekCommit={handleSeekCommit}
+      />
+      <StoryQaPanel
+        visible={storyQaState.isOpen}
+        question={storyQaState.question}
+        answer={storyQaState.answer}
+        error={storyQaState.error}
+        isLoading={storyQaState.isLoading}
+        onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
+        onSubmit={handleSubmitStoryQa}
+        onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
       />
     </View>
   );
