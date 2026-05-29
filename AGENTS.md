@@ -21,46 +21,39 @@ DramePulse 是一个字节跳动比赛项目，方向是短剧观看场景下的
 
 ## 当前仓库状态
 
-当前仓库处于文档优先阶段，还没有应用代码。
+当前仓库已经从文档优先阶段进入 MVP 实现阶段。仓库中已有移动端播放器 Demo、FastAPI 后端、算法 pipeline、人工标注工具、共享数据契约、样例数据和测试。
 
 重要文件：
 
-- `README.md`：项目入口说明与目录结构约定。
+- `README.md`：项目入口说明、目录结构和前端/后端/算法 Quick Start。
 - `packages/contracts/`：跨模块共享数据契约，包括核心 JSON Schema 和示例数据。
 - `docs/product-spec/prd.md`：产品背景、用户痛点、MVP 目标、交互设想。
 - `docs/product-spec/交互设计.png`：弹幕投票交互草图。
+- `docs/develop-docs/README.md`：开发文档索引。
 - `docs/develop-docs/architecture-design.md`：架构设计、模块契约、数据对象、MVP 边界。
-- `docs/develop-docs/dataset-construction.md`：数据集构建说明占位文件，目前为空。
-- `docs/references/赛题说明.md`：赛题资料占位文件，目前为空。
+- `docs/develop-docs/status/current-implementation.md`：当前实现状态说明。
+- `docs/develop-docs/api/interface-requirements.md`：移动端播放器需要的后端接口说明。
+- `docs/develop-docs/data/dataset-construction.md`：数据集构建、弹幕采集和标注流程说明。
+- `docs/develop-docs/module-designs/`：高光识别、互动方案生成、播放器 Demo 等模块设计。
+- `docs/competition-instructions/`：比赛题目资料。
+- `apps/player-demo/`：React Native + Expo 移动端播放器 Demo。
+- `apps/annotation-tool/`：高光点人工标注前端。
+- `services/api/`：FastAPI 后端服务。
+- `pipelines/` 与 `scripts/`：高光点识别、互动方案生成、转写、数据处理和调试脚本。
 
-开始任何实现前，先阅读 PRD 和架构设计。
+开始任何实现前，先阅读 PRD、架构设计和当前实现状态；如果改动涉及某个模块，还要阅读对应的 module design 或接口文档。
 
 ## 目录约定
 
-后续代码和资料按以下目录边界放置：
+代码和资料按以下目录边界放置：
 
 - `apps/`：面向用户或评委的应用入口，例如短剧播放前端、互动 Demo、后台 Dashboard。
 - `services/`：在线服务代码，例如后端 API、用户行为接收、互动方案下发、统计查询、策略更新。
 - `pipelines/`：离线处理流程，例如字幕解析、高光点识别、互动方案生成、验证集评估。
 - `packages/`：跨模块共享代码和定义，例如 JSON Schema、TypeScript 类型、事件类型、高光类型。
-- `data/`：少量开发和演示数据，例如样例字幕、元数据、人工标注、高光识别结果、互动方案 JSON。开发数据应先从 Hugging Face 数据集 `TheThreeKeyboardeers/ShortDramas` 下载，再移动或整理到该目录下；大体积视频不要直接提交到 GitHub。
+- `data/`：少量开发和演示数据，例如样例字幕、元数据、人工标注、高光识别结果、互动方案 JSON。开发数据应先从 Hugging Face 数据集 `TheThreeKeyboardeers/ShortDramas` 或团队当前数据源下载，再移动或整理到该目录下；大体积视频不要直接提交到 GitHub。
 - `scripts/`：开发和调试工具脚本，例如下载数据、初始化数据库、导入结果、生成 demo 数据、一键启动服务。
 - `docs/`：项目文档，例如 PRD、系统设计、模块契约、API 说明、数据格式说明、实验评估、答辩方案。
-
-## 产品优先级
-
-MVP 的重点是证明完整链路，而不是把某一个模块做得很复杂。
-
-MVP 必须覆盖：
-
-1. 高光点识别与结构化存储；
-2. 客户端播放到高光点时触发互动；
-3. 用户用低摩擦方式完成情绪或观点表达；
-4. 系统给予即时反馈；
-5. 用户行为回传后台；
-6. 后台根据反馈更新高光点分数与互动策略。
-
-遇到取舍时，优先选择可解释、可演示、能支撑比赛答辩的端到端 demo，而不是孤立的复杂子系统。
 
 ## 架构边界
 
@@ -85,16 +78,26 @@ MVP 必须覆盖：
 
 ## 实现建议
 
-如果后续开始写代码，第一版要刻意保持小而完整。
+继续写代码时，要刻意保持小而完整，优先补齐端到端链路和比赛答辩可展示能力。
 
 建议边界：
 
-- 前端：移动端优先的短剧播放器 demo，MVP 可使用 HTML5 video；
+- 前端：移动端优先的短剧播放器 Demo，当前使用 React Native + Expo；
 - 主交互：优先实现弹幕投票，选项控制在 2 到 3 个；
-- 后端：提供视频、高光、互动方案、事件、统计、策略更新相关 API；
-- 数据：早期 demo 可以使用 SQLite 或本地 JSON fixture，但数据契约要清楚；
-- 高光识别：MVP 可以采用“字幕 + LLM 结构化抽取 + 人工校验”；
+- 后端：提供视频、弹幕、互动方案、用户事件、播放事件、互动结果和 Story Q&A 相关 API；
+- 数据：本地模式直接读取 `dramepulse.sqlite`，云端已有部署 API `http://39.96.219.88:8000`；数据契约要清楚；
+- 高光识别：MVP 可以采用“字幕 + 多图理解 + LLM 结构化抽取 + 人工校验”；
 - 策略更新：先用简单规则，不要一开始引入复杂机器学习。
+
+常用入口：
+
+- 后端本地启动：`uvicorn services.api.main:app --host 127.0.0.1 --port 8000`；
+- 后端云端地址：`http://39.96.219.88:8000`；
+- 前端启动：进入 `apps/player-demo/` 后运行 `npm start`；
+- 前端连接云端：`EXPO_PUBLIC_API_BASE_URL=http://39.96.219.88:8000 npm start`；
+- 高光识别：`python scripts/run_highlight_recognition.py case1_ep01`；
+- 互动方案生成：`python scripts/run_interaction_plan_generation.py case1_ep01`；
+- 标注工具：`python scripts/serve_annotation_tool.py --port 8770`，访问 `http://127.0.0.1:8770/apps/annotation-tool/`。
 
 MVP 阶段避免主动扩展：
 
@@ -152,7 +155,7 @@ MVP 阶段避免主动扩展：
 
 ## GitHub 协作原则
 
-`main` 分支只放确认无误、已经合并的稳定内容。不要直接在 `main` 上开发具体功能。
+`main` 分支只放确认无误、已经合并的稳定内容。不要直接在 `main` 上开发具体功能，除非用户在当前对话中明确要求在 `main` 上做改动。
 
 每个具体功能、实验、修复或文档草稿都应在独立分支中完成。推荐分支命名：
 
