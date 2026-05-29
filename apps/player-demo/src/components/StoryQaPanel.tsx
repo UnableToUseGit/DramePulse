@@ -71,10 +71,9 @@ export function StoryQaPanel({
       </View>
 
       <View style={styles.answerBox}>
-        {isLoading ? <Text style={styles.answerText}>正在检索剧情资料...</Text> : null}
+        {isLoading && !answer ? <Text style={styles.answerText}>正在检索剧情资料...</Text> : null}
+        {answer ? <Text style={styles.answerText}>{answer}</Text> : null}
         {!isLoading && error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {!isLoading && !error && answer ? <Text style={styles.answerText}>{answer}</Text> : null}
-        {!isLoading && !error && !answer ? <Text style={styles.emptyText}>可以问角色身份、刚才剧情或人物关系。</Text> : null}
       </View>
     </View>
   );

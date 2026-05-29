@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+import queue
 import re
 import asyncio
 import threading
@@ -13,6 +14,13 @@ from services.api.config import Settings, get_settings
 
 _LIGHTRAG_LOOP: asyncio.AbstractEventLoop | None = None
 _LIGHTRAG_LOOP_LOCK = threading.Lock()
+_LIGHTRAG_CACHE_LOCK = threading.Lock()
+_LIGHTRAG_RAG: Any | None = None
+_LIGHTRAG_RAG_KEY: tuple[Any, ...] | None = None
+_REFERENCE_HEADING_RE = re.compile(r"(?im)^\s*#{1,6}\s*references\s*$")
+_REFERENCE_LIST_RE = re.compile(r"(?im)^\s*[-*]\s*\[\d+\].*$")
+_CITATION_RE = re.compile(r"\[\d+\]")
+_THINK_BLOCK_RE = re.compile(r"(?is)<think>.*?</think>")
 
 
 SPOILER_SAFE_PROMPT = """你是短剧剧情问答助手。
@@ -351,11 +359,71 @@ def _run_lightrag_async(coro):
     return future.result()
 
 
-async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, Any]:
+def _clean_lightrag_text(text: str) -> str:
+    text = _THINK_BLOCK_RE.sub("", text)
+    cleaned = _REFERENCE_HEADING_RE.split(text, maxsplit=1)[0]
+    cleaned = _REFERENCE_LIST_RE.sub("", cleaned)
+    cleaned = _CITATION_RE.sub("", cleaned)
+    return cleaned.strip()
+
+
+def _clean_lightrag_stream_chunk(chunk: str, in_think: bool = False) -> tuple[str, bool, bool]:
+    output = ""
+    remaining = chunk
+    while remaining:
+        if in_think:
+            end = remaining.lower().find("</think>")
+            if end < 0:
+                return output, False, True
+            remaining = remaining[end + len("</think>") :]
+            in_think = False
+            continue
+        start = remaining.lower().find("<think>")
+        if start < 0:
+            output += remaining
+            break
+        output += remaining[:start]
+        remaining = remaining[start + len("<think>") :]
+        in_think = True
+
+    match = _REFERENCE_HEADING_RE.search(chunk)
+    should_stop = match is not None
+    if match:
+        output = output[: match.start()]
+    return _CITATION_RE.sub("", output), should_stop, in_think
+
+
+def _lightrag_cache_key(settings: Settings) -> tuple[Any, ...]:
+    return (
+        str(settings.lightrag_working_dir.resolve()),
+        settings.openai_model,
+        settings.openai_api_base,
+        settings.openai_api_key,
+        settings.lightrag_embedding_model,
+        settings.lightrag_embedding_dim,
+        settings.lightrag_embedding_api_base,
+        settings.lightrag_embedding_api_key,
+        settings.lightrag_embedding_send_dim,
+        settings.lightrag_top_k,
+        settings.lightrag_chunk_top_k,
+        settings.lightrag_cosine_threshold,
+        settings.lightrag_max_entity_tokens,
+        settings.lightrag_max_relation_tokens,
+        settings.lightrag_max_total_tokens,
+    )
+
+
+async def _get_lightrag_async(settings: Settings):
+    global _LIGHTRAG_RAG, _LIGHTRAG_RAG_KEY
+
     if not settings.lightrag_working_dir.exists():
         raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
 
-    from lightrag import LightRAG, QueryParam
+    cache_key = _lightrag_cache_key(settings)
+    if _LIGHTRAG_RAG is not None and _LIGHTRAG_RAG_KEY == cache_key:
+        return _LIGHTRAG_RAG
+
+    from lightrag import LightRAG
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
     from lightrag.utils import EmbeddingFunc
 
@@ -381,7 +449,7 @@ async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, An
                 prompt,
                 system_prompt=system_prompt,
                 history_messages=history_messages or [],
-                keyword_extraction=keyword_extraction,
+                keyword_extraction=False,
                 base_url=settings.openai_api_base,
                 api_key=settings.openai_api_key,
                 **kwargs,
@@ -410,25 +478,122 @@ async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, An
             func=embedding_func,
         ),
         llm_model_func=llm_model_func,
+        top_k=settings.lightrag_top_k,
+        chunk_top_k=settings.lightrag_chunk_top_k,
+        cosine_threshold=settings.lightrag_cosine_threshold,
+        cosine_better_than_threshold=settings.lightrag_cosine_threshold,
+        max_entity_tokens=settings.lightrag_max_entity_tokens,
+        max_relation_tokens=settings.lightrag_max_relation_tokens,
+        max_total_tokens=settings.lightrag_max_total_tokens,
     )
     await rag.initialize_storages()
+    _LIGHTRAG_RAG = rag
+    _LIGHTRAG_RAG_KEY = cache_key
+    return rag
+
+
+def _ensure_lightrag(settings: Settings) -> None:
+    with _LIGHTRAG_CACHE_LOCK:
+        _run_lightrag_async(_get_lightrag_async(settings))
+
+
+async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, Any]:
+    from lightrag import QueryParam
+
+    rag = await _get_lightrag_async(settings)
+    answer = await rag.aquery(
+        question,
+        param=QueryParam(
+            mode=settings.lightrag_query_mode,
+            enable_rerank=settings.lightrag_enable_rerank,
+            top_k=settings.lightrag_top_k,
+            chunk_top_k=settings.lightrag_chunk_top_k,
+            max_entity_tokens=settings.lightrag_max_entity_tokens,
+            max_relation_tokens=settings.lightrag_max_relation_tokens,
+            max_total_tokens=settings.lightrag_max_total_tokens,
+            response_type=settings.lightrag_response_type,
+            include_references=False,
+        ),
+    )
+
+    return {"answer": _clean_lightrag_text(str(answer)), "sources": []}
+
+
+async def _ask_lightrag_stream_async(settings: Settings, question: str, output: queue.Queue[str | Exception | None]) -> None:
+    from lightrag import QueryParam
+
     try:
+        rag = await _get_lightrag_async(settings)
         answer = await rag.aquery(
             question,
             param=QueryParam(
                 mode=settings.lightrag_query_mode,
                 enable_rerank=settings.lightrag_enable_rerank,
+                top_k=settings.lightrag_top_k,
+                chunk_top_k=settings.lightrag_chunk_top_k,
+                max_entity_tokens=settings.lightrag_max_entity_tokens,
+                max_relation_tokens=settings.lightrag_max_relation_tokens,
+                max_total_tokens=settings.lightrag_max_total_tokens,
+                response_type=settings.lightrag_response_type,
+                include_references=False,
+                stream=True,
             ),
         )
+        if hasattr(answer, "__aiter__"):
+            in_think = False
+            async for chunk in answer:
+                cleaned_chunk, should_stop, in_think = _clean_lightrag_stream_chunk(str(chunk), in_think)
+                if cleaned_chunk:
+                    output.put(cleaned_chunk)
+                if should_stop:
+                    break
+        else:
+            cleaned = _clean_lightrag_text(str(answer))
+            if cleaned:
+                output.put(cleaned)
+    except Exception as exc:
+        output.put(exc)
     finally:
-        await rag.finalize_storages()
-
-    return {"answer": str(answer), "sources": []}
+        output.put(None)
 
 
 def _ask_lightrag(settings: Settings, question: str) -> dict[str, Any]:
     _require_api_key(settings)
+    _ensure_lightrag(settings)
     return _run_lightrag_async(_ask_lightrag_async(settings, question))
+
+
+def _ask_lightrag_stream(settings: Settings, question: str) -> Iterable[str]:
+    _require_api_key(settings)
+    _ensure_lightrag(settings)
+    output: queue.Queue[str | Exception | None] = queue.Queue()
+    future = asyncio.run_coroutine_threadsafe(
+        _ask_lightrag_stream_async(settings, question, output),
+        _get_lightrag_loop(),
+    )
+    while True:
+        item = output.get()
+        if item is None:
+            break
+        if isinstance(item, Exception):
+            raise item
+        yield item
+    future.result()
+
+
+def warmup_lightrag_backend() -> None:
+    settings = get_settings()
+    if not _uses_lightrag(settings):
+        return
+    _require_api_key(settings)
+    _ensure_lightrag(settings)
+
+
+def reset_lightrag_cache_for_tests() -> None:
+    global _LIGHTRAG_RAG, _LIGHTRAG_RAG_KEY
+    with _LIGHTRAG_CACHE_LOCK:
+        _LIGHTRAG_RAG = None
+        _LIGHTRAG_RAG_KEY = None
 
 
 def _ingest_lightrag(settings: Settings, input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
@@ -571,6 +736,15 @@ def ask(question: str, series_id: str, current_episode: int, current_time: float
             for node in nodes
         ],
     }
+
+
+def ask_stream(question: str, series_id: str, current_episode: int, current_time: float) -> Iterable[str]:
+    settings = get_settings()
+    if _uses_lightrag(settings):
+        return _ask_lightrag_stream(settings, question)
+
+    answer = ask(question, series_id, current_episode, current_time)["answer"]
+    return iter([str(answer)])
 
 
 def collections() -> dict[str, Any]:

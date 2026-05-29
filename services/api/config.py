@@ -50,6 +50,13 @@ class Settings:
     lightrag_working_dir: Path
     lightrag_query_mode: str
     lightrag_enable_rerank: bool
+    lightrag_top_k: int
+    lightrag_chunk_top_k: int
+    lightrag_cosine_threshold: float
+    lightrag_max_entity_tokens: int
+    lightrag_max_relation_tokens: int
+    lightrag_max_total_tokens: int
+    lightrag_response_type: str
     lightrag_embedding_model: str
     lightrag_embedding_dim: int
     lightrag_embedding_api_base: str
@@ -97,6 +104,13 @@ def get_settings() -> Settings:
         ),
         lightrag_query_mode=_getenv("LIGHTRAG_QUERY_MODE", "hybrid"),
         lightrag_enable_rerank=_getenv("LIGHTRAG_ENABLE_RERANK", "false").lower() in {"1", "true", "yes"},
+        lightrag_top_k=int(_getenv("LIGHTRAG_TOP_K", "6")),
+        lightrag_chunk_top_k=int(_getenv("LIGHTRAG_CHUNK_TOP_K", "4")),
+        lightrag_cosine_threshold=float(_getenv("LIGHTRAG_COSINE_THRESHOLD", "0.4")),
+        lightrag_max_entity_tokens=int(_getenv("LIGHTRAG_MAX_ENTITY_TOKENS", "1800")),
+        lightrag_max_relation_tokens=int(_getenv("LIGHTRAG_MAX_RELATION_TOKENS", "2400")),
+        lightrag_max_total_tokens=int(_getenv("LIGHTRAG_MAX_TOTAL_TOKENS", "6000")),
+        lightrag_response_type=_getenv("LIGHTRAG_RESPONSE_TYPE", "一句话短回答，最多60个中文字，不要引用来源，不要输出References，不要输出思考过程"),
         lightrag_embedding_model=_getenv("LIGHTRAG_EMBEDDING_MODEL", _getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")),
         lightrag_embedding_dim=int(_getenv("LIGHTRAG_EMBEDDING_DIM", "1536")),
         lightrag_embedding_api_base=_getenv("LIGHTRAG_EMBEDDING_API_BASE", _getenv("OPENAI_API_BASE", "https://api.openai.com/v1")),

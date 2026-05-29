@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import { getFeedPlaybackMode } from "../domain/playerFeed";
 import { loadVideoDanmaku, PlayerVideo } from "../domain/playerApi";
-import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
+import { askStoryQaStream, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import type { DanmakuItem } from "../domain/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
@@ -179,16 +179,21 @@ export function PlayerPage({
       const requestId = storyQaRequestRef.current + 1;
       storyQaRequestRef.current = requestId;
       setStoryQaState((state) => ({ ...state, isLoading: true }));
-      askStoryQa({
+      askStoryQaStream({
         apiBaseUrl: API_BASE_URL,
         question: nextQuestion,
         seriesId: context.seriesId,
         currentEpisode: context.currentEpisode,
-        currentTime
-      })
-        .then((result) => {
+        currentTime,
+        onDelta: (delta) => {
           if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({ ...state, answer: result.answer }));
+            setStoryQaState((state) => ({ ...state, answer: `${state.answer ?? ""}${delta}` }));
+          }
+        }
+      })
+        .then((answer) => {
+          if (storyQaRequestRef.current === requestId) {
+            setStoryQaState((state) => ({ ...state, answer }));
           }
         })
         .catch((error: unknown) => {

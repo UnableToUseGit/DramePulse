@@ -65,10 +65,28 @@ class StoryQaServiceTest(unittest.TestCase):
         self.assertEqual(summary["episodes"][0]["source_types"]["transcript"], 2)
         self.assertEqual(summary["episodes"][0]["source_types"]["frame_analysis"], 1)
 
+    def test_clean_lightrag_text_removes_references(self) -> None:
+        answer = service._clean_lightrag_text(
+            "Short answer.[1]\n\n### References\n\n- [1] gpt.txt"
+        )
+
+        self.assertEqual(answer, "Short answer.")
+
+    def test_clean_lightrag_text_removes_think_blocks(self) -> None:
+        answer = service._clean_lightrag_text(
+            "<think>hidden reasoning</think>容遇是纪家长辈。"
+        )
+
+        self.assertEqual(answer, "容遇是纪家长辈。")
+
 
 class StoryQaApiTest(unittest.TestCase):
     def setUp(self) -> None:
+        service.reset_lightrag_cache_for_tests()
         self.client = TestClient(create_app())
+
+    def tearDown(self) -> None:
+        service.reset_lightrag_cache_for_tests()
 
     def test_ask_returns_answer_and_sources(self) -> None:
         with patch(
@@ -165,10 +183,13 @@ class StoryQaApiTest(unittest.TestCase):
             fake_llm = types.ModuleType("lightrag.llm")
             fake_openai = types.ModuleType("lightrag.llm.openai")
             fake_utils = types.ModuleType("lightrag.utils")
+            query_params = []
+            rag_instances = []
 
             class FakeQueryParam:
                 def __init__(self, **kwargs):
                     self.kwargs = kwargs
+                    query_params.append(kwargs)
 
             class FakeEmbeddingFunc:
                 def __init__(self, **kwargs):
@@ -177,8 +198,12 @@ class StoryQaApiTest(unittest.TestCase):
             class FakeLightRAG:
                 def __init__(self, **kwargs):
                     self.kwargs = kwargs
+                    self.initialize_count = 0
+                    self.finalize_count = 0
+                    rag_instances.append(self)
 
                 async def initialize_storages(self):
+                    self.initialize_count += 1
                     return None
 
                 async def aquery(self, question, param):
@@ -187,6 +212,7 @@ class StoryQaApiTest(unittest.TestCase):
                     return "容遇是纪家长辈，也是前三集的核心人物。"
 
                 async def finalize_storages(self):
+                    self.finalize_count += 1
                     return None
 
             async def fake_complete(*args, **kwargs):
@@ -216,6 +242,13 @@ class StoryQaApiTest(unittest.TestCase):
                     "LIGHTRAG_WORKING_DIR": tmpdir,
                     "LIGHTRAG_QUERY_MODE": "hybrid",
                     "LIGHTRAG_ENABLE_RERANK": "false",
+                    "LIGHTRAG_TOP_K": "6",
+                    "LIGHTRAG_CHUNK_TOP_K": "4",
+                    "LIGHTRAG_COSINE_THRESHOLD": "0.4",
+                    "LIGHTRAG_MAX_ENTITY_TOKENS": "1800",
+                    "LIGHTRAG_MAX_RELATION_TOKENS": "2400",
+                    "LIGHTRAG_MAX_TOTAL_TOKENS": "6000",
+                    "LIGHTRAG_RESPONSE_TYPE": "Single Paragraph",
                     "OPENAI_API_KEY": "test-key",
                 },
             ):
@@ -231,6 +264,121 @@ class StoryQaApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"answer": "容遇是纪家长辈，也是前三集的核心人物。", "sources": []})
+
+    def test_lightrag_reuses_instance_and_passes_speed_params(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_lightrag = types.ModuleType("lightrag")
+            fake_llm = types.ModuleType("lightrag.llm")
+            fake_openai = types.ModuleType("lightrag.llm.openai")
+            fake_utils = types.ModuleType("lightrag.utils")
+            query_params = []
+            rag_instances = []
+
+            class FakeQueryParam:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+                    query_params.append(kwargs)
+
+            class FakeEmbeddingFunc:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+            class FakeLightRAG:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+                    self.initialize_count = 0
+                    self.finalize_count = 0
+                    rag_instances.append(self)
+
+                async def initialize_storages(self):
+                    self.initialize_count += 1
+                    return None
+
+                async def aquery(self, question, param):
+                    return "answer from lightrag"
+
+                async def finalize_storages(self):
+                    self.finalize_count += 1
+                    return None
+
+            async def fake_complete(*args, **kwargs):
+                return ""
+
+            async def fake_embed(*args, **kwargs):
+                return []
+
+            fake_lightrag.LightRAG = FakeLightRAG
+            fake_lightrag.QueryParam = FakeQueryParam
+            fake_openai.openai_complete_if_cache = fake_complete
+            fake_openai.openai_embed = fake_embed
+            fake_utils.EmbeddingFunc = FakeEmbeddingFunc
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lightrag": fake_lightrag,
+                    "lightrag.llm": fake_llm,
+                    "lightrag.llm.openai": fake_openai,
+                    "lightrag.utils": fake_utils,
+                },
+            ), patch.dict(
+                "os.environ",
+                {
+                    "STORY_QA_BACKEND": "lightrag",
+                    "LIGHTRAG_WORKING_DIR": tmpdir,
+                    "LIGHTRAG_QUERY_MODE": "hybrid",
+                    "LIGHTRAG_ENABLE_RERANK": "false",
+                    "LIGHTRAG_TOP_K": "6",
+                    "LIGHTRAG_CHUNK_TOP_K": "4",
+                    "LIGHTRAG_COSINE_THRESHOLD": "0.4",
+                    "LIGHTRAG_MAX_ENTITY_TOKENS": "1800",
+                    "LIGHTRAG_MAX_RELATION_TOKENS": "2400",
+                    "LIGHTRAG_MAX_TOTAL_TOKENS": "6000",
+                    "LIGHTRAG_RESPONSE_TYPE": "Single Paragraph",
+                    "OPENAI_API_KEY": "test-key",
+                },
+            ):
+                first_response = self.client.post(
+                    "/api/story-qa/ask",
+                    json={
+                        "question": "who is he?",
+                        "series_id": "demo-drama",
+                        "current_episode": 3,
+                        "current_time": 9999,
+                    },
+                )
+                second_response = self.client.post(
+                    "/api/story-qa/ask",
+                    json={
+                        "question": "what just happened?",
+                        "series_id": "demo-drama",
+                        "current_episode": 3,
+                        "current_time": 9999,
+                    },
+                )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(first_response.json(), {"answer": "answer from lightrag", "sources": []})
+        self.assertEqual(len(rag_instances), 1)
+        self.assertEqual(rag_instances[0].initialize_count, 1)
+        self.assertEqual(rag_instances[0].finalize_count, 0)
+        self.assertEqual(rag_instances[0].kwargs["top_k"], 6)
+        self.assertEqual(rag_instances[0].kwargs["chunk_top_k"], 4)
+        self.assertEqual(rag_instances[0].kwargs["cosine_threshold"], 0.4)
+        self.assertEqual(rag_instances[0].kwargs["cosine_better_than_threshold"], 0.4)
+        self.assertEqual(rag_instances[0].kwargs["max_entity_tokens"], 1800)
+        self.assertEqual(rag_instances[0].kwargs["max_relation_tokens"], 2400)
+        self.assertEqual(rag_instances[0].kwargs["max_total_tokens"], 6000)
+        self.assertEqual(len(query_params), 2)
+        self.assertEqual(query_params[0]["mode"], "hybrid")
+        self.assertFalse(query_params[0]["enable_rerank"])
+        self.assertEqual(query_params[0]["top_k"], 6)
+        self.assertEqual(query_params[0]["chunk_top_k"], 4)
+        self.assertEqual(query_params[0]["max_entity_tokens"], 1800)
+        self.assertEqual(query_params[0]["max_relation_tokens"], 2400)
+        self.assertEqual(query_params[0]["max_total_tokens"], 6000)
+        self.assertEqual(query_params[0]["response_type"], "Single Paragraph")
 
     def test_lightrag_missing_working_dir_returns_400(self) -> None:
         missing_dir = str(Path(tempfile.gettempdir()) / "dramepulse-missing-lightrag-working-dir")
