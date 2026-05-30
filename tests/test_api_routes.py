@@ -48,6 +48,13 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/ep_10/stream")
         self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/ep_10/danmaku")
 
+    def test_list_videos_allows_annotation_tool_origin(self) -> None:
+        with patch("services.api.routers.videos.list_active_videos", return_value=[]):
+            response = self.client.get("/api/videos", headers={"Origin": "http://127.0.0.1:8770"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["access-control-allow-origin"], "http://127.0.0.1:8770")
+
     def test_get_video_not_found(self) -> None:
         with patch("services.api.routers.videos.get_video", return_value=None):
             response = self.client.get("/api/videos/missing")

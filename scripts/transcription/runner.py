@@ -12,19 +12,21 @@ from .types import TranscriptionRequest
 def transcribe_video_to_srt(
     *,
     video_path: Path,
-    output_path: Path,
+    output_dir: Path,
     env_path: Path | None = Path(".env"),
     transcriber: AliyunTranscriber | None = None,
     language_hints: list[str] | None = None,
 ) -> Path:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"{video_path.stem}.srt"
     runner = transcriber or AliyunTranscriber(AliyunTranscriberConfig.from_env(env_path=env_path))
     result = runner.transcribe(
         TranscriptionRequest(
             audio_path=video_path,
+            work_dir=output_dir,
             language_hints=language_hints,
         )
     )
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     if result.raw_response is not None:
         raw_output_path = output_path.with_suffix(".transcription.json")
         raw_payload = {

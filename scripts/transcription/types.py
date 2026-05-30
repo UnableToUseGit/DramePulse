@@ -17,6 +17,7 @@ class TranscriptSegment:
 @dataclass(frozen=True)
 class TranscriptionRequest:
     audio_path: Path
+    work_dir: Path | None = None
     language_hints: list[str] | None = None
     diarization: bool = False
     metadata: dict[str, Any] | None = None

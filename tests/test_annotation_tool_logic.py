@@ -32,8 +32,7 @@ const payload = logic.buildAnnotationPayload({
   annotations: [
     {
       annotation_id: 'custom_id_should_be_replaced',
-      start_time: '8.96',
-      end_time: '12.04',
+      cue_time: '8.96',
       emotion: 'shock',
       reason: '开场亲吻引发震惊和吐槽。',
       ignored: 'not exported',
@@ -44,7 +43,8 @@ const payload = logic.buildAnnotationPayload({
 const annotation = payload.annotations[0];
 if (payload.video_id !== 'case1_ep01') throw new Error('video_id mismatch');
 if (annotation.annotation_id !== 'gold_case1_ep01_001') throw new Error('annotation_id mismatch');
-if (annotation.start_time !== 8.96 || annotation.end_time !== 12.04) throw new Error('time mismatch');
+if (annotation.cue_time !== 8.96) throw new Error('cue_time mismatch');
+if ('start_time' in annotation || 'end_time' in annotation) throw new Error('unexpected range fields exported');
 if (annotation.emotion !== 'shock') throw new Error('emotion mismatch');
 if (annotation.reason !== '开场亲吻引发震惊和吐槽。') throw new Error('reason mismatch');
 if ('ignored' in annotation) throw new Error('unexpected extra field exported');
@@ -110,3 +110,19 @@ def test_annotation_tool_page_does_not_reference_static_case_fixture() -> None:
 
     assert "data/case1" not in html
     assert "case1_ep01" not in html
+
+
+def test_annotation_tool_page_uses_single_cue_time_control() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    html = (repo_root / "apps/annotation-tool/index.html").read_text(encoding="utf-8")
+
+    assert 'id="cueTime"' in html
+    assert 'id="markCue"' in html
+    assert 'id="jumpCue"' in html
+    assert "cue_time" in html
+    assert 'id="startTime"' not in html
+    assert 'id="endTime"' not in html
+    assert 'id="markStart"' not in html
+    assert 'id="markEnd"' not in html
+    assert 'id="jumpStart"' not in html
+    assert 'id="jumpEnd"' not in html

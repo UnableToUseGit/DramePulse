@@ -13,14 +13,14 @@ from scripts.transcription.runner import transcribe_video_to_srt
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Transcribe a video into an SRT subtitle file.")
+    parser = argparse.ArgumentParser(description="Transcribe a video and write all artifacts to an output directory.")
     parser.add_argument("video_path", type=Path, help="Path to the source video file.")
     parser.add_argument(
         "--output",
         "-o",
         type=Path,
         required=True,
-        help="Path to write the generated SRT file.",
+        help="Directory to write the SRT, Aliyun raw result JSON, and normalized audio file.",
     )
     parser.add_argument(
         "--env-file",
@@ -37,7 +37,7 @@ def main(
     runner: Callable[..., Path] = transcribe_video_to_srt,
 ) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
-    runner(video_path=args.video_path, output_path=args.output, env_path=args.env_file)
+    runner(video_path=args.video_path, output_dir=args.output, env_path=args.env_file)
     return 0
 
 

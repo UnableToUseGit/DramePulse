@@ -8,6 +8,7 @@ dashscope>=1.25.0
 oss2>=2.19.0
 volcengine-python-sdk>=5.0.0
 opencv-python>=4.8.0
+scenedetect>=0.6,<0.8
 
 # Development and validation helpers.
 pytest>=8.0.0
