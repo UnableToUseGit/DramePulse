@@ -359,6 +359,7 @@ class ExpressionTriggerPipeline:
         subtitle_file_path: Path,
         metadata: dict[str, Any] | None = None,
         danmaku_items: list[Any] | None = None,
+        include_finale_trigger: bool = False,
     ) -> list[dict[str, Any]]:
         subtitle_segments = load_subtitle_segments(subtitle_file_path)
         subtitle_duration = max((segment.end for segment in subtitle_segments), default=0.0)
@@ -414,12 +415,13 @@ class ExpressionTriggerPipeline:
                 duration_sec=duration_sec if duration_sec > 0 else None,
             )
         )
-        finale_trigger = detect_finale_expression_trigger(
-            video_id=video_id,
-            duration_sec=duration_sec if duration_sec > 0 else None,
-            metadata=metadata,
-            danmaku_items=danmaku_items,
-        )
-        if finale_trigger is not None:
-            triggers.append(finale_trigger)
+        if include_finale_trigger:
+            finale_trigger = detect_finale_expression_trigger(
+                video_id=video_id,
+                duration_sec=duration_sec if duration_sec > 0 else None,
+                metadata=metadata,
+                danmaku_items=danmaku_items,
+            )
+            if finale_trigger is not None:
+                triggers.append(finale_trigger)
         return sorted(triggers, key=lambda trigger: (float(trigger["start_time"]), str(trigger["trigger_id"])))

@@ -197,11 +197,13 @@ class HighlightRecognitionScriptTest(unittest.TestCase):
                     subtitle_file_path: Path,
                     metadata: dict[str, object],
                     danmaku_items: list[dict[str, object]],
+                    include_finale_trigger: bool = False,
                 ) -> list[dict[str, object]]:
                     self.calls.append(
                         {
                             "metadata": metadata,
                             "danmaku_items": danmaku_items,
+                            "include_finale_trigger": include_finale_trigger,
                         }
                     )
                     return [
@@ -245,6 +247,52 @@ class HighlightRecognitionScriptTest(unittest.TestCase):
             self.assertEqual(payload["highlight_assets"][0]["emotion"], "爽到了")
             self.assertEqual(fake_pipeline.calls[0]["metadata"]["title"], "第 1 集")
             self.assertEqual(fake_pipeline.calls[0]["danmaku_items"][0]["text"], "笑死")
+            self.assertFalse(fake_pipeline.calls[0]["include_finale_trigger"])
+
+    def test_main_forwards_finale_flag_to_expression_trigger_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data_root = root / "data"
+            output_root = root / "output"
+            case_dir = data_root / "case1"
+            case_dir.mkdir(parents=True)
+            (case_dir / "ep01.mp4").write_bytes(b"video")
+            (case_dir / "ep01.json").write_text('{"danmaku": []}', encoding="utf-8")
+            (case_dir / "ep01.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\n第一句\n", encoding="utf-8")
+
+            class FakePipeline:
+                def __init__(self) -> None:
+                    self.include_finale_trigger: bool | None = None
+
+                def run_expression_triggers(
+                    self,
+                    *,
+                    video_id: str,
+                    video_file_path: Path,
+                    subtitle_file_path: Path,
+                    metadata: dict[str, object],
+                    danmaku_items: list[dict[str, object]],
+                    include_finale_trigger: bool = False,
+                ) -> list[dict[str, object]]:
+                    self.include_finale_trigger = include_finale_trigger
+                    return []
+
+            fake_pipeline = FakePipeline()
+
+            result = main(
+                [
+                    "case1_ep01",
+                    "--data-root",
+                    str(data_root),
+                    "--output-root",
+                    str(output_root),
+                    "--include-finale-trigger",
+                ],
+                pipeline=fake_pipeline,
+            )
+
+            self.assertEqual(result, 0)
+            self.assertTrue(fake_pipeline.include_finale_trigger)
 
 
 if __name__ == "__main__":

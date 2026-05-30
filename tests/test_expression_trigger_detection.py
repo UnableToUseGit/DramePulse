@@ -192,6 +192,44 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(triggers[0]["source_type"], "plot")
         self.assertTrue(any(trigger["source_type"] == "performance" for trigger in triggers))
 
+    def test_pipeline_does_not_run_finale_detection_unless_enabled(self) -> None:
+        class FakeClient:
+            def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], frame_timestamps_seconds: list[float] | None = None, max_tokens: int = 2400):
+                return {"expression_triggers": []}
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            subtitle_path = tmp_path / "subtitle.srt"
+            video_path.write_bytes(b"fake-video")
+            subtitle_path.write_text("1\n00:01:40,000 --> 00:01:45,000\n全剧终\n", encoding="utf-8")
+
+            pipeline = ExpressionTriggerPipeline(llm_client=FakeClient(), sample_interval_sec=10.0, max_frames=1)
+            disabled = pipeline.run(
+                video_id="demo_ep_final",
+                video_file_path=video_path,
+                subtitle_file_path=subtitle_path,
+                metadata={"title": "第 80 集 大结局"},
+                danmaku_items=[
+                    {"time_sec": 101.0, "text": "好剧没看够"},
+                    {"time_sec": 103.0, "text": "大结局有点烂尾"},
+                ],
+            )
+            enabled = pipeline.run(
+                video_id="demo_ep_final",
+                video_file_path=video_path,
+                subtitle_file_path=subtitle_path,
+                metadata={"title": "第 80 集 大结局"},
+                danmaku_items=[
+                    {"time_sec": 101.0, "text": "好剧没看够"},
+                    {"time_sec": 103.0, "text": "大结局有点烂尾"},
+                ],
+                include_finale_trigger=True,
+            )
+
+        self.assertFalse(any(trigger["source_type"] == "finale_judgment" for trigger in disabled))
+        self.assertTrue(any(trigger["source_type"] == "finale_judgment" for trigger in enabled))
+
 
 if __name__ == "__main__":
     unittest.main()

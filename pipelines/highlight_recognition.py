@@ -141,6 +141,7 @@ class HighlightRecognitionPipeline:
         subtitle_file_path: Path,
         metadata: dict[str, Any] | None = None,
         danmaku_items: list[Any] | None = None,
+        include_finale_trigger: bool = False,
     ) -> list[dict[str, Any]]:
         pipeline = ExpressionTriggerPipeline(
             llm_client=self.llm_client,
@@ -155,6 +156,7 @@ class HighlightRecognitionPipeline:
             subtitle_file_path=subtitle_file_path,
             metadata=metadata,
             danmaku_items=danmaku_items,
+            include_finale_trigger=include_finale_trigger,
         )
 
     def run(

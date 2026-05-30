@@ -51,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path, default=Path("data"), help="Root data directory.")
     parser.add_argument("--output-root", type=Path, default=Path("output"), help="Directory for outputs.")
     parser.add_argument("--env-file", type=Path, default=Path(".env"), help="Path to dotenv file. Defaults to .env.")
+    parser.add_argument(
+        "--include-finale-trigger",
+        action="store_true",
+        help="Enable finale quality-judgment trigger detection for known final episodes.",
+    )
     return parser
 
 
@@ -116,6 +121,7 @@ def main(
             subtitle_file_path=resolved.subtitle_path,
             metadata=metadata,
             danmaku_items=danmaku_items,
+            include_finale_trigger=args.include_finale_trigger,
         )
         highlight_assets = expression_triggers_to_highlight_assets(expression_triggers)
     else:
