@@ -164,6 +164,88 @@ class HighlightRecognitionScriptTest(unittest.TestCase):
             self.assertEqual(payload["subtitle_path"], str(case_dir / "ep01.srt"))
             self.assertEqual(payload["highlight_assets"][0]["highlight_id"], "h_case1_ep01_001")
 
+    def test_main_writes_expression_triggers_when_pipeline_supports_them(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            data_root = root / "data"
+            output_root = root / "output"
+            case_dir = data_root / "case1"
+            case_dir.mkdir(parents=True)
+            (case_dir / "ep01.mp4").write_bytes(b"video")
+            (case_dir / "ep01.json").write_text(
+                json.dumps(
+                    {
+                        "title": "第 1 集",
+                        "description": "女主反击",
+                        "danmaku": [{"time_sec": 20.0, "text": "笑死"}],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (case_dir / "ep01.srt").write_text("1\n00:00:00,000 --> 00:00:01,000\n第一句\n", encoding="utf-8")
+
+            class FakePipeline:
+                def __init__(self) -> None:
+                    self.calls: list[dict[str, object]] = []
+
+                def run_expression_triggers(
+                    self,
+                    *,
+                    video_id: str,
+                    video_file_path: Path,
+                    subtitle_file_path: Path,
+                    metadata: dict[str, object],
+                    danmaku_items: list[dict[str, object]],
+                ) -> list[dict[str, object]]:
+                    self.calls.append(
+                        {
+                            "metadata": metadata,
+                            "danmaku_items": danmaku_items,
+                        }
+                    )
+                    return [
+                        {
+                            "trigger_id": "et_case1_ep01_001",
+                            "video_id": video_id,
+                            "start_time": 0.0,
+                            "end_time": 1.0,
+                            "cue_time": 0.5,
+                            "source_type": "plot",
+                            "primary_expression": "爽到了",
+                            "interaction_mode": "single_tap",
+                            "intensity": 0.7,
+                            "confidence": 0.9,
+                            "summary": "女主反击。",
+                            "reason": "适合表达爽感。",
+                            "status": "verified",
+                            "created_at": "2026-05-30T00:00:00Z",
+                            "updated_at": "2026-05-30T00:00:00Z",
+                        }
+                    ]
+
+            fake_pipeline = FakePipeline()
+
+            result = main(
+                [
+                    "case1_ep01",
+                    "--data-root",
+                    str(data_root),
+                    "--output-root",
+                    str(output_root),
+                ],
+                pipeline=fake_pipeline,
+            )
+
+            output_file = output_root / "case1_ep01" / "highlight_recognition.json"
+            payload = json.loads(output_file.read_text(encoding="utf-8"))
+            self.assertEqual(result, 0)
+            self.assertEqual(payload["expression_triggers"][0]["trigger_id"], "et_case1_ep01_001")
+            self.assertEqual(payload["highlight_assets"][0]["highlight_type"], "plot")
+            self.assertEqual(payload["highlight_assets"][0]["emotion"], "爽到了")
+            self.assertEqual(fake_pipeline.calls[0]["metadata"]["title"], "第 1 集")
+            self.assertEqual(fake_pipeline.calls[0]["danmaku_items"][0]["text"], "笑死")
+
 
 if __name__ == "__main__":
     unittest.main()

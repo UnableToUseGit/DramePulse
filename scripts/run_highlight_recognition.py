@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from pathlib import Path as _Path
-from typing import Sequence
+from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 
 from pipelines.client import VolcArkLlmClient
+from pipelines.expression_trigger_detection import expression_triggers_to_highlight_assets
 from pipelines.highlight_recognition import HighlightRecognitionPipeline
-from scripts.transcription.env import get_env_value
+from scripts.transcription.env import load_dotenv_values
 
 
 class ResolvedVideoInputs:
@@ -53,14 +55,43 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def build_ark_client(*, env_path: Path | None = None) -> VolcArkLlmClient:
-    dotenv_api_key = get_env_value("ARK_API_KEY", env_path=env_path)
-    dotenv_base_url = get_env_value("ARK_BASE_URL", env_path=env_path)
-    dotenv_model = get_env_value("ARK_MODEL", env_path=env_path)
+    dotenv_values = load_dotenv_values(env_path)
+    dotenv_api_key = dotenv_values.get("ARK_API_KEY") or os.environ.get("ARK_API_KEY")
+    dotenv_base_url = dotenv_values.get("ARK_BASE_URL") or os.environ.get("ARK_BASE_URL")
+    dotenv_model = dotenv_values.get("ARK_MODEL") or os.environ.get("ARK_MODEL")
     return VolcArkLlmClient(
         api_key=dotenv_api_key or None,
         base_url=dotenv_base_url or None,
         model_name=dotenv_model or None,
     )
+
+
+def _load_source_payload(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _extract_danmaku_items(source_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    items = source_payload.get("danmaku", [])
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict)]
+
+
+def _extract_video_metadata(source_payload: dict[str, Any]) -> dict[str, Any]:
+    metadata_keys = (
+        "title",
+        "description",
+        "series_name",
+        "episode_label",
+        "episode_no",
+        "source_url",
+        "duration_ms",
+    )
+    return {key: source_payload[key] for key in metadata_keys if key in source_payload}
 
 
 def main(
@@ -75,17 +106,32 @@ def main(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     active_pipeline = pipeline or HighlightRecognitionPipeline(llm_client=build_ark_client(env_path=args.env_file))
-    highlight_assets = active_pipeline.run(
-        video_id=args.video_id,
-        video_file_path=resolved.video_path,
-        subtitle_file_path=resolved.subtitle_path,
-    )
+    source_payload = _load_source_payload(resolved.source_json_path)
+    metadata = _extract_video_metadata(source_payload)
+    danmaku_items = _extract_danmaku_items(source_payload)
+    if hasattr(active_pipeline, "run_expression_triggers"):
+        expression_triggers = active_pipeline.run_expression_triggers(
+            video_id=args.video_id,
+            video_file_path=resolved.video_path,
+            subtitle_file_path=resolved.subtitle_path,
+            metadata=metadata,
+            danmaku_items=danmaku_items,
+        )
+        highlight_assets = expression_triggers_to_highlight_assets(expression_triggers)
+    else:
+        expression_triggers = []
+        highlight_assets = active_pipeline.run(
+            video_id=args.video_id,
+            video_file_path=resolved.video_path,
+            subtitle_file_path=resolved.subtitle_path,
+        )
 
     payload = {
         "video_id": args.video_id,
         "video_path": str(resolved.video_path),
         "source_json_path": str(resolved.source_json_path),
         "subtitle_path": str(resolved.subtitle_path),
+        "expression_triggers": expression_triggers,
         "highlight_assets": highlight_assets,
     }
     output_path = output_dir / "highlight_recognition.json"
