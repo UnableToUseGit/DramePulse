@@ -57,7 +57,6 @@ output/{video_id}/story_chapters.json
       "end_time": 18.4,
       "title": "开局设定",
       "summary": "女主醒来发现处境异常，故事冲突开始铺垫。",
-      "chapter_type": "setup",
       "importance": 0.62
     }
   ],
@@ -75,7 +74,6 @@ output/{video_id}/story_chapters.json
 | `end_time` | 吸附到镜头边界后的章节结束时间，秒 |
 | `title` | 时间轴展示用短标题 |
 | `summary` | 章节摘要，用于调试和后续展示 |
-| `chapter_type` | 章节类型，例如 `setup`、`conflict`、`reversal`、`climax`、`ending` |
 | `importance` | 重要度，0 到 1 |
 
 ## 4. 处理流程
@@ -119,7 +117,6 @@ LLM 返回形态：
       "end_time": 18.4,
       "title": "开局设定",
       "summary": "女主醒来发现处境异常，故事冲突开始铺垫。",
-      "chapter_type": "setup",
       "importance": 0.62
     }
   ]
@@ -152,8 +149,6 @@ LLM 输出的 `start_time` 和 `end_time` 只是剧情语义边界，可能切�
 - `summary` 为空；
 - `importance` 不在 0 到 1；
 - 吸附后时间区间非法。
-
-保留 `chapter_type` 的原始短标签；如果为空，使用 `unknown`。
 
 ## 5. 模块边界
 
