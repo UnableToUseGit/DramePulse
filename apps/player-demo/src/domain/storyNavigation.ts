@@ -39,6 +39,45 @@ export interface StoryboardCell {
   offsetY: number;
 }
 
+export interface TimelinePresentation {
+  trackHeight: number;
+  trackBorderRadius: number;
+  thumbWidth: number;
+  thumbHeight: number;
+  thumbTop: number;
+  thumbMarginLeft: number;
+  thumbBorderRadius: number;
+  tickTop: number;
+  tickHeight: number;
+  tickOpacity: number;
+}
+
+const DEFAULT_TIMELINE_PRESENTATION: TimelinePresentation = {
+  trackHeight: 3,
+  trackBorderRadius: 2,
+  thumbWidth: 11,
+  thumbHeight: 11,
+  thumbTop: -4,
+  thumbMarginLeft: -5.5,
+  thumbBorderRadius: 6,
+  tickTop: -1,
+  tickHeight: 5,
+  tickOpacity: 0.82
+};
+
+const DRAGGING_TIMELINE_PRESENTATION: TimelinePresentation = {
+  trackHeight: 14,
+  trackBorderRadius: 7,
+  thumbWidth: 7,
+  thumbHeight: 28,
+  thumbTop: -7,
+  thumbMarginLeft: -3.5,
+  thumbBorderRadius: 4,
+  tickTop: 3,
+  tickHeight: 8,
+  tickOpacity: 0.35
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -86,6 +125,28 @@ export function getChapterTicks(chapters: StoryChapter[] | undefined, duration: 
       chapterId: chapter.chapterId,
       percent: clamp((chapter.startTime / duration) * 100, 0, 100)
     }));
+}
+
+export function getTimelinePresentation(isDragging: boolean): TimelinePresentation {
+  return isDragging ? DRAGGING_TIMELINE_PRESENTATION : DEFAULT_TIMELINE_PRESENTATION;
+}
+
+export function getTimelineTimeFromPageX({
+  pageX,
+  trackPageX,
+  trackWidth,
+  duration
+}: {
+  pageX: number;
+  trackPageX: number;
+  trackWidth: number;
+  duration: number;
+}) {
+  if (trackWidth <= 0 || duration <= 0) {
+    return 0;
+  }
+  const ratio = clamp((pageX - trackPageX) / trackWidth, 0, 1);
+  return ratio * duration;
 }
 
 export function normalizeStoryChapters(value: unknown): StoryChapter[] {

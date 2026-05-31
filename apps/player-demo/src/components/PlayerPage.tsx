@@ -39,6 +39,7 @@ export function PlayerPage({
   selectedPresentationType,
   onChangePresentationType,
   onPlaybackPositionChange,
+  onTimelineDragStateChange,
   onPlayNextEpisode
 }: {
   video: PlayerVideo;
@@ -51,6 +52,7 @@ export function PlayerPage({
   selectedPresentationType: InteractionPresentationType;
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
+  onTimelineDragStateChange?: (isDragging: boolean) => void;
   onPlayNextEpisode: () => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
@@ -227,6 +229,14 @@ export function PlayerPage({
     [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
+  const handleTimelineDragStateChange = useCallback(
+    (isDragging: boolean) => {
+      setIsTimelineDragging(isDragging);
+      onTimelineDragStateChange?.(isDragging);
+    },
+    [onTimelineDragStateChange]
+  );
+
   const handleSubmitStoryQa = useCallback(
     (quickQuestion?: string) => {
       const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
@@ -337,7 +347,7 @@ export function PlayerPage({
         hasNextEpisode={hasNextEpisode}
         nextEpisodeLabel={nextEpisodeLabel}
         onSeekCommit={handleSeekCommit}
-        onDragStateChange={setIsTimelineDragging}
+        onDragStateChange={handleTimelineDragStateChange}
         storyChapters={video.storyChapters}
         storyboard={video.storyboard}
       />

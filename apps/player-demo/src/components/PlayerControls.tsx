@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Image, LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
+import { Image, LayoutChangeEvent, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import {
   getChapterTicks,
   getStoryboardCell,
   getStoryChapterAtTime,
+  getTimelinePresentation,
+  getTimelineTimeFromPageX,
   StoryboardManifest,
   StoryChapter
 } from "../domain/storyNavigation";
@@ -35,11 +37,13 @@ export function PlayerControls({
   storyboard?: StoryboardManifest;
 }) {
   const safeDuration = duration > 0 ? duration : 1;
+  const viewport = useWindowDimensions();
   const [dragTime, setDragTime] = useState<number | undefined>(undefined);
   const [trackWidth, setTrackWidth] = useState(0);
+  const [trackPageX, setTrackPageX] = useState(0);
   const onSeekCommitRef = useRef(onSeekCommit);
+  const trackTapTargetRef = useRef<View>(null);
   const dragStartXRef = useRef(0);
-  const dragStartTimeRef = useRef(0);
   const didActivateDragRef = useRef(false);
   const isDragging = dragTime !== undefined;
   const visibleTime = dragTime ?? currentTime;
@@ -49,6 +53,7 @@ export function PlayerControls({
   const chapterTicks = getChapterTicks(storyChapters, safeDuration);
   const dragChapter = isDragging ? getStoryChapterAtTime(storyChapters, visibleTime) : undefined;
   const storyboardCell = isDragging ? getStoryboardCell(storyboard, visibleTime) : undefined;
+  const timelinePresentation = getTimelinePresentation(isDragging);
 
   useEffect(() => {
     onSeekCommitRef.current = onSeekCommit;
@@ -58,15 +63,27 @@ export function PlayerControls({
     onDragStateChange?.(isDragging);
   }, [isDragging, onDragStateChange]);
 
-  const getTimeFromDragDelta = (deltaX: number) => {
+  const getTimeFromPageX = (pageX: number) => {
     if (trackWidth <= 0) {
       return visibleTime;
     }
-    return clamp(dragStartTimeRef.current + (deltaX / trackWidth) * safeDuration, 0, safeDuration);
+    return getTimelineTimeFromPageX({
+      pageX,
+      trackPageX,
+      trackWidth,
+      duration: safeDuration
+    });
+  };
+
+  const measureTrackPosition = () => {
+    trackTapTargetRef.current?.measureInWindow((x) => {
+      setTrackPageX(x);
+    });
   };
 
   const handleTrackLayout = (event: LayoutChangeEvent) => {
     setTrackWidth(event.nativeEvent.layout.width);
+    measureTrackPosition();
   };
 
   return (
@@ -84,15 +101,36 @@ export function PlayerControls({
           </Text>
         </View>
       ) : null}
+      {isDragging ? (
+        <View
+          style={[styles.fullscreenScrubLayer, { height: viewport.height }]}
+          onStartShouldSetResponder={() => true}
+          onMoveShouldSetResponder={() => true}
+          onResponderMove={(event) => {
+            setDragTime(getTimeFromPageX(event.nativeEvent.pageX));
+          }}
+          onResponderRelease={(event) => {
+            onSeekCommitRef.current(getTimeFromPageX(event.nativeEvent.pageX));
+            didActivateDragRef.current = false;
+            setDragTime(undefined);
+          }}
+          onResponderTerminate={() => {
+            didActivateDragRef.current = false;
+            setDragTime(undefined);
+          }}
+        />
+      ) : null}
       <View style={styles.progressRow}>
         <View
+          ref={trackTapTargetRef}
           style={styles.trackTapTarget}
           onLayout={handleTrackLayout}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
+          onResponderTerminationRequest={() => false}
           onResponderGrant={(event) => {
+            measureTrackPosition();
             dragStartXRef.current = event.nativeEvent.pageX;
-            dragStartTimeRef.current = currentTime;
             didActivateDragRef.current = false;
           }}
           onResponderMove={(event) => {
@@ -101,11 +139,11 @@ export function PlayerControls({
               return;
             }
             didActivateDragRef.current = true;
-            setDragTime(getTimeFromDragDelta(deltaX));
+            setDragTime(getTimeFromPageX(event.nativeEvent.pageX));
           }}
           onResponderRelease={(event) => {
             if (didActivateDragRef.current) {
-              const nextTime = getTimeFromDragDelta(event.nativeEvent.pageX - dragStartXRef.current);
+              const nextTime = getTimeFromPageX(event.nativeEvent.pageX);
               onSeekCommitRef.current(nextTime);
             }
             didActivateDragRef.current = false;
@@ -116,10 +154,38 @@ export function PlayerControls({
             setDragTime(undefined);
           }}
         >
-          <View style={styles.track}>
-            <View style={[styles.fill, { width: `${progressRatio * 100}%` }]} />
-            <ChapterProgressTicks ticks={chapterTicks} />
-            <View style={[styles.thumb, { left: `${progressRatio * 100}%` }]} />
+          <View
+            style={[
+              styles.track,
+              {
+                height: timelinePresentation.trackHeight,
+                borderRadius: timelinePresentation.trackBorderRadius
+              }
+            ]}
+          >
+            <View
+              style={[
+                styles.fill,
+                {
+                  width: `${progressRatio * 100}%`,
+                  borderRadius: timelinePresentation.trackBorderRadius
+                }
+              ]}
+            />
+            <ChapterProgressTicks ticks={chapterTicks} presentation={timelinePresentation} />
+            <View
+              style={[
+                styles.thumb,
+                {
+                  left: `${progressRatio * 100}%`,
+                  top: timelinePresentation.thumbTop,
+                  width: timelinePresentation.thumbWidth,
+                  height: timelinePresentation.thumbHeight,
+                  marginLeft: timelinePresentation.thumbMarginLeft,
+                  borderRadius: timelinePresentation.thumbBorderRadius
+                }
+              ]}
+            />
           </View>
         </View>
       </View>
@@ -139,14 +205,31 @@ function formatTime(value: number) {
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function ChapterProgressTicks({ ticks }: { ticks: ReturnType<typeof getChapterTicks> }) {
+function ChapterProgressTicks({
+  ticks,
+  presentation
+}: {
+  ticks: ReturnType<typeof getChapterTicks>;
+  presentation: ReturnType<typeof getTimelinePresentation>;
+}) {
   if (ticks.length === 0) {
     return null;
   }
   return (
     <>
       {ticks.map((tick) => (
-        <View key={tick.chapterId} style={[styles.chapterTick, { left: `${tick.percent}%` }]} />
+        <View
+          key={tick.chapterId}
+          style={[
+            styles.chapterTick,
+            {
+              left: `${tick.percent}%`,
+              top: presentation.tickTop,
+              height: presentation.tickHeight,
+              opacity: presentation.tickOpacity
+            }
+          ]}
+        />
       ))}
     </>
   );
@@ -183,6 +266,12 @@ const styles = StyleSheet.create({
     height: 34,
     justifyContent: "center"
   },
+  fullscreenScrubLayer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: -72
+  },
   progressRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -194,31 +283,21 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   track: {
-    height: 3,
-    borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.3)"
   },
   chapterTick: {
     position: "absolute",
-    top: -1,
     width: 2,
-    height: 5,
     marginLeft: -1,
     borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.82)"
+    backgroundColor: colors.text
   },
   fill: {
     height: "100%",
-    borderRadius: 2,
     backgroundColor: colors.text
   },
   thumb: {
     position: "absolute",
-    top: -4,
-    width: 11,
-    height: 11,
-    marginLeft: -5.5,
-    borderRadius: 6,
     backgroundColor: colors.text
   },
   nextEpisodeHint: {

@@ -1,7 +1,9 @@
 import {
   getChapterTicks,
+  getTimelineTimeFromPageX,
   getStoryboardCell,
   getStoryChapterAtTime,
+  getTimelinePresentation,
   normalizeStoryChapters,
   normalizeStoryboardManifest
 } from "../storyNavigation";
@@ -37,6 +39,41 @@ describe("storyNavigation", () => {
 
   it("builds chapter tick percentages without the zero boundary", () => {
     expect(getChapterTicks(chapters, 20)).toEqual([{ chapterId: "ch_002", percent: 50 }]);
+  });
+
+  it("uses a thicker timeline presentation while dragging", () => {
+    expect(getTimelinePresentation(false)).toEqual({
+      trackHeight: 3,
+      trackBorderRadius: 2,
+      thumbWidth: 11,
+      thumbHeight: 11,
+      thumbTop: -4,
+      thumbMarginLeft: -5.5,
+      thumbBorderRadius: 6,
+      tickTop: -1,
+      tickHeight: 5,
+      tickOpacity: 0.82
+    });
+    expect(getTimelinePresentation(true)).toEqual({
+      trackHeight: 14,
+      trackBorderRadius: 7,
+      thumbWidth: 7,
+      thumbHeight: 28,
+      thumbTop: -7,
+      thumbMarginLeft: -3.5,
+      thumbBorderRadius: 4,
+      tickTop: 3,
+      tickHeight: 8,
+      tickOpacity: 0.35
+    });
+  });
+
+  it("maps fullscreen scrub page x to timeline time after drag activation", () => {
+    expect(getTimelineTimeFromPageX({ pageX: 20, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(0);
+    expect(getTimelineTimeFromPageX({ pageX: 120, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(50);
+    expect(getTimelineTimeFromPageX({ pageX: 220, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
+    expect(getTimelineTimeFromPageX({ pageX: -200, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(0);
+    expect(getTimelineTimeFromPageX({ pageX: 420, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
   });
 
   it("normalizes snake case story chapter payloads", () => {
