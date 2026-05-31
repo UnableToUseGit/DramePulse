@@ -25,6 +25,15 @@ output/case1_ep01/interaction_plan_generation.json
 - `scripts/transcribe_video.py`
 - `scripts/run_highlight_recognition.py`
 - `scripts/run_interaction_plan_generation.py`
+- `scripts/run_story_chapter_generation.py`
+- `scripts/run_story_chapter_generation_batch.py`
+- `scripts/run_story_chapter_generation_multimodal.py`
+- `scripts/run_story_chapter_generation_multimodal_batch.py`
+- `scripts/story_chapter_viewer_server.py`
+
+剧情导航章节生成的当前实现与验证结论见：
+
+- `docs/develop-docs/module-designs/story-chapter-generation.md`
 
 ## 2.1 当前应用入口
 
