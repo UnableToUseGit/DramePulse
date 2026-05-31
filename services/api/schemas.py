@@ -5,6 +5,32 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class StoryChapterResponse(BaseModel):
+    chapter_id: str
+    video_id: str | None = None
+    start_time: float
+    end_time: float
+    title: str
+    summary: str | None = None
+    importance: float | None = Field(default=None, ge=0, le=1)
+
+
+class StoryboardSheetResponse(BaseModel):
+    url: str
+    start_time: float
+    frame_count: int = Field(ge=1)
+
+
+class StoryboardManifestResponse(BaseModel):
+    video_id: str
+    interval_seconds: float = Field(gt=0)
+    frame_width: int = Field(ge=1)
+    frame_height: int = Field(ge=1)
+    columns: int = Field(ge=1)
+    rows: int = Field(ge=1)
+    sheets: list[StoryboardSheetResponse]
+
+
 class VideoResponse(BaseModel):
     video_id: str
     series_id: str | None = None
@@ -17,6 +43,8 @@ class VideoResponse(BaseModel):
     danmaku_url: str
     source: str = "oss"
     douyin_video_id: str | None = None
+    story_chapters: list[StoryChapterResponse] | None = None
+    storyboard: StoryboardManifestResponse | None = None
 
 
 class VideoListResponse(BaseModel):

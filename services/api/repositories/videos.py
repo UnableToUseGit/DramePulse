@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 from urllib.parse import quote
 
@@ -20,11 +21,57 @@ def _video_stream_url(video_id: str, row: dict[str, Any]) -> str:
     return f"/api/videos/{video_id}/stream"
 
 
+def _read_json_file(path: Any) -> dict[str, Any] | None:
+    try:
+        if not path.is_file():
+            return None
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _load_story_chapters(video_id: str) -> list[dict[str, Any]] | None:
+    settings = get_settings()
+    payload = _read_json_file(settings.story_chapter_output_root / video_id / "story_chapters.json")
+    raw_chapters = payload.get("story_chapters") if payload else None
+    if not isinstance(raw_chapters, list):
+        return None
+    chapters = [chapter for chapter in raw_chapters if isinstance(chapter, dict)]
+    return chapters or None
+
+
+def _storyboard_sheet_url(video_id: str, url: str) -> str:
+    if url.startswith(("http://", "https://", "/")):
+        return url
+    return f"/storyboards/{quote(video_id, safe='')}/{quote(url)}"
+
+
+def _load_storyboard(video_id: str) -> dict[str, Any] | None:
+    settings = get_settings()
+    payload = _read_json_file(settings.storyboard_root / video_id / "storyboard_manifest.json")
+    if not payload:
+        return None
+    raw_sheets = payload.get("sheets")
+    if not isinstance(raw_sheets, list):
+        return None
+    sheets: list[dict[str, Any]] = []
+    for sheet in raw_sheets:
+        if not isinstance(sheet, dict):
+            continue
+        url = sheet.get("url")
+        if isinstance(url, str) and url:
+            sheets.append({**sheet, "url": _storyboard_sheet_url(video_id, url)})
+    if not sheets:
+        return None
+    return {**payload, "sheets": sheets}
+
+
 def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
     video_id = str(row["video_id"])
     stream_url = _video_stream_url(video_id, row)
     source = "cdn" if stream_url.startswith(("http://", "https://")) else row.get("source") or "oss"
-    return {
+    response = {
         "video_id": video_id,
         "series_id": row.get("series_id"),
         "series_name": row.get("series_name"),
@@ -37,6 +84,13 @@ def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
         "source": source,
         "douyin_video_id": row.get("douyin_video_id"),
     }
+    story_chapters = _load_story_chapters(video_id)
+    storyboard = _load_storyboard(video_id)
+    if story_chapters:
+        response["story_chapters"] = story_chapters
+    if storyboard:
+        response["storyboard"] = storyboard
+    return response
 
 
 def list_active_videos() -> list[dict[str, Any]]:

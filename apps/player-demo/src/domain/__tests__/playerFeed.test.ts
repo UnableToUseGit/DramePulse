@@ -2,6 +2,7 @@ import {
   findNextEpisodeIndex,
   getFeedPageIndex,
   getResumePlaybackTime,
+  getTimelineChromeVisibility,
   getVideoPlaybackState,
   getSeriesKey,
   shouldPreloadFeedPage
@@ -91,5 +92,18 @@ describe("playerFeed", () => {
     expect(getResumePlaybackTime({ savedTime: -4, duration: 60 })).toBe(0);
     expect(getResumePlaybackTime({ savedTime: 59, duration: 60 })).toBe(0);
     expect(getResumePlaybackTime({ savedTime: 59, duration: 0 })).toBe(59);
+  });
+
+  it("keeps app tabs visible while hiding video metadata chrome during timeline dragging", () => {
+    expect(getTimelineChromeVisibility({ isTimelineDragging: false })).toEqual({
+      showActionRail: true,
+      showMeta: true,
+      showBottomTabs: true
+    });
+    expect(getTimelineChromeVisibility({ isTimelineDragging: true })).toEqual({
+      showActionRail: false,
+      showMeta: false,
+      showBottomTabs: true
+    });
   });
 });

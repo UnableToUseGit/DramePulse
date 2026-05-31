@@ -68,6 +68,14 @@
 - 当前拖动时间和视频总时长；
 - 仍带章节刻度的进度条。
 
+拖动态下，播放器下半部分的普通观看 chrome 需要临时隐藏，包括：
+
+- 右侧收藏、评论、点赞、分享等操作栏；
+- 左下标题、标签和简介。
+
+这样预览帧和章节标题不会与视频标题、简介或图标混在一起。顶部播放设置可以保留，因为它不占用预览区域。
+底部全局 tab 保持显示，它属于 App 导航，不属于当前视频的信息层。
+
 章节匹配规则：
 
 ```text
@@ -209,7 +217,7 @@ cell_row = floor(cell_index / columns)
 - `video_id`
 - 输出目录
 - 采样间隔，第一版默认 `1s`
-- 单帧尺寸，第一版建议 `160x90` 或保持竖屏等比缩放后裁剪
+- 单帧宽度，第一版建议 `160px`；高度默认由首帧原始比例自动推导，保证缩略图和原视频画面比例一致
 - sprite sheet 网格，第一版建议 `5 x 5`
 
 输出为：
@@ -239,7 +247,16 @@ interface PlayerVideo {
 }
 ```
 
-如果后端暂时没有正式 API，可以先在前端根据 `video_id` 读取本地 fixture。
+当前实现采用后端透传方式：
+
+- `GET /api/videos` 和 `GET /api/videos/{video_id}` 的单个 video 对象可选返回 `story_chapters` 和 `storyboard`；
+- 后端默认从 `output/story_chapter_validation/<video_id>/story_chapters.json` 读取章节；
+- 后端默认从 `output/storyboards/<video_id>/storyboard_manifest.json` 读取 storyboard manifest；
+- 可通过环境变量 `STORY_CHAPTER_OUTPUT_ROOT` 和 `STORYBOARD_ROOT` 覆盖这两个目录；
+- `/storyboards/<video_id>/sheet_000.jpg` 作为静态资源路径托管离线生成的 sprite sheet；
+- 如果 manifest 中 sheet `url` 是相对文件名，例如 `sheet_000.jpg`，后端会归一化为 `/storyboards/<video_id>/sheet_000.jpg`。
+
+前端仍保持容错：缺少这些字段时，播放器退化为普通进度条。
 
 ## 9. 验收标准
 
@@ -253,7 +270,9 @@ interface PlayerVideo {
 6. 松手后仍使用现有 seek commit 流程跳转；
 7. 没有 storyboard 或图片加载失败时，不影响 seek；
 8. 不出现章节列表、下一章按钮或额外剧情导航入口；
-9. 前端 typecheck 和相关单元测试通过。
+9. 拖动时隐藏播放器下半部分视频信息层，松手后恢复，但底部全局 tab 保持显示；
+10. Storyboard 单帧比例与源视频画面比例一致；
+11. 前端 typecheck 和相关单元测试通过。
 
 ## 10. 后续扩展
 

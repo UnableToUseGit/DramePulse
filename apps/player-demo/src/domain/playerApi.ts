@@ -1,4 +1,10 @@
 import { sampleMobileDanmaku } from "./danmakuSampling";
+import {
+  normalizeStoryboardManifest,
+  normalizeStoryChapters,
+  StoryboardManifest,
+  StoryChapter
+} from "./storyNavigation";
 import type { DanmakuItem } from "./types";
 
 export const DEFAULT_API_REQUEST_TIMEOUT_MS = 8000;
@@ -15,6 +21,8 @@ export interface ApiVideo {
   duration?: number | null;
   stream_url: string;
   danmaku_url: string;
+  story_chapters?: unknown;
+  storyboard?: unknown;
   source?: string;
   douyin_video_id?: string | null;
 }
@@ -30,6 +38,8 @@ export interface PlayerVideo {
   duration: number;
   streamUrl: string;
   danmakuUrl: string;
+  storyChapters?: StoryChapter[];
+  storyboard?: StoryboardManifest;
 }
 
 export interface PlayerData {
@@ -85,6 +95,16 @@ function buildPlotSummary({
   return title;
 }
 
+function resolveStoryboardUrls(storyboard: StoryboardManifest, apiBaseUrl: string): StoryboardManifest {
+  return {
+    ...storyboard,
+    sheets: storyboard.sheets.map((sheet) => ({
+      ...sheet,
+      url: joinUrl(apiBaseUrl, sheet.url)
+    }))
+  };
+}
+
 export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo | undefined {
   if (!isRecord(value)) {
     return undefined;
@@ -116,6 +136,14 @@ export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo 
     streamUrl: joinUrl(apiBaseUrl, streamPath),
     danmakuUrl: joinUrl(apiBaseUrl, danmakuPath)
   };
+  const storyChapters = normalizeStoryChapters(value.story_chapters ?? value.storyChapters);
+  const storyboard = normalizeStoryboardManifest(value.storyboard);
+  if (storyChapters.length > 0) {
+    video.storyChapters = storyChapters;
+  }
+  if (storyboard) {
+    video.storyboard = resolveStoryboardUrls(storyboard, apiBaseUrl);
+  }
   return video;
 }
 

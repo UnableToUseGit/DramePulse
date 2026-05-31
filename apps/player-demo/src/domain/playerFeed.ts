@@ -34,6 +34,14 @@ export function getVideoPlaybackState({
   };
 }
 
+export function getTimelineChromeVisibility({ isTimelineDragging }: { isTimelineDragging: boolean }) {
+  return {
+    showActionRail: !isTimelineDragging,
+    showMeta: !isTimelineDragging,
+    showBottomTabs: true
+  };
+}
+
 export function shouldPreloadFeedPage({
   pageIndex,
   activeIndex,

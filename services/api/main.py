@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+from .config import get_settings
 from .routers import danmaku, events, health, interactions, playback_events, story_qa, videos
 
 LOCAL_DEV_CORS_ORIGINS = [
@@ -13,6 +15,7 @@ LOCAL_DEV_CORS_ORIGINS = [
 
 def create_app() -> FastAPI:
     app = FastAPI(title="DramePulse API", version="0.1.0")
+    settings = get_settings()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=LOCAL_DEV_CORS_ORIGINS,
@@ -26,6 +29,11 @@ def create_app() -> FastAPI:
     app.include_router(events.router, prefix="/api", tags=["events"])
     app.include_router(playback_events.router, prefix="/api", tags=["playback-events"])
     app.include_router(story_qa.router, prefix="/api", tags=["story-qa"])
+    app.mount(
+        "/storyboards",
+        StaticFiles(directory=str(settings.storyboard_root), check_dir=False),
+        name="storyboards",
+    )
     return app
 
 

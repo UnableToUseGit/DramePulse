@@ -36,6 +36,26 @@ class ApiRoutesTest(unittest.TestCase):
                     "danmaku_url": "/api/videos/ep_10/danmaku",
                     "source": "oss",
                     "douyin_video_id": "123456",
+                    "story_chapters": [
+                        {
+                            "chapter_id": "ch_ep_10_001",
+                            "video_id": "ep_10",
+                            "start_time": 0,
+                            "end_time": 10,
+                            "title": "开场冲突",
+                            "summary": "主角遭遇第一轮冲突。",
+                            "importance": 0.7,
+                        }
+                    ],
+                    "storyboard": {
+                        "video_id": "ep_10",
+                        "interval_seconds": 1,
+                        "frame_width": 160,
+                        "frame_height": 90,
+                        "columns": 5,
+                        "rows": 5,
+                        "sheets": [{"url": "/storyboards/ep_10/sheet_000.jpg", "start_time": 0, "frame_count": 25}],
+                    },
                 }
             ]
             response = self.client.get("/api/videos")
@@ -47,6 +67,8 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.json()["videos"][0]["douyin_video_id"], "123456")
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/ep_10/stream")
         self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/ep_10/danmaku")
+        self.assertEqual(response.json()["videos"][0]["story_chapters"][0]["title"], "开场冲突")
+        self.assertEqual(response.json()["videos"][0]["storyboard"]["sheets"][0]["url"], "/storyboards/ep_10/sheet_000.jpg")
 
     def test_list_videos_allows_annotation_tool_origin(self) -> None:
         with patch("services.api.routers.videos.list_active_videos", return_value=[]):
