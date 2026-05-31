@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Image, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { PlayerBottomTabs } from "../components/PlayerBottomTabs";
 import { shouldRestoreScrollOffset, type SeriesGroup } from "../domain/playerFeed";
+import { getSeriesCoverSource } from "../domain/seriesCovers";
 import { colors, radii, spacing } from "../theme";
 
 export function TheaterScreen({
@@ -64,10 +65,11 @@ export function TheaterScreen({
         onLayout={restoreScrollOffset}
         onContentSizeChange={restoreScrollOffset}
         renderItem={({ item }) => {
+          const coverSource = getSeriesCoverSource(item.coverVideo.seriesId) ?? { uri: item.coverVideo.streamUrl };
           return (
             <Pressable accessibilityRole="button" style={styles.card} onPress={() => onSelectSeries(item)}>
               <View style={styles.cover}>
-                <Image source={{ uri: item.coverVideo.streamUrl }} style={styles.coverImage} />
+                <Image source={coverSource} style={styles.coverImage} />
               </View>
               <Text numberOfLines={2} style={styles.title}>
                 {item.title}

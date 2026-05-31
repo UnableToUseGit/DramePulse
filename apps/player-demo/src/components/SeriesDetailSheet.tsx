@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import type { SeriesGroup } from "../domain/playerFeed";
 import type { PlayerVideo } from "../domain/playerApi";
+import { getSeriesCoverSource } from "../domain/seriesCovers";
 import { colors, radii, spacing } from "../theme";
 
 type DetailTab = "summary" | "episodes";
@@ -35,6 +36,7 @@ export function SeriesDetailSheet({
   if (!series) {
     return null;
   }
+  const coverSource = getSeriesCoverSource(series.coverVideo.seriesId) ?? { uri: series.coverVideo.streamUrl };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -42,7 +44,7 @@ export function SeriesDetailSheet({
       <View style={styles.sheet}>
         <View style={styles.handle} />
         <View style={styles.header}>
-          <Image source={{ uri: series.coverVideo.streamUrl }} style={styles.poster} />
+          <Image source={coverSource} style={styles.poster} />
           <View style={styles.headerText}>
             <Text numberOfLines={1} style={styles.title}>
               {series.title} ›
