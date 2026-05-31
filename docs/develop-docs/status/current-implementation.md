@@ -106,7 +106,9 @@ npm start
 - 竖滑 Feed 播放多集/多视频；
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
 - 右侧操作栏、顶部/底部播放器 Chrome；
-- Story Q&A 面板，调用 `POST /api/story-qa/ask`；
+- 点击播放页短剧名称可进入短剧详情页，详情页基于已加载视频数据展示短剧信息并支持选集播放；
+- 点击底部“剧场”可进入短剧选择页，展示当前后端返回的全部短剧，点击短剧后从第一集开始播放；
+- 播放页提供悬浮圆形剧情问答入口，点击后进入剧情问答界面并调用 `POST /api/story-qa/ask`；
 - Interaction Lab，用本地固定 example 对比 `poll_bar`、`danmaku_poll`、`emoji_hold` 等互动呈现方式。
 
 当前边界：

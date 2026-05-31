@@ -1,16 +1,26 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "../theme";
 
 const TABS = ["首页", "剧场", "商城", "福利", "我的"];
 
-export function PlayerBottomTabs() {
+export function PlayerBottomTabs({ onOpenTheater }: { onOpenTheater: () => void }) {
   return (
     <View style={styles.root}>
-      {TABS.map((item, index) => (
-        <Text key={item} style={[styles.text, index === 0 ? styles.active : null]}>
-          {item}
-        </Text>
-      ))}
+      {TABS.map((item, index) => {
+        const isTheater = item === "剧场";
+        return (
+          <Pressable
+            key={item}
+            accessibilityRole={isTheater ? "button" : undefined}
+            accessibilityLabel={isTheater ? "打开剧场" : undefined}
+            disabled={!isTheater}
+            style={styles.tab}
+            onPress={isTheater ? onOpenTheater : undefined}
+          >
+            <Text style={[styles.text, index === 0 ? styles.active : null]}>{item}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -32,6 +42,12 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.52)",
     fontSize: 20,
     fontWeight: "900"
+  },
+  tab: {
+    minWidth: 48,
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center"
   },
   active: {
     color: colors.text

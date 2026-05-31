@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   NativeScrollEvent,
@@ -10,11 +10,17 @@ import {
   View
 } from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
+import { SeriesDetailScreen } from "../components/SeriesDetailScreen";
+import { StoryQaScreen } from "../components/StoryQaScreen";
+import { TheaterScreen } from "../components/TheaterScreen";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "../config";
 import { findNextEpisodeIndex, getFeedPageIndex, shouldPreloadFeedPage } from "../domain/playerFeed";
 import { loadPlayerVideos, PlayerVideo } from "../domain/playerApi";
+import { buildSeriesCatalog, findSeriesForVideo } from "../domain/seriesCatalog";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
+
+type PlayerOverlay = "none" | "theater" | "seriesDetail" | "storyQa";
 
 export function PlayerScreen() {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
@@ -24,9 +30,17 @@ export function PlayerScreen() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [overlay, setOverlay] = useState<PlayerOverlay>("none");
+  const [selectedSeriesId, setSelectedSeriesId] = useState<string | undefined>();
+  const [storyQaContext, setStoryQaContext] = useState<{ video: PlayerVideo; currentTime: number } | undefined>();
   const listRef = useRef<FlatList<PlayerVideo>>(null);
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
+  const seriesList = useMemo(() => buildSeriesCatalog(videos), [videos]);
+  const selectedSeries = useMemo(
+    () => seriesList.find((series) => series.id === selectedSeriesId),
+    [selectedSeriesId, seriesList]
+  );
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
@@ -36,6 +50,9 @@ export function PlayerScreen() {
       setVideos(nextVideos);
       setActiveIndex(0);
       setPlaybackPositions({});
+      setOverlay("none");
+      setSelectedSeriesId(undefined);
+      setStoryQaContext(undefined);
       setLoadState("ready");
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
@@ -53,6 +70,9 @@ export function PlayerScreen() {
           setVideos(nextVideos);
           setActiveIndex(0);
           setPlaybackPositions({});
+          setOverlay("none");
+          setSelectedSeriesId(undefined);
+          setStoryQaContext(undefined);
           setLoadState("ready");
         }
       })
@@ -94,6 +114,42 @@ export function PlayerScreen() {
     },
     [videos]
   );
+
+  const handlePlayVideo = useCallback(
+    (video: PlayerVideo) => {
+      const nextIndex = videos.findIndex((item) => item.videoId === video.videoId);
+      if (nextIndex < 0) {
+        return;
+      }
+      setOverlay("none");
+      setSelectedSeriesId(undefined);
+      setStoryQaContext(undefined);
+      setActiveIndex(nextIndex);
+      setPlaybackPositions((positions) => ({
+        ...positions,
+        [video.videoId]: 0
+      }));
+      listRef.current?.scrollToIndex({ index: nextIndex, animated: false });
+    },
+    [videos]
+  );
+
+  const handleOpenSeriesDetails = useCallback(
+    (video: PlayerVideo) => {
+      const series = findSeriesForVideo(videos, video);
+      if (!series) {
+        return;
+      }
+      setSelectedSeriesId(series.id);
+      setOverlay("seriesDetail");
+    },
+    [videos]
+  );
+
+  const handleOpenStoryQaPage = useCallback((video: PlayerVideo, currentTime: number) => {
+    setStoryQaContext({ video, currentTime });
+    setOverlay("storyQa");
+  }, []);
 
   const handlePlaybackPositionChange = useCallback((videoId: string, time: number) => {
     setPlaybackPositions((positions) => {
@@ -160,6 +216,9 @@ export function PlayerScreen() {
                 onChangePresentationType={handleChangePresentationType}
                 onPlaybackPositionChange={handlePlaybackPositionChange}
                 onPlayNextEpisode={() => handlePlayNextEpisode(index)}
+                onOpenTheater={() => setOverlay("theater")}
+                onOpenSeriesDetails={handleOpenSeriesDetails}
+                onOpenStoryQaPage={handleOpenStoryQaPage}
               />
             );
           }}
@@ -184,6 +243,20 @@ export function PlayerScreen() {
           windowSize={3}
           removeClippedSubviews={false}
         />
+      ) : null}
+      {overlay === "theater" ? (
+        <TheaterScreen seriesList={seriesList} onClose={() => setOverlay("none")} onPlaySeries={handlePlayVideo} />
+      ) : null}
+      {overlay === "seriesDetail" && selectedSeries ? (
+        <SeriesDetailScreen
+          series={selectedSeries}
+          currentVideoId={videos[activeIndex]?.videoId}
+          onBack={() => setOverlay("none")}
+          onPlayEpisode={handlePlayVideo}
+        />
+      ) : null}
+      {overlay === "storyQa" && storyQaContext ? (
+        <StoryQaScreen video={storyQaContext.video} currentTime={storyQaContext.currentTime} onClose={() => setOverlay("none")} />
       ) : null}
     </View>
   );

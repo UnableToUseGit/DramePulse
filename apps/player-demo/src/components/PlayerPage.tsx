@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
+import { ENABLE_INTERACTION_LAB } from "../config";
 import { getResumePlaybackTime, getVideoPlaybackState, UserPlaybackIntent } from "../domain/playerFeed";
 import { PlayerVideo } from "../domain/playerApi";
-import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
-import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
@@ -15,10 +13,10 @@ import { shouldResetExample } from "../interaction-examples/trigger";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { DanmakuLayer } from "./DanmakuLayer";
 import { FastForwardPressLayer } from "./FastForwardPressLayer";
+import { FloatingStoryQaButton } from "./FloatingStoryQaButton";
 import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
-import { StoryQaPanel } from "./StoryQaPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
@@ -34,7 +32,10 @@ export function PlayerPage({
   selectedPresentationType,
   onChangePresentationType,
   onPlaybackPositionChange,
-  onPlayNextEpisode
+  onPlayNextEpisode,
+  onOpenTheater,
+  onOpenSeriesDetails,
+  onOpenStoryQaPage
 }: {
   video: PlayerVideo;
   isActive: boolean;
@@ -47,6 +48,9 @@ export function PlayerPage({
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onPlayNextEpisode: () => void;
+  onOpenTheater: () => void;
+  onOpenSeriesDetails: (video: PlayerVideo) => void;
+  onOpenStoryQaPage: (video: PlayerVideo, currentTime: number) => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
@@ -55,14 +59,12 @@ export function PlayerPage({
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
-  const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
-  const storyQaRequestRef = useRef(0);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
   const {
     dismiss: dismissInteractionExample,
@@ -119,8 +121,6 @@ export function PlayerPage({
       setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
       setSeekVersion((version) => version + 1);
       resetInteractionExample();
-      storyQaRequestRef.current += 1;
-      setStoryQaState(resetStoryQaState());
       previousTimeRef.current = resumeTime;
       lastPublishedTimeRef.current = resumeTime;
       lastReportedPositionRef.current = resumeTime;
@@ -220,52 +220,6 @@ export function PlayerPage({
     [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
-  const handleSubmitStoryQa = useCallback(
-    (quickQuestion?: string) => {
-      const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
-      setStoryQaState((state) => ({
-        ...state,
-        question: nextQuestion,
-        error: undefined,
-        answer: undefined
-      }));
-      if (!nextQuestion) {
-        setStoryQaState((state) => ({ ...state, error: "请输入问题" }));
-        return;
-      }
-      const context = resolveStoryQaContext(video);
-      const requestId = storyQaRequestRef.current + 1;
-      storyQaRequestRef.current = requestId;
-      setStoryQaState((state) => ({ ...state, isLoading: true }));
-      askStoryQa({
-        apiBaseUrl: API_BASE_URL,
-        question: nextQuestion,
-        seriesId: context.seriesId,
-        currentEpisode: context.currentEpisode,
-        currentTime
-      })
-        .then((result) => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({ ...state, answer: result.answer }));
-          }
-        })
-        .catch((error: unknown) => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({
-              ...state,
-              error: error instanceof Error ? error.message : "剧情问答暂时不可用"
-            }));
-          }
-        })
-        .finally(() => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({ ...state, isLoading: false }));
-          }
-        });
-    },
-    [currentTime, storyQaState.question, video]
-  );
-
   return (
     <View style={[styles.root, { height }]}>
       {shouldMountVideo ? (
@@ -309,7 +263,8 @@ export function PlayerPage({
       <PlayerChrome
         liked={liked}
         onToggleLike={() => setLiked((current) => !current)}
-        onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
+        onOpenSeriesDetails={() => onOpenSeriesDetails(video)}
+        onOpenTheater={onOpenTheater}
         playbackRate={speedControls.playbackRate}
         isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
         onToggleSpeedMenu={speedControls.toggleSpeedMenu}
@@ -318,6 +273,7 @@ export function PlayerPage({
         plotSummary={video.plotSummary}
         episodeLabel={video.episodeLabel}
       />
+      {isActive ? <FloatingStoryQaButton onPress={() => onOpenStoryQaPage(video, currentTime)} /> : null}
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
       ) : null}
@@ -327,16 +283,6 @@ export function PlayerPage({
         hasNextEpisode={hasNextEpisode}
         nextEpisodeLabel={nextEpisodeLabel}
         onSeekCommit={handleSeekCommit}
-      />
-      <StoryQaPanel
-        visible={storyQaState.isOpen}
-        question={storyQaState.question}
-        answer={storyQaState.answer}
-        error={storyQaState.error}
-        isLoading={storyQaState.isLoading}
-        onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
-        onSubmit={handleSubmitStoryQa}
-        onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
       />
     </View>
   );

@@ -5,17 +5,15 @@ import { LikeReactionButton } from "./LikeReactionButton";
 
 export function PlayerActionRail({
   liked,
-  onToggleLike,
-  onOpenStoryQa
+  onToggleLike
 }: {
   liked: boolean;
   onToggleLike: () => void;
-  onOpenStoryQa: () => void;
 }) {
   return (
     <View style={styles.root}>
       <RailIcon icon="star" count="199.4万" />
-      <RailIcon icon="chatbubble-ellipses" count="6626" accessibilityLabel="剧情问答" onPress={onOpenStoryQa} />
+      <RailIcon icon="chatbubble-ellipses" count="6626" />
       <LikeReactionButton count="30.8万" liked={liked} onToggle={onToggleLike} />
       <RailIcon icon="arrow-redo" count="5.3万" />
     </View>

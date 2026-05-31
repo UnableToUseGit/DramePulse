@@ -6,18 +6,17 @@ import { colors, radii, spacing } from "../theme";
 export function PlayerMeta({
   title,
   plotSummary,
-  episodeLabel
+  episodeLabel,
+  onOpenDetails
 }: {
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  onOpenDetails: () => void;
 }) {
-  const titleCanExpand = Array.from(title).length > 9;
-  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
   useEffect(() => {
-    setIsTitleExpanded(false);
     setIsSummaryExpanded(false);
   }, [title, plotSummary]);
 
@@ -25,22 +24,14 @@ export function PlayerMeta({
     <View style={styles.root}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}
-        disabled={!titleCanExpand}
+        accessibilityLabel="打开短剧详情"
         style={styles.titleRow}
-        onPress={() => setIsTitleExpanded((expanded) => !expanded)}
+        onPress={onOpenDetails}
       >
-        <Text numberOfLines={isTitleExpanded ? undefined : 1} style={styles.title}>
+        <Text numberOfLines={1} style={styles.title}>
           {title}
         </Text>
-        {titleCanExpand ? (
-          <Ionicons
-            name={isTitleExpanded ? "chevron-up" : "chevron-forward"}
-            size={16}
-            color="rgba(255,255,255,0.56)"
-            style={styles.titleArrow}
-          />
-        ) : null}
+        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.56)" style={styles.titleArrow} />
       </Pressable>
       <View style={styles.tags}>
         <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>

@@ -8,7 +8,8 @@ import { PlayerTopBar } from "./PlayerTopBar";
 export function PlayerChrome({
   liked,
   onToggleLike,
-  onOpenStoryQa,
+  onOpenSeriesDetails,
+  onOpenTheater,
   playbackRate,
   isSpeedMenuOpen,
   onToggleSpeedMenu,
@@ -19,7 +20,8 @@ export function PlayerChrome({
 }: {
   liked: boolean;
   onToggleLike: () => void;
-  onOpenStoryQa: () => void;
+  onOpenSeriesDetails: () => void;
+  onOpenTheater: () => void;
   playbackRate: PlaybackRate;
   isSpeedMenuOpen: boolean;
   onToggleSpeedMenu: () => void;
@@ -36,9 +38,9 @@ export function PlayerChrome({
         onToggleSpeedMenu={onToggleSpeedMenu}
         onSelectPlaybackRate={onSelectPlaybackRate}
       />
-      <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} />
-      <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} />
-      <PlayerBottomTabs />
+      <PlayerActionRail liked={liked} onToggleLike={onToggleLike} />
+      <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} onOpenDetails={onOpenSeriesDetails} />
+      <PlayerBottomTabs onOpenTheater={onOpenTheater} />
     </View>
   );
 }
