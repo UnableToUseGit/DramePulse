@@ -12,7 +12,7 @@ if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipelines.story_chapter_generation import StoryChapterPipeline
-from scripts.run_story_chapter_generation import build_ark_client
+from scripts.run_story_chapter_generation import build_ark_client, load_video_metadata_from_scene_detection
 
 
 DEFAULT_DATASET_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
@@ -133,6 +133,7 @@ def main(
         try:
             written_path = active_pipeline.run(
                 video_id=item.video_id,
+                video_metadata=load_video_metadata_from_scene_detection(item.scene_detection_path),
                 transcription_path=item.transcription_path,
                 scene_detection_path=item.scene_detection_path,
                 output_root=args.output_root,

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
-from typing import Sequence
+from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -23,6 +24,25 @@ def build_ark_client(*, env_path: Path | None = None):
         base_url=dotenv_base_url or None,
         model_name=dotenv_model or None,
     )
+
+
+def load_video_metadata_from_scene_detection(scene_detection_path: Path) -> dict[str, Any]:
+    payload = json.loads(scene_detection_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Scene detection payload must be an object: {scene_detection_path}")
+    duration = payload.get("duration_seconds") or payload.get("duration")
+    if duration is None:
+        scenes = payload.get("scenes")
+        if isinstance(scenes, list):
+            end_times = [
+                float(scene["end_time"])
+                for scene in scenes
+                if isinstance(scene, dict) and isinstance(scene.get("end_time"), int | float)
+            ]
+            duration = max(end_times) if end_times else None
+    if duration is None:
+        raise ValueError(f"Cannot infer video duration from scene detection: {scene_detection_path}")
+    return {"duration_seconds": float(duration)}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,6 +66,7 @@ def main(
     )
     output_path = active_pipeline.run(
         video_id=args.video_id,
+        video_metadata=load_video_metadata_from_scene_detection(args.scene_detection),
         transcription_path=args.transcription,
         scene_detection_path=args.scene_detection,
         output_root=args.output_root,

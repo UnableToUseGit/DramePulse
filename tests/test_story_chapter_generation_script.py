@@ -15,7 +15,7 @@ class StoryChapterGenerationScriptTest(unittest.TestCase):
             scene_path = tmp_path / "scene_detection.json"
             output_root = tmp_path / "output"
             transcription_path.write_text("{}", encoding="utf-8")
-            scene_path.write_text("{}", encoding="utf-8")
+            scene_path.write_text('{"scenes":[{"start_time":0,"end_time":12.5}]}', encoding="utf-8")
 
             class FakePipeline:
                 def __init__(self) -> None:
@@ -25,6 +25,7 @@ class StoryChapterGenerationScriptTest(unittest.TestCase):
                     self,
                     *,
                     video_id: str,
+                    video_metadata: dict[str, object],
                     transcription_path: Path,
                     scene_detection_path: Path,
                     output_root: Path,
@@ -32,6 +33,7 @@ class StoryChapterGenerationScriptTest(unittest.TestCase):
                     self.calls.append(
                         {
                             "video_id": video_id,
+                            "video_metadata": video_metadata,
                             "transcription_path": transcription_path,
                             "scene_detection_path": scene_detection_path,
                             "output_root": output_root,
@@ -59,6 +61,7 @@ class StoryChapterGenerationScriptTest(unittest.TestCase):
 
             self.assertEqual(result, 0)
             self.assertEqual(pipeline.calls[0]["video_id"], "demo_ep01")
+            self.assertEqual(pipeline.calls[0]["video_metadata"], {"duration_seconds": 12.5})
             self.assertEqual(pipeline.calls[0]["transcription_path"], transcription_path)
             self.assertEqual(pipeline.calls[0]["scene_detection_path"], scene_path)
             self.assertEqual(pipeline.calls[0]["output_root"], output_root)

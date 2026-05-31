@@ -48,7 +48,10 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
             transcription_path = episode_dir / "video.transcription.json"
             scene_path = episode_dir / "scene_detection.json"
             transcription_path.write_text("{}", encoding="utf-8")
-            scene_path.write_text(json.dumps({"video_id": "demo_series_ep01"}), encoding="utf-8")
+            scene_path.write_text(
+                json.dumps({"video_id": "demo_series_ep01", "scenes": [{"start_time": 0, "end_time": 9.25}]}),
+                encoding="utf-8",
+            )
 
             class FakePipeline:
                 def __init__(self) -> None:
@@ -58,6 +61,7 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
                     self,
                     *,
                     video_id: str,
+                    video_metadata: dict[str, object],
                     transcription_path: Path,
                     scene_detection_path: Path,
                     output_root: Path,
@@ -65,6 +69,7 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
                     self.calls.append(
                         {
                             "video_id": video_id,
+                            "video_metadata": video_metadata,
                             "transcription_path": transcription_path,
                             "scene_detection_path": scene_detection_path,
                             "output_root": output_root,
@@ -90,6 +95,7 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
 
         self.assertEqual(result, 0)
         self.assertEqual(pipeline.calls[0]["video_id"], "demo_series_ep01")
+        self.assertEqual(pipeline.calls[0]["video_metadata"], {"duration_seconds": 9.25})
         self.assertEqual(pipeline.calls[0]["transcription_path"], transcription_path)
         self.assertEqual(pipeline.calls[0]["scene_detection_path"], scene_path)
         self.assertEqual(summary["total"], 1)
@@ -103,7 +109,10 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
             episode_dir = root / "demo_series" / "ep01"
             episode_dir.mkdir(parents=True)
             (episode_dir / "video.transcription.json").write_text("{}", encoding="utf-8")
-            (episode_dir / "scene_detection.json").write_text(json.dumps({"video_id": "demo_series_ep01"}), encoding="utf-8")
+            (episode_dir / "scene_detection.json").write_text(
+                json.dumps({"video_id": "demo_series_ep01", "scenes": [{"start_time": 0, "end_time": 9.25}]}),
+                encoding="utf-8",
+            )
             existing_output = output_root / "demo_series_ep01" / "story_chapters.json"
             existing_output.parent.mkdir(parents=True)
             existing_output.write_text("{}", encoding="utf-8")

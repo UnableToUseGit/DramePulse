@@ -112,28 +112,68 @@ def format_utterance_timeline(utterances: Sequence[Utterance]) -> str:
 
 def build_system_prompt() -> str:
     return (
-        "You identify story chapters in short dramas for lightweight timeline navigation. "
-        "Use the timestamped utterances only. Return JSON only."
+        "You are a story structure analyst for short-drama timeline navigation. "
+        "Your job is to identify story chapters. "
+        "Use only the timestamped utterances provided by the user. "
+        "Return valid JSON only, with no markdown or explanatory text."
     )
 
 
-def build_user_prompt(video_id: str, utterances: Sequence[Utterance]) -> str:
+def _video_duration_from_metadata(video_metadata: dict[str, Any]) -> float:
+    try:
+        duration = float(video_metadata["duration_seconds"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("video_metadata.duration_seconds is required for story chapter generation.") from exc
+    if duration <= 0:
+        raise ValueError("video_metadata.duration_seconds must be greater than 0.")
+    return _round_time(duration)
+
+
+def build_user_prompt(video_id: str, video_duration_seconds: float, utterances: Sequence[Utterance]) -> str:
     return "\n".join(
         [
+            "## TASK",
+            "Split the full short-drama video timeline into continuous story chapters for player navigation.",
+            "A story chapter is a coherent narrative segment that helps a viewer understand what this part of the episode is about.",
+            "The result will be shown as navigation labels on a video progress bar, so each chapter should be useful for locating plot progress.",
+            "",
+            "## INPUT",
             f"VIDEO_ID: {video_id}",
-            "Task: split this episode into continuous story chapters for a player timeline.",
-            "A chapter is a coherent story segment that helps users understand what the episode is currently about.",
-            "Do not identify interaction triggers, highlight moments, poll options, danmaku, or user emotions.",
-            "Do not force a fixed number of chapters. Return the chapters that are clearly supported by the subtitles.",
-            "Output JSON shape:",
-            '{"chapters":[{"start_time":0.0,"end_time":18.4,"title":"开局设定","summary":"...","importance":0.62}]}',
-            "Field rules:",
+            f"VIDEO_DURATION_SECONDS: {_round_time(video_duration_seconds):.3f}",
+            "You will receive the video duration and a timestamped utterance timeline.",
+            "Each utterance line contains an utterance id, start/end time in seconds, optional speaker id, and subtitle text.",
+            "There are no video frames in this request. Use the subtitle timeline to infer chapter split points, titles, and summaries.",
+            "",
+            "## RULES",
+            "- Use only information directly supported by the utterances.",
+            "- Chapters must represent narrative progress, such as setup, conflict development, relationship change, reveal, reversal, decision, or ending beat.",
+            "- Do not output interaction triggers, highlight moments, poll options, danmaku, audience emotions, or user feedback opportunities.",
+            "- Do not split a chapter just because a single line sounds dramatic; prefer coherent multi-utterance story segments.",
+            "- Do not force a fixed number of chapters. Use as many chapters as needed to represent the episode's story progression.",
+            "- Chapters should be ordered by time and cover the full video timeline from 0.0 to VIDEO_DURATION_SECONDS.",
+            "- Do not leave gaps between adjacent chapters. The `end_time` of one chapter should match the `start_time` of the next chapter.",
+            "- Overlap is not allowed.",
+            "- Treat chapter ranges as left-closed and right-open: [start_time, end_time), except the final chapter ends at VIDEO_DURATION_SECONDS.",
+            "- If a boundary is at time `t`, the utterance starting at `t` belongs to the next chapter that starts at `t`, not the previous chapter.",
+            "- The first chapter must start at 0.0.",
+            "- The last chapter must end at VIDEO_DURATION_SECONDS.",
+            "- Use subtitle content to choose meaningful internal split points. If a video segment has no subtitles, include it in the nearest appropriate chapter based on surrounding story context.",
+            "- `title` should be a short Chinese timeline label, preferably 4 to 8 Chinese characters.",
+            "- `summary` should be one concise factual Chinese sentence grounded in the subtitles.",
+            "- `importance` should reflect how important the chapter is for understanding the episode, from 0.0 to 1.0.",
+            "",
+            "## OUTPUT",
+            "Return JSON only. Do not wrap it in markdown.",
+            "The top-level object must contain exactly one key: `chapters`.",
+            "Each chapter object must contain exactly these keys: `start_time`, `end_time`, `title`, `summary`, `importance`.",
+            "Output shape:",
+            '{"chapters":[{"start_time":0.0,"end_time":18.4,"title":"开局设定","summary":"女主醒来发现处境异常，故事冲突开始铺垫。","importance":0.62}]}',
+            "Field constraints:",
             "- `start_time` and `end_time` are numbers in seconds.",
             "- `end_time` must be greater than `start_time`.",
-            "- `title` is a short timeline label, preferably 4 to 8 Chinese characters.",
-            "- `summary` is one concise factual sentence grounded in the subtitles.",
-            "- `importance` is a number from 0 to 1.",
+            "- `importance` must be a number from 0 to 1.",
             "- Do not include any extra keys.",
+            "",
             format_utterance_timeline(utterances),
         ]
     )
@@ -266,12 +306,14 @@ class StoryChapterPipeline:
         self,
         *,
         video_id: str,
+        video_metadata: dict[str, Any],
         transcription_path: Path,
         scene_detection_path: Path,
         output_root: Path,
     ) -> Path:
         utterances = load_utterances_from_transcription(transcription_path)
         scenes = load_scenes(scene_detection_path)
+        video_duration_seconds = _video_duration_from_metadata(video_metadata)
         warnings: list[str] = []
 
         story_chapters: list[dict[str, Any]] = []
@@ -280,20 +322,25 @@ class StoryChapterPipeline:
         else:
             raw = self.llm_client.generate_json_multimodal(
                 system_prompt=build_system_prompt(),
-                user_prompt=build_user_prompt(video_id, utterances),
+                user_prompt=build_user_prompt(video_id, video_duration_seconds, utterances),
                 max_tokens=self.max_output_tokens,
             )
             drafts, parse_warnings = parse_chapter_drafts(raw)
             warnings.extend(parse_warnings)
-            if drafts and not scenes:
-                warnings.append("No valid scenes found; using raw LLM chapter times without scene snapping.")
 
             for draft in drafts:
-                snapped = snap_chapter_to_scenes(draft, scenes)
-                if snapped is None:
-                    warnings.append(f"Chapter #{draft['source_rank']} became invalid after scene snapping.")
-                    continue
-                story_chapters.append(snapped)
+                # Scene-boundary snapping is intentionally disabled for now.
+                # Story chapters are full-timeline semantic segments; snapping each
+                # chapter start/end independently can introduce overlaps or gaps.
+                story_chapters.append(
+                    {
+                        "start_time": float(draft["start_time"]),
+                        "end_time": float(draft["end_time"]),
+                        "title": str(draft["title"]),
+                        "summary": str(draft["summary"]),
+                        "importance": float(draft["importance"]),
+                    }
+                )
 
         story_chapters.sort(key=lambda chapter: float(chapter["start_time"]))
         for index, chapter in enumerate(story_chapters, start=1):
@@ -306,6 +353,7 @@ class StoryChapterPipeline:
         payload = {
             "video_id": video_id,
             "created_at": _now_iso(),
+            "video_metadata": {"duration_seconds": video_duration_seconds},
             "source": {
                 "transcription_path": str(transcription_path),
                 "scene_detection_path": str(scene_detection_path),

@@ -7,6 +7,9 @@ import unittest
 
 from pipelines.story_chapter_generation import (
     StoryChapterPipeline,
+    Utterance,
+    build_system_prompt,
+    build_user_prompt,
     load_utterances_from_transcription,
     parse_chapter_drafts,
     snap_chapter_to_scenes,
@@ -24,6 +27,43 @@ class FakeTextLlmClient:
 
 
 class StoryChapterGenerationTest(unittest.TestCase):
+    def test_build_system_prompt_sets_role_and_json_boundary(self) -> None:
+        prompt = build_system_prompt()
+
+        self.assertIn("story chapter", prompt.lower())
+        self.assertIn("timeline navigation", prompt.lower())
+        self.assertIn("JSON", prompt)
+
+    def test_build_user_prompt_uses_structured_sections_and_output_contract(self) -> None:
+        prompt = build_user_prompt(
+            "demo_ep01",
+            12.5,
+            [
+                Utterance(
+                    utterance_id="u_001",
+                    start_time=1.0,
+                    end_time=2.5,
+                    speaker_id="1",
+                    text="你卖的是假的。",
+                )
+            ],
+        )
+
+        self.assertIn("## TASK", prompt)
+        self.assertIn("## INPUT", prompt)
+        self.assertIn("## RULES", prompt)
+        self.assertIn("## OUTPUT", prompt)
+        self.assertIn("VIDEO_ID: demo_ep01", prompt)
+        self.assertIn("VIDEO_DURATION_SECONDS: 12.500", prompt)
+        self.assertIn("UTTERANCES:", prompt)
+        self.assertIn("[1.000-2.500]", prompt)
+        self.assertIn('"chapters"', prompt)
+        self.assertIn("Do not output interaction triggers", prompt)
+        self.assertIn("cover the full video timeline from 0.0 to VIDEO_DURATION_SECONDS", prompt)
+        self.assertIn("Do not leave gaps", prompt)
+        self.assertIn("left-closed and right-open", prompt)
+        self.assertIn("belongs to the next chapter", prompt)
+
     def test_load_utterances_from_aliyun_transcription_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "video.transcription.json"
@@ -218,6 +258,7 @@ class StoryChapterGenerationTest(unittest.TestCase):
             pipeline = StoryChapterPipeline(llm_client=fake_client)
             output_path = pipeline.run(
                 video_id="demo_ep01",
+                video_metadata={"duration_seconds": 8.0},
                 transcription_path=transcription_path,
                 scene_detection_path=scene_path,
                 output_root=output_root,
@@ -227,15 +268,17 @@ class StoryChapterGenerationTest(unittest.TestCase):
 
         self.assertEqual(payload["video_id"], "demo_ep01")
         self.assertIn("[1.000-2.000]", fake_client.prompts[0])
+        self.assertIn("VIDEO_DURATION_SECONDS: 8.000", fake_client.prompts[0])
+        self.assertEqual(payload["video_metadata"], {"duration_seconds": 8.0})
         self.assertEqual(payload["story_chapters"][0]["chapter_id"], "ch_demo_ep01_001")
-        self.assertEqual(payload["story_chapters"][0]["start_time"], 0.0)
-        self.assertEqual(payload["story_chapters"][0]["end_time"], 6.0)
+        self.assertEqual(payload["story_chapters"][0]["start_time"], 1.2)
+        self.assertEqual(payload["story_chapters"][0]["end_time"], 4.2)
         self.assertEqual(
             set(payload["story_chapters"][0].keys()),
             {"chapter_id", "video_id", "start_time", "end_time", "title", "summary", "importance"},
         )
 
-    def test_pipeline_keeps_raw_times_and_warns_when_no_scenes_exist(self) -> None:
+    def test_pipeline_keeps_raw_times_without_scene_snapping(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
             transcription_path = tmp_path / "video.transcription.json"
@@ -278,6 +321,7 @@ class StoryChapterGenerationTest(unittest.TestCase):
 
             output_path = StoryChapterPipeline(llm_client=fake_client).run(
                 video_id="demo_ep01",
+                video_metadata={"duration_seconds": 5.0},
                 transcription_path=transcription_path,
                 scene_detection_path=scene_path,
                 output_root=output_root,
@@ -286,7 +330,7 @@ class StoryChapterGenerationTest(unittest.TestCase):
 
         self.assertEqual(payload["story_chapters"][0]["start_time"], 1.2)
         self.assertEqual(payload["story_chapters"][0]["end_time"], 4.2)
-        self.assertIn("No valid scenes", payload["warnings"][0])
+        self.assertEqual(payload["warnings"], [])
 
 
 if __name__ == "__main__":
