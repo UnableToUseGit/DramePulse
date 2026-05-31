@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -161,6 +162,185 @@ class InteractionResultResponse(BaseModel):
     interaction_id: str
     total_votes: int
     options: list[InteractionResultOption]
+
+
+class AdminDashboardSummary(BaseModel):
+    series_count: int
+    episode_count: int
+    video_count: int
+    video_ready_count: int
+    danmaku_episode_count: int
+    danmaku_count: int
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    click_rate: float
+    dismiss_rate: float
+
+
+class AdminDashboardSeries(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    status: str = "active"
+    episode_count: int
+    video_ready_count: int
+    danmaku_episode_count: int
+    danmaku_count: int
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    asset_status: str
+
+
+class AdminDashboardVideo(BaseModel):
+    video_id: str
+    series_id: str | None = None
+    series_name: str | None = None
+    title: str
+    episode_no: int | None = None
+    episode_label: str | None = None
+    status: str = "active"
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    danmaku_count: int = 0
+    has_danmaku: bool = False
+    asset_status: str = "missing_danmaku"
+
+
+class AdminDashboardOption(BaseModel):
+    option_id: str
+    text: str
+    danmaku_text: str
+    rank: int
+    vote_count: int
+    ratio: float
+
+
+class AdminDashboardInteraction(BaseModel):
+    interaction_id: str
+    video_id: str
+    video_title: str
+    highlight_id: str
+    trigger_time: float
+    expire_time: float
+    question: str
+    status: str
+    exposure_count: int
+    click_count: int
+    dismiss_count: int
+    vote_count: int
+    options: list[AdminDashboardOption]
+
+
+class AdminDashboardEvent(BaseModel):
+    event_id: str
+    event_type: str
+    user_id: str
+    video_id: str
+    highlight_id: str | None = None
+    interaction_id: str | None = None
+    option_id: str | None = None
+    client_time: float
+    server_time: str
+
+
+class AdminDashboardResponse(BaseModel):
+    summary: AdminDashboardSummary
+    series: list[AdminDashboardSeries]
+    videos: list[AdminDashboardVideo]
+    interactions: list[AdminDashboardInteraction]
+    recent_events: list[AdminDashboardEvent]
+
+
+class AdminSeriesCreate(BaseModel):
+    series_id: str = Field(min_length=1)
+    series_name: str = Field(min_length=1)
+
+
+class AdminLoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class AdminAuthResponse(BaseModel):
+    authenticated: bool
+    username: str | None = None
+
+
+class AdminSeriesResponse(BaseModel):
+    series_id: str
+    series_name: str
+    name_object_key: str
+
+
+class AdminSeriesSummary(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    status: str = "active"
+    episode_count: int
+    min_episode_no: int | None = None
+    max_episode_no: int | None = None
+    name_object_key: str
+    cover_object_key: str
+
+
+class AdminSeriesEpisode(BaseModel):
+    video_id: str
+    title: str
+    episode_no: int | None = None
+    episode_label: str | None = None
+    oss_bucket: str
+    oss_object_key: str
+    douyin_json_path: str | None = None
+    content_type: str
+    size: int
+    status: str
+    updated_at: datetime | str | None = None
+
+
+class AdminSeriesDetail(BaseModel):
+    series: AdminSeriesSummary
+    episodes: list[AdminSeriesEpisode]
+
+
+class AdminSeriesListResponse(BaseModel):
+    series: list[AdminSeriesSummary]
+
+
+class AdminSeriesDeleteResponse(BaseModel):
+    series_id: str
+    deleted_episode_count: int
+
+
+class AdminSeriesRestoreResponse(BaseModel):
+    series_id: str
+    restored_episode_count: int
+
+
+class AdminUploadResponse(BaseModel):
+    object_key: str
+    content_type: str
+    size: int
+
+
+class AdminEpisodeUploadResponse(BaseModel):
+    video_id: str
+    series_id: str
+    series_name: str
+    episode_no: int
+    episode_label: str
+    title: str
+    object_key: str
+    content_type: str
+    size: int
+
+
+class AdminDanmakuUploadResponse(BaseModel):
+    object_key: str
+    content_type: str
+    size: int
+    danmaku_count: int
 
 
 class StoryQaIngestRequest(BaseModel):

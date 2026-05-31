@@ -1,0 +1,520 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d13" for="edge" attr.name="truncate" attr.type="string"/>
+<key id="d12" for="edge" attr.name="created_at" attr.type="long"/>
+<key id="d11" for="edge" attr.name="file_path" attr.type="string"/>
+<key id="d10" for="edge" attr.name="source_id" attr.type="string"/>
+<key id="d9" for="edge" attr.name="keywords" attr.type="string"/>
+<key id="d8" for="edge" attr.name="description" attr.type="string"/>
+<key id="d7" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d6" for="node" attr.name="truncate" attr.type="string"/>
+<key id="d5" for="node" attr.name="created_at" attr.type="long"/>
+<key id="d4" for="node" attr.name="file_path" attr.type="string"/>
+<key id="d3" for="node" attr.name="source_id" attr.type="string"/>
+<key id="d2" for="node" attr.name="description" attr.type="string"/>
+<key id="d1" for="node" attr.name="entity_type" attr.type="string"/>
+<key id="d0" for="node" attr.name="entity_id" attr.type="string"/>
+<graph edgedefault="undirected"><node id="容遇">
+  <data key="d0">容遇</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">中医世家出身的纪家晚辈母亲，擅长医术，镇定应对纪墨寒的病情。&lt;SEP&gt;家族中具有年轻外貌的长辈，管教年长男性上学，对老三归来态度平静。&lt;SEP&gt;纪墨寒称呼为小姐姐的女性角色，可能为纪家太奶奶。&lt;SEP&gt;从1955年穿越而来的纪家长辈，外表为十八岁女子，拥有科研背景和极高家族辈分。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293&lt;SEP&gt;chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-3a39847b98efa8414b354e4b0bf1929f&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849145</data>
+  <data key="d6"></data>
+</node>
+<node id="纪舜英">
+  <data key="d0">纪舜英</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">纪氏当家人，白发持杖，是纪家现场最具权威的长者之一。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849145</data>
+  <data key="d6"></data>
+</node>
+<node id="纪止渊">
+  <data key="d0">纪止渊</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">百亿集团总裁，纪家大少爷。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849146</data>
+  <data key="d6"></data>
+</node>
+<node id="纪言亭">
+  <data key="d0">纪言亭</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">大满贯国际影帝，纪家二少爷。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849148</data>
+  <data key="d6"></data>
+</node>
+<node id="纪墨寒">
+  <data key="d0">纪墨寒</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">纪家三少爷，因伤导致智力障碍，目前表现出孩童般的心智。&lt;SEP&gt;家族老三，世界顶级科学家，被称为小王子，有花花公子名声，三年未归。&lt;SEP&gt;纪家三少爷，因病情心智停留在孩童阶段，行为幼稚。&lt;SEP&gt;纪家三少爷，失智后自称“寒寒”，第二集起成为主要剧情焦点。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293&lt;SEP&gt;chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-3a39847b98efa8414b354e4b0bf1929f&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849148</data>
+  <data key="d6"></data>
+</node>
+<node id="穿越事件">
+  <data key="d0">穿越事件</data>
+  <data key="d1">system_state</data>
+  <data key="d2">容遇从1955年穿越到七十年后同名同姓的十八岁少女身上。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849149</data>
+  <data key="d6"></data>
+</node>
+<node id="容遇归来">
+  <data key="d0">容遇归来</data>
+  <data key="d1">system_state</data>
+  <data key="d2">容遇以穿越身份出现在现代纪家众人面前并揭示来历的初始事件。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849149</data>
+  <data key="d6"></data>
+</node>
+<node id="纪家众说矛盾">
+  <data key="d0">纪家众说矛盾</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">纪家年轻晚辈、管家、佣人等对容遇归来的反应存在质疑和混乱。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849149</data>
+  <data key="d6"></data>
+</node>
+<node id="纪家">
+  <data key="d0">纪家</data>
+  <data key="d1">other</data>
+  <data key="d2">一个大家族，包括纪墨寒、容遇等成员，对容遇极度信任。&lt;SEP&gt;一个家族，包含容遇、年长男性、纪墨寒等成员，重视老三归来。&lt;SEP&gt;以纪舜英为当家人的家族，包含纪止渊、纪言亭、纪墨寒等成员，容遇为其长辈。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293&lt;SEP&gt;chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849153</data>
+  <data key="d6"></data>
+</node>
+<node id="老年大学">
+  <data key="d0">老年大学</data>
+  <data key="d1">other</data>
+  <data key="d2">年长男性上学的地点，家族成员陪同送学。&lt;SEP&gt;纪家一位年长男性第一天上学的地点，纪家众人陪同送行。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849153</data>
+  <data key="d6"></data>
+</node>
+<node id="纪墨寒失智">
+  <data key="d0">纪墨寒失智</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">纪墨寒失去理智的异常状态，导致其行为和自称发生改变。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849155</data>
+  <data key="d6"></data>
+</node>
+<node id="纪墨寒自称寒寒">
+  <data key="d0">纪墨寒自称寒寒</data>
+  <data key="d1">system_state</data>
+  <data key="d2">纪墨寒在失智后使用的自称方式，成为其显著特征。</data>
+  <data key="d3">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849155</data>
+  <data key="d6"></data>
+</node>
+<node id="创伤后器质性精神障碍">
+  <data key="d0">创伤后器质性精神障碍</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">医生诊断的疾病，伴随智力损伤，导致纪墨寒智商降至五岁水平。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849157</data>
+  <data key="d6"></data>
+</node>
+<node id="智力损伤">
+  <data key="d0">智力损伤</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">创伤后器质性精神障碍引起的严重智力下降，使纪墨寒行为幼稚。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849157</data>
+  <data key="d6"></data>
+</node>
+<node id="治疗七七四十九天">
+  <data key="d0">治疗七七四十九天</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">容遇提出的连续治疗周期，声称可完全恢复正常。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849157</data>
+  <data key="d6"></data>
+</node>
+<node id="驼背">
+  <data key="d0">驼背</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">纪家某成员多年的身体畸形，经容遇治疗暂时缓解。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849159</data>
+  <data key="d6"></data>
+</node>
+<node id="医生">
+  <data key="d0">医生</data>
+  <data key="d1">other</data>
+  <data key="d2">海城第一西医，为纪墨寒诊断创伤后器质性精神障碍，并质疑容遇的治疗方案。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849161</data>
+  <data key="d6"></data>
+</node>
+<node id="纪家晚辈">
+  <data key="d0">纪家晚辈</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家中的年轻一代，对纪墨寒行为发表评论。&lt;SEP&gt;纪家的年轻一代成员，发出“整容了？”以及“YYDS”等言论。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849162</data>
+  <data key="d6"></data>
+</node>
+<node id="管家">
+  <data key="d0">管家</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家的管家，负责向纪家主解释纪墨寒被护送者送来的情况。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849163</data>
+  <data key="d6"></data>
+</node>
+<node id="脸部擦伤">
+  <data key="d0">脸部擦伤</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">纪墨寒脸上的明显擦伤，表明其曾受到外部撞击或伤害。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849163</data>
+  <data key="d6"></data>
+</node>
+<node id="孩童般心智">
+  <data key="d0">孩童般心智</data>
+  <data key="d1">system_state</data>
+  <data key="d2">纪墨寒因智力损伤而表现出的幼稚行为模式，智商相当于五岁孩童。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849166</data>
+  <data key="d6"></data>
+</node>
+<node id="驼背缓解">
+  <data key="d0">驼背缓解</data>
+  <data key="d1">system_state</data>
+  <data key="d2">驼背症状经容遇施治后暂时改善的状态。</data>
+  <data key="d3">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849166</data>
+  <data key="d6"></data>
+</node>
+<node id="纪家众人">
+  <data key="d0">纪家众人</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">纪家家庭成员群体，包括纪家晚辈和纪家人。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849168</data>
+  <data key="d6"></data>
+</node>
+<node id="孕妇">
+  <data key="d0">孕妇</data>
+  <data key="d1">telemetry_signal</data>
+  <data key="d2">自称怀了纪墨寒孩子的孕妇，其到来构成新的外部信息。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849168</data>
+  <data key="d6"></data>
+</node>
+<node id="纪墨寒孩童心智">
+  <data key="d0">纪墨寒孩童心智</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">纪墨寒因患病导致认知能力低下，表现出孩童般的思维和行为。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849170</data>
+  <data key="d6"></data>
+</node>
+<node id="纪墨寒失智状态">
+  <data key="d0">纪墨寒失智状态</data>
+  <data key="d1">system_state</data>
+  <data key="d2">纪墨寒当前处于失智的状态，无法理解复杂关系。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849170</data>
+  <data key="d6"></data>
+</node>
+<node id="儿童小车">
+  <data key="d0">儿童小车</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">能发光、能唱歌的儿童玩具车，纪墨寒用来试图带容遇兜风。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849170</data>
+  <data key="d6"></data>
+</node>
+<node id="玫瑰">
+  <data key="d0">玫瑰</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">纪墨寒手持的玫瑰花，用于讨好容遇。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849170</data>
+  <data key="d6"></data>
+</node>
+<node id="纪家人">
+  <data key="d0">纪家人</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家中的个别成员，训斥纪墨寒并提醒辈分。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849173</data>
+  <data key="d6"></data>
+</node>
+<node id="管家/佣人">
+  <data key="d0">管家/佣人</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家仆人，负责传话孕妇消息。</data>
+  <data key="d3">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849174</data>
+  <data key="d6"></data>
+</node>
+<node id="年长男性">
+  <data key="d0">年长男性</data>
+  <data key="d1">other</data>
+  <data key="d2">家族中年近八十的老人，抗拒上学，因老三归来而情绪激动并请假。</data>
+  <data key="d3">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849175</data>
+  <data key="d6"></data>
+</node>
+<node id="年轻晚辈">
+  <data key="d0">年轻晚辈</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家年轻一代成员，对纪墨寒有崇拜和调侃的复杂态度。</data>
+  <data key="d3">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849175</data>
+  <data key="d6"></data>
+</node>
+<node id="佣人">
+  <data key="d0">佣人</data>
+  <data key="d1">other</data>
+  <data key="d2">纪家雇佣的仆人，负责迎接三少爷，因失误而紧张道歉。</data>
+  <data key="d3">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849177</data>
+  <data key="d6"></data>
+</node>
+<node id="护送者">
+  <data key="d0">护送者</data>
+  <data key="d1">other</data>
+  <data key="d2">将纪墨寒带到纪家的外部人员，穿制服，气质利落。</data>
+  <data key="d3">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849177</data>
+  <data key="d6"></data>
+</node>
+<node id="老三归来">
+  <data key="d0">老三归来</data>
+  <data key="d1">other</data>
+  <data key="d2">纪墨寒三年后返回纪家的事件，引发家族情绪和行动变化。</data>
+  <data key="d3">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d4">gpt还原剧本.txt</data>
+  <data key="d5">1779849179</data>
+  <data key="d6"></data>
+</node>
+<edge source="容遇" target="纪舜英">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇是纪氏家族系统的核心长辈，与纪舜英等成员同属纪家结构。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849182</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="纪止渊">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇是纪止渊的家族长辈，与纪家大少爷同属纪家成员。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849186</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="纪言亭">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇是纪言亭的家族长辈，与纪家二少爷同属纪家成员。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849191</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="纪墨寒">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇是纪墨寒的家族长辈，与纪家三少爷同属纪家成员。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849196</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="穿越事件">
+  <data key="d7">1.0</data>
+  <data key="d8">穿越事件直接导致容遇以穿越者身份出现在现代世界。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849200</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="纪家">
+  <data key="d7">2.0</data>
+  <data key="d8">容遇是纪家家族的成员(晚辈的母亲)。&lt;SEP&gt;容遇是纪家的长辈。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849204</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="驼背缓解">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇的中医施治使驼背症状得到暂时缓解。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849206</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇" target="年长男性">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇是年长男性的母亲，负责管教其上学行为。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849208</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒" target="纪家">
+  <data key="d7">2.0</data>
+  <data key="d8">纪墨寒是纪家家族的一员。&lt;SEP&gt;纪墨寒是纪家的一名成员。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5c32539e9ef4b6cd77f4112d54a4296c&lt;SEP&gt;chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849186</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒" target="儿童小车">
+  <data key="d7">1.0</data>
+  <data key="d8">儿童小车是纪墨寒的玩具，属于其行为的辅助工具。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849192</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒" target="年轻晚辈">
+  <data key="d7">1.0</data>
+  <data key="d8">年轻晚辈是纪墨寒的家族晚辈，对其有复杂情感。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849200</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒" target="佣人">
+  <data key="d7">1.0</data>
+  <data key="d8">佣人为纪墨寒的归来提供服务并表达歉意。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849205</data>
+  <data key="d13"></data>
+</edge>
+<edge source="容遇归来" target="纪家众说矛盾">
+  <data key="d7">1.0</data>
+  <data key="d8">容遇的突然归来引发了纪家众人对其身份和来历的质疑与混乱状态。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849182</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪家" target="年长男性">
+  <data key="d7">1.0</data>
+  <data key="d8">年长男性是纪家的成员。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849194</data>
+  <data key="d13"></data>
+</edge>
+<edge source="老年大学" target="年长男性">
+  <data key="d7">1.0</data>
+  <data key="d8">年长男性是老年大学的学生，因抗拒上学而请假。</data>
+  <data key="d9">PART_OF</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849197</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒失智" target="纪墨寒自称寒寒">
+  <data key="d7">1.0</data>
+  <data key="d8">失智状态直接导致纪墨寒开始自称“寒寒”。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-b46c80abc813161dff39810af68f0293</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849183</data>
+  <data key="d13"></data>
+</edge>
+<edge source="创伤后器质性精神障碍" target="智力损伤">
+  <data key="d7">1.0</data>
+  <data key="d8">创伤后器质性精神障碍直接导致智力损伤。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849183</data>
+  <data key="d13"></data>
+</edge>
+<edge source="智力损伤" target="孩童般心智">
+  <data key="d7">1.0</data>
+  <data key="d8">智力损伤直接导致纪墨寒表现出孩童般的心智状态。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-5c32539e9ef4b6cd77f4112d54a4296c</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849188</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪家众人" target="孕妇">
+  <data key="d7">1.0</data>
+  <data key="d8">孕妇的出现导致纪家众人安静并陷入新的麻烦。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849191</data>
+  <data key="d13"></data>
+</edge>
+<edge source="纪墨寒孩童心智" target="纪墨寒失智状态">
+  <data key="d7">1.0</data>
+  <data key="d8">纪墨寒的孩童心智是其失智状态的具体表现，二者之间存在因果关联。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-3a39847b98efa8414b354e4b0bf1929f</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849190</data>
+  <data key="d13"></data>
+</edge>
+<edge source="年长男性" target="老三归来">
+  <data key="d7">1.0</data>
+  <data key="d8">老三归来直接导致年长男性情绪激动并提出请假。</data>
+  <data key="d9">CAUSES</data>
+  <data key="d10">chunk-5a4f8df4a1a7ba1eccad17a110dc4def</data>
+  <data key="d11">gpt还原剧本.txt</data>
+  <data key="d12">1779849200</data>
+  <data key="d13"></data>
+</edge>
+</graph></graphml>

@@ -1,5 +1,6 @@
 # Runtime dependencies for DramePulse pipelines and scripts.
 fastapi>=0.115.0
+python-multipart>=0.0.9
 uvicorn>=0.30.0
 pymysql>=1.1.0
 python-dotenv>=1.0.0

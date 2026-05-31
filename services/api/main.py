@@ -4,7 +4,7 @@ import logging
 
 from fastapi import FastAPI
 
-from .routers import danmaku, events, health, interactions, playback_events, story_qa, videos
+from .routers import admin, danmaku, events, health, interactions, playback_events, story_qa, videos
 from .story_qa import service as story_qa_service
 
 
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
             logger.warning("Story Q&A LightRAG warmup failed; falling back to lazy init: %s", exc)
 
     app.include_router(health.router, prefix="/api", tags=["health"])
+    app.include_router(admin.router, prefix="/api", tags=["admin"])
     app.include_router(videos.router, prefix="/api", tags=["videos"])
     app.include_router(danmaku.router, prefix="/api", tags=["danmaku"])
     app.include_router(interactions.router, prefix="/api", tags=["interactions"])

@@ -1,0 +1,22 @@
+{
+  "doc-daeeac3b07a85223957a5615e830b186": {
+    "status": "processed",
+    "chunks_count": 4,
+    "chunks_list": [
+      "chunk-b46c80abc813161dff39810af68f0293",
+      "chunk-5a4f8df4a1a7ba1eccad17a110dc4def",
+      "chunk-5c32539e9ef4b6cd77f4112d54a4296c",
+      "chunk-3a39847b98efa8414b354e4b0bf1929f"
+    ],
+    "content_summary": "《qin3》前三集 AI 还原剧本\r\n\r\n还原说明\r\n本稿依据前三集视频解析结果整理，包括语音转写、逐帧画面分析及分集融合摘要。\r\n文本采用小说化叙事方式，保留已有剧情、动作和关键对白，对明显的语音识别误差进行纠正，不新增解析资料未支持的关键事件。\r\n专名说明：女主姓名采用“容遇”（语音转写曾误识别为“荣誉”，据画面字幕及多帧分析纠正）；家族名采用“纪家”（语音转写曾识别为“季家”，据画面字幕纠正）。\r\n人物称呼如“老三”“三少爷”“寒寒”均按原场景保留，指向同一人物纪墨寒。\r\n\r\n主要人物\r\n...",
+    "content_length": 5170,
+    "created_at": "2026-05-27T02:30:58.897681+00:00",
+    "updated_at": "2026-05-27T02:33:30.931379+00:00",
+    "file_path": "gpt还原剧本.txt",
+    "track_id": "upload_20260527_103058_b279a790",
+    "metadata": {
+      "processing_start_time": 1779849058,
+      "processing_end_time": 1779849210
+    }
+  }
+}

@@ -32,6 +32,10 @@ output/case1_ep01/interaction_plan_generation.json
 
 该目录是 React Native + Expo 移动端播放器 Demo。当前版本只包含单个竖屏短剧播放页，使用本地 fixture 展示普通弹幕、中间弹幕投票条、比例反馈、共鸣弹幕、debug 面板和端内事件统计。
 
+- `apps/admin-dashboard/`
+
+该目录是 Vite + React + TypeScript 后台管理页面。当前版本通过 `GET /api/admin/dashboard` 读取现有 FastAPI + SQLite/MySQL 数据，展示全局概览、视频列表、互动方案表现、选项投票分布和最近用户事件。它也提供轻量内容管理入口，支持创建短剧、上传剧封面和上传每集视频，并将视频写入 OSS 或本地模拟 OSS 后同步 upsert 到现有 `videos` 表。
+
 ## 3. 当前样例数据
 
 - `data/case1/ep01.mp4`
@@ -67,3 +71,5 @@ Doubao-Seed-2.0-pro
 - 移动端播放器 Demo 当前使用本地 fixture 和端内统计，不接真实后端 API；
 - 移动端播放器 Demo 当前通过 Expo Go 预览，尚未配置 EAS Build 安装包；
 - Expo CLI 建议使用 Node 22 LTS；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。
+- 后台只读看板当前只聚合已有 `videos`、`interaction_plans`、`interaction_options`、`interaction_option_stats` 和 `user_events` 表，不维护独立 `highlight_assets` 表，也不执行策略写回。
+- 后台内容管理当前只支持剧名、剧封面和视频上传；弹幕、高光、字幕、知识图谱和互动方案上传暂未接入。

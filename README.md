@@ -137,6 +137,56 @@ EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 npm start
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
+## 本地运行后台只读看板
+
+后台管理看板位于：
+
+```text
+apps/admin-dashboard/
+```
+
+它是一个 Vite + React + TypeScript Web 应用，读取 `GET /api/admin/dashboard`，展示视频、互动方案、投票分布、用户事件统计和最近事件流。当前版本只读，不提供登录、编辑、删除或批量操作。
+
+当前后台也提供轻量内容管理入口，可以创建短剧、上传剧封面、上传每集视频。上传资源会通过后端写入 OSS 或本地模拟 OSS，并同步 upsert 到现有 `videos` 表。第一版只管理剧名、封面和视频，弹幕、高光、字幕、知识图谱和互动方案上传暂未接入。
+
+内容管理使用的 OSS key 规范：
+
+```text
+dramas/{series_id}/name.txt
+dramas/{series_id}/cover.jpg
+dramas/{series_id}/episodes/ep01/video.mp4
+```
+
+先启动本地 API：
+
+```bash
+uvicorn services.api.main:app --host 127.0.0.1 --port 8000
+```
+
+再启动后台看板：
+
+```bash
+cd apps/admin-dashboard
+npm install
+npm run dev
+```
+
+默认访问：
+
+```text
+http://127.0.0.1:5174
+```
+
+开发模式下 Vite 会把 `/api` 请求代理到 `http://127.0.0.1:8000`。
+
+内容管理接口：
+
+```text
+POST /api/admin/series
+POST /api/admin/series/{series_id}/cover
+POST /api/admin/series/{series_id}/episodes
+```
+
 ## 本地运行后端 API
 
 当前后端 API 位于：

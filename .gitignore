@@ -120,6 +120,11 @@ data/case1/*.mp4
 !example_output/
 !example_output/case1_ep01/
 !example_output/case1_ep01/**
+!data/story_qa/
+!data/story_qa/demo-drama/
+!data/story_qa/demo-drama/episode-001/
+!data/story_qa/demo-drama/episode-001/lightrag/
+!data/story_qa/demo-drama/episode-001/lightrag/**
 
 # Hugging Face and model caches
 .cache/
