@@ -196,6 +196,14 @@ def _json_bytes(payload: Any) -> bytes:
     return json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
 
 
+def write_chunk_safely(writer: Any, chunk: bytes) -> bool:
+    try:
+        writer.write(chunk)
+    except (BrokenPipeError, ConnectionResetError):
+        return False
+    return True
+
+
 class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
     def __init__(
         self,
@@ -306,7 +314,8 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
                 chunk = file.read(min(1024 * 1024, remaining))
                 if not chunk:
                     break
-                self.wfile.write(chunk)
+                if not write_chunk_safely(self.wfile, chunk):
+                    break
                 remaining -= len(chunk)
 
 

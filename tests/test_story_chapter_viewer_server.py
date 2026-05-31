@@ -5,10 +5,30 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.story_chapter_viewer_server import discover_episodes, load_episode_detail, make_episode_id
+from scripts.story_chapter_viewer_server import discover_episodes, load_episode_detail, make_episode_id, write_chunk_safely
 
 
 class StoryChapterViewerServerTest(unittest.TestCase):
+    def test_write_chunk_safely_treats_broken_pipe_as_client_disconnect(self) -> None:
+        class ClosedWriter:
+            def write(self, chunk: bytes) -> None:
+                raise BrokenPipeError("client closed")
+
+        self.assertFalse(write_chunk_safely(ClosedWriter(), b"chunk"))
+
+    def test_write_chunk_safely_writes_active_socket(self) -> None:
+        class OpenWriter:
+            def __init__(self) -> None:
+                self.chunks: list[bytes] = []
+
+            def write(self, chunk: bytes) -> None:
+                self.chunks.append(chunk)
+
+        writer = OpenWriter()
+
+        self.assertTrue(write_chunk_safely(writer, b"chunk"))
+        self.assertEqual(writer.chunks, [b"chunk"])
+
     def test_make_episode_id_joins_series_and_episode(self) -> None:
         self.assertEqual(make_episode_id("demo_series", "ep01"), "demo_series_ep01")
 

@@ -63,6 +63,9 @@ class StoryChapterGenerationTest(unittest.TestCase):
         self.assertIn("Do not leave gaps", prompt)
         self.assertIn("left-closed and right-open", prompt)
         self.assertIn("belongs to the next chapter", prompt)
+        self.assertIn("not a story-analysis category", prompt)
+        self.assertIn("Avoid abstract structural titles", prompt)
+        self.assertIn("Prefer concrete plot labels", prompt)
 
     def test_load_utterances_from_aliyun_transcription_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
