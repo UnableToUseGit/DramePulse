@@ -93,6 +93,55 @@ class SceneDetectionScriptTest(unittest.TestCase):
         self.assertEqual(payload["scenes"][0]["clip_path"], "scenes/demo_ep01_scene_001.mp4")
         self.assertTrue((self.tmp_path / "output" / "demo_ep01" / "scenes" / "demo_ep01_scene_001.mp4").is_file())
 
+    def test_detect_video_can_skip_video_segment_splitting(self) -> None:
+        split_calls: list[object] = []
+
+        def fake_detect(video_path: Path, threshold: float, min_scene_len: int, show_progress: bool):
+            return [
+                (FakeTimecode(0.0, 0), FakeTimecode(4.5, 135)),
+                (FakeTimecode(4.5, 135), FakeTimecode(9.0, 270)),
+            ]
+
+        def fake_split(video_path: Path, scenes, output_dir: Path, video_id: str, show_progress: bool) -> list[Path]:
+            split_calls.append((video_path, scenes, output_dir, video_id, show_progress))
+            return []
+
+        output_path = run_scene_detection.detect_video(
+            run_scene_detection.LocalVideo(video_id="demo_ep01", title="Demo Episode", video_path=self.video_path.resolve()),
+            output_root=self.tmp_path / "output",
+            threshold=22.0,
+            min_scene_len=15,
+            show_progress=False,
+            split_segments=False,
+            detect_scenes=fake_detect,
+            split_scenes=fake_split,
+        )
+
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(split_calls, [])
+        self.assertEqual(payload["scene_count"], 2)
+        self.assertIsNone(payload["scenes"][0]["clip_path"])
+        self.assertFalse((self.tmp_path / "output" / "demo_ep01" / "scenes").exists())
+
+    def test_detect_video_can_write_to_explicit_output_dir(self) -> None:
+        def fake_detect(video_path: Path, threshold: float, min_scene_len: int, show_progress: bool):
+            return [(FakeTimecode(0.0, 0), FakeTimecode(4.5, 135))]
+
+        output_path = run_scene_detection.detect_video(
+            run_scene_detection.LocalVideo(video_id="demo_ep01", title="Demo Episode", video_path=self.video_path.resolve()),
+            output_root=self.tmp_path / "ignored-root",
+            output_dir=self.video_dir,
+            threshold=22.0,
+            min_scene_len=15,
+            show_progress=False,
+            split_segments=False,
+            detect_scenes=fake_detect,
+        )
+
+        self.assertEqual(output_path, self.video_dir / "scene_detection.json")
+        payload = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["video_id"], "demo_ep01")
+
     def test_resolve_video_input_requires_existing_file(self) -> None:
         missing_path = self.tmp_path / "missing.mp4"
 
