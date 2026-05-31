@@ -17,6 +17,17 @@ from pipelines.utils import (
 
 SUPPORTED_SOURCE_TYPES = {"plot", "performance", "character_appeal", "finale_judgment"}
 SUPPORTED_INTERACTION_MODES = {"single_tap", "hold_burst", "repeat_tap", "stance_poll", "finale_rating"}
+PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
+    ("爽到了", "压抑后的反击、打脸、胜利、惩恶扬善带来的解气和爽感。"),
+    ("震惊", "身份、真相、关系、能力或局势突然揭晓带来的意外感。"),
+    ("气死了", "角色被欺负、被误解、被背叛或反派过分时带来的愤怒。"),
+    ("磕到了", "暧昧、甜宠、守护、双向奔赴或亲密关系推进。"),
+    ("心疼", "角色受伤、牺牲、隐忍、委屈或处境艰难。"),
+    ("紧张", "危机逼近、对峙、追逐、暴露风险或结果悬而未决。"),
+    ("站主角", "剧情形成明确立场，用户自然想支持主角或主角阵营。"),
+    ("想看后续", "当前信息制造强悬念，用户主要表达继续看下去的欲望。"),
+)
+SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS}
 
 PERFORMANCE_KEYWORDS = ("笑死", "哈哈", "绷不住", "离谱", "抓马", "尬", "急了", "演技")
 CHARACTER_APPEAL_KEYWORDS = ("好帅", "太帅", "太美", "漂亮", "老婆", "老公", "可爱", "眼神", "姐姐")
@@ -60,7 +71,7 @@ def _normalize_source_type(value: Any, *, from_legacy_highlight: bool) -> str:
 
 
 def _normalize_interaction_mode(value: Any, *, source_type: str) -> str:
-    interaction_mode = _clean_text(value)
+    interaction_mode = "" if value is None else _clean_text(value)
     if not interaction_mode:
         interaction_mode = "finale_rating" if source_type == "finale_judgment" else "single_tap"
     return interaction_mode if interaction_mode in SUPPORTED_INTERACTION_MODES else ""
@@ -96,6 +107,8 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
         summary = _clean_text(item.get("summary"))
         reason = _clean_text(item.get("reason"))
         if not primary_expression or not summary or not reason:
+            continue
+        if source_type == "plot" and primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
             continue
 
         cue_time = float(item.get("cue_time", start_time + (end_time - start_time) / 2.0))
@@ -311,25 +324,61 @@ def _build_user_prompt(
     metadata: dict[str, Any] | None,
     timestamps_seconds: list[float],
 ) -> str:
-    frame_hint = ", ".join(f"{ts:.3f}s" for ts in timestamps_seconds) if timestamps_seconds else "none"
+    frame_hint = ", ".join(f"{ts:.3f}" for ts in timestamps_seconds) if timestamps_seconds else "none"
     metadata_text = "\n".join(f"- {key}: {value}" for key, value in (metadata or {}).items() if value is not None) or "- none"
+    primary_expression_text = "\n".join(f"- {label}: {description}" for label, description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS)
     return "\n".join(
         [
+            "## TASK",
+            "Identify plot-driven Expression Triggers in a short-drama episode for cold-start player interaction.",
+            "An Expression Trigger is a short moment where a viewer would naturally tap a lightweight expression button without pausing or typing.",
+            "Use video frames and subtitles together to find moments with clear low-friction expression value, not merely narrative importance.",
+            "",
+            "## INPUT",
             f"VIDEO_ID: {video_id}",
-            "Task: identify plot-driven Expression Triggers for cold-start short drama viewing.",
-            "Definition: choose moments where viewers would naturally tap a lightweight expression button.",
-            "Do not equate every narrative turning point with expression desire.",
-            "Only output plot-driven triggers. Do not judge actor attractiveness or comedy performance unless supported by plot context.",
-            "Allowed `source_type`: plot.",
-            "Allowed `interaction_mode`: single_tap, hold_burst, repeat_tap, stance_poll.",
-            "Return JSON with `expression_triggers` array.",
-            "Each trigger must include: start_time, end_time, cue_time, source_type, primary_expression, interaction_mode, intensity, confidence, summary, reason.",
-            "Use `primary_expression` such as 爽到了, 震惊, 气死了, 磕到了, 心疼, 站女主.",
-            "Prefer fewer high-confidence triggers over generic plot summaries.",
-            f"FRAME_TIMESTAMPS: {frame_hint}",
+            f"FRAME_TIMESTAMPS_SECONDS: {frame_hint}",
+            "You will receive one sampled video frame for each timestamp listed above.",
+            "You will also receive timestamped subtitle utterances.",
             "[METADATA]",
             metadata_text,
             "[/METADATA]",
+            "",
+            "## RULES",
+            "- Use video frames to understand silent actions, facial expressions, locations, transitions, and visible story situations.",
+            "- Use subtitles to understand dialogue, relationship context, and semantic plot progression.",
+            "- Only output plot-driven triggers for cold-start detection.",
+            "- `source_type` must always be `plot`.",
+            "Allowed `primary_expression` values:",
+            primary_expression_text,
+            "- `primary_expression` must be exactly one of the allowed values above.",
+            "- If none of the allowed `primary_expression` values fits clearly, skip the moment.",
+            "- Prefer fewer high-confidence triggers over broad plot summaries or generic dramatic moments.",
+            "- Skip moments that are only exposition, setup, neutral conversation, or unclear without future context.",
+            "- `start_time` and `end_time` should describe the short window where the expression desire appears.",
+            "- `cue_time` should be the best moment to show the interaction entry, usually near the emotional release or key reveal.",
+            "- Choose times from subtitle/frame evidence. Do not invent events outside the provided timeline.",
+            "- `summary` should be one concise factual Chinese sentence grounded in subtitles and/or frames.",
+            "- `reason` should explain why this exact moment creates low-friction expression desire, not why it is generally important to the story.",
+            "- `intensity` should estimate expression strength from 0.0 to 1.0.",
+            "- `confidence` should estimate evidence reliability from 0.0 to 1.0.",
+            "",
+            "## OUTPUT",
+            "Return JSON only. Do not wrap it in markdown.",
+            "The top-level object must contain exactly one key: `expression_triggers`.",
+            "Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `reason`.",
+            "Output shape:",
+            '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","reason":"压抑后的反击能让用户自然表达解气和爽感。"}]}',
+            "Field constraints:",
+            "- `start_time`, `end_time`, and `cue_time` are numbers in seconds.",
+            "- `start_time` must be >= 0.0.",
+            "- `end_time` must be greater than `start_time`.",
+            "- `cue_time` must be within [start_time, end_time].",
+            "- `source_type` must be `plot`.",
+            "- `primary_expression` must be one of the allowed values.",
+            "- `intensity` and `confidence` must be numbers from 0.0 to 1.0.",
+            "- Do not include any extra keys.",
+            "",
+            "## SUBTITLE_TIMELINE",
             subtitles_timeline,
         ]
     )
