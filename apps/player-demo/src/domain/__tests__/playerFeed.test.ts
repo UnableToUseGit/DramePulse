@@ -4,6 +4,11 @@ import {
   getResumePlaybackTime,
   getVideoPlaybackState,
   getSeriesKey,
+  getVideoIndex,
+  getSeriesResumeTarget,
+  groupVideosBySeries,
+  shouldRestoreScrollOffset,
+  shouldStartEdgeBackSwipe,
   shouldPreloadFeedPage
 } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
@@ -72,6 +77,74 @@ describe("playerFeed", () => {
     expect(findNextEpisodeIndex(videos, 0)).toBe(2);
     expect(findNextEpisodeIndex(videos, 1)).toBeUndefined();
     expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
+  });
+
+  it("resolves the selected video index with a safe fallback", () => {
+    const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" }), makeVideo({ videoId: "s1e3" })];
+
+    expect(getVideoIndex(videos, "s1e3")).toBe(2);
+    expect(getVideoIndex(videos, "missing")).toBe(0);
+    expect(getVideoIndex(videos, undefined)).toBe(0);
+  });
+
+  it("starts back swipe only from the left edge with a rightward horizontal gesture", () => {
+    expect(shouldStartEdgeBackSwipe({ startX: 12, startY: 300, screenHeight: 800, deltaX: 32, deltaY: 4 })).toBe(true);
+    expect(shouldStartEdgeBackSwipe({ startX: 36, startY: 300, screenHeight: 800, deltaX: 80, deltaY: 2 })).toBe(false);
+    expect(shouldStartEdgeBackSwipe({ startX: 12, startY: 300, screenHeight: 800, deltaX: -50, deltaY: 2 })).toBe(false);
+    expect(shouldStartEdgeBackSwipe({ startX: 12, startY: 300, screenHeight: 800, deltaX: 20, deltaY: 2 })).toBe(false);
+    expect(shouldStartEdgeBackSwipe({ startX: 12, startY: 300, screenHeight: 800, deltaX: 80, deltaY: 70 })).toBe(false);
+    expect(shouldStartEdgeBackSwipe({ startX: 12, startY: 742, screenHeight: 800, deltaX: 80, deltaY: 2 })).toBe(false);
+  });
+
+  it("restores theater scroll only when the saved offset is meaningful", () => {
+    expect(shouldRestoreScrollOffset({ offset: 0, itemCount: 4 })).toBe(false);
+    expect(shouldRestoreScrollOffset({ offset: 12, itemCount: 4 })).toBe(false);
+    expect(shouldRestoreScrollOffset({ offset: 120, itemCount: 0 })).toBe(false);
+    expect(shouldRestoreScrollOffset({ offset: 120, itemCount: 4 })).toBe(true);
+  });
+
+  it("groups videos by series and sorts episodes by episode number", () => {
+    const videos = [
+      makeVideo({ videoId: "s1e2", seriesId: "s1", seriesName: "短剧 A", episodeNo: 2, episodeLabel: "第2集" }),
+      makeVideo({ videoId: "s2e1", seriesId: "s2", seriesName: "短剧 B", episodeNo: 1 }),
+      makeVideo({ videoId: "s1e1", seriesId: "s1", seriesName: "短剧 A", episodeNo: 1, plotSummary: "A 简介" })
+    ];
+
+    const series = groupVideosBySeries(videos);
+
+    expect(series).toHaveLength(2);
+    expect(series[0]).toMatchObject({
+      seriesKey: "id:s1",
+      title: "短剧 A",
+      episodeCount: 2,
+      summary: "A 简介"
+    });
+    expect(series[0].episodes.map((episode) => episode.videoId)).toEqual(["s1e1", "s1e2"]);
+    expect(series[1].seriesKey).toBe("id:s2");
+  });
+
+  it("resolves a series resume target from session records", () => {
+    const videos = [
+      makeVideo({ videoId: "s1e1", seriesId: "s1", episodeNo: 1 }),
+      makeVideo({ videoId: "s1e2", seriesId: "s1", episodeNo: 2 })
+    ];
+    const [series] = groupVideosBySeries(videos);
+
+    expect(
+      getSeriesResumeTarget({
+        series,
+        seriesResumeVideoIds: {},
+        playbackPositions: {}
+      })
+    ).toEqual({ video: videos[0], time: 0 });
+
+    expect(
+      getSeriesResumeTarget({
+        series,
+        seriesResumeVideoIds: { [series.seriesKey]: "s1e2" },
+        playbackPositions: { s1e2: 23 }
+      })
+    ).toEqual({ video: videos[1], time: 23 });
   });
 
   it("preloads the active feed page and its direct neighbors", () => {

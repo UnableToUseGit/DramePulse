@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
 import { PlayerActionRail } from "./PlayerActionRail";
 import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerMeta } from "./PlayerMeta";
@@ -9,17 +10,23 @@ export function PlayerChrome({
   liked,
   onToggleLike,
   onOpenStoryQa,
+  onOpenTheater,
+  onBack,
   playbackRate,
   isSpeedMenuOpen,
   onToggleSpeedMenu,
   onSelectPlaybackRate,
   title,
   plotSummary,
-  episodeLabel
+  episodeLabel,
+  mode = "home",
+  children
 }: {
   liked: boolean;
   onToggleLike: () => void;
   onOpenStoryQa: () => void;
+  onOpenTheater?: () => void;
+  onBack?: () => void;
   playbackRate: PlaybackRate;
   isSpeedMenuOpen: boolean;
   onToggleSpeedMenu: () => void;
@@ -27,6 +34,8 @@ export function PlayerChrome({
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  mode?: "home" | "series";
+  children?: ReactNode;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -35,10 +44,14 @@ export function PlayerChrome({
         isSpeedMenuOpen={isSpeedMenuOpen}
         onToggleSpeedMenu={onToggleSpeedMenu}
         onSelectPlaybackRate={onSelectPlaybackRate}
+        mode={mode}
+        episodeLabel={episodeLabel}
+        onBack={onBack}
       />
       <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} />
       <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} />
-      <PlayerBottomTabs />
+      {children}
+      {mode === "home" ? <PlayerBottomTabs activeTab="首页" onPressTheater={onOpenTheater} /> : null}
     </View>
   );
 }
