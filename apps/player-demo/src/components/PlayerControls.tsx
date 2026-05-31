@@ -1,7 +1,11 @@
+import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import { Image, LayoutChangeEvent, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import {
+  ChapterTitleRailItem,
+  getChapterTitleRailItems,
   getChapterTicks,
+  getSnappedTimelineTime,
   getStoryboardCell,
   getStoryChapterAtTime,
   getTimelinePresentation,
@@ -12,6 +16,7 @@ import {
 import { colors, radii, spacing } from "../theme";
 
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
+const CHAPTER_SNAP_THRESHOLD_SECONDS = 1.2;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -54,6 +59,8 @@ export function PlayerControls({
   const dragChapter = isDragging ? getStoryChapterAtTime(storyChapters, visibleTime) : undefined;
   const storyboardCell = isDragging ? getStoryboardCell(storyboard, visibleTime) : undefined;
   const timelinePresentation = getTimelinePresentation(isDragging);
+  const chapterTitleRailItems = isDragging ? getChapterTitleRailItems(storyChapters, visibleTime) : [];
+  const lastHapticBoundaryRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     onSeekCommitRef.current = onSeekCommit;
@@ -67,12 +74,25 @@ export function PlayerControls({
     if (trackWidth <= 0) {
       return visibleTime;
     }
-    return getTimelineTimeFromPageX({
+    const rawTime = getTimelineTimeFromPageX({
       pageX,
       trackPageX,
       trackWidth,
       duration: safeDuration
     });
+    const snapped = getSnappedTimelineTime({
+      time: rawTime,
+      chapters: storyChapters,
+      snapThresholdSeconds: CHAPTER_SNAP_THRESHOLD_SECONDS
+    });
+    if (snapped.boundaryId && lastHapticBoundaryRef.current !== snapped.boundaryId) {
+      lastHapticBoundaryRef.current = snapped.boundaryId;
+      Haptics.selectionAsync().catch(() => undefined);
+    }
+    if (!snapped.boundaryId) {
+      lastHapticBoundaryRef.current = undefined;
+    }
+    return snapped.time;
   };
 
   const measureTrackPosition = () => {
@@ -91,11 +111,7 @@ export function PlayerControls({
       {isDragging ? (
         <View pointerEvents="none" style={styles.dragPreview}>
           {storyboardCell ? <StoryboardPreview cell={storyboardCell} /> : null}
-          {dragChapter ? (
-            <Text style={styles.chapterTitle} numberOfLines={1}>
-              {dragChapter.title}
-            </Text>
-          ) : null}
+          <ChapterTitleRail items={chapterTitleRailItems} fallbackTitle={dragChapter?.title} />
           <Text style={styles.timeLabel}>
             {formatTime(visibleTime)} <Text style={styles.timeTotal}>/ {formatTime(safeDuration)}</Text>
           </Text>
@@ -112,10 +128,12 @@ export function PlayerControls({
           onResponderRelease={(event) => {
             onSeekCommitRef.current(getTimeFromPageX(event.nativeEvent.pageX));
             didActivateDragRef.current = false;
+            lastHapticBoundaryRef.current = undefined;
             setDragTime(undefined);
           }}
           onResponderTerminate={() => {
             didActivateDragRef.current = false;
+            lastHapticBoundaryRef.current = undefined;
             setDragTime(undefined);
           }}
         />
@@ -147,10 +165,12 @@ export function PlayerControls({
               onSeekCommitRef.current(nextTime);
             }
             didActivateDragRef.current = false;
+            lastHapticBoundaryRef.current = undefined;
             setDragTime(undefined);
           }}
           onResponderTerminate={() => {
             didActivateDragRef.current = false;
+            lastHapticBoundaryRef.current = undefined;
             setDragTime(undefined);
           }}
         >
@@ -232,6 +252,41 @@ function ChapterProgressTicks({
         />
       ))}
     </>
+  );
+}
+
+function ChapterTitleRail({
+  items,
+  fallbackTitle
+}: {
+  items: ChapterTitleRailItem[];
+  fallbackTitle?: string;
+}) {
+  if (items.length === 0 && !fallbackTitle) {
+    return null;
+  }
+  if (items.length === 0 && fallbackTitle) {
+    return (
+      <Text style={styles.chapterTitleFallback} numberOfLines={1}>
+        {fallbackTitle}
+      </Text>
+    );
+  }
+  const previous = items.find((item) => item.state === "previous");
+  const current = items.find((item) => item.state === "current");
+  const next = items.find((item) => item.state === "next");
+  return (
+    <View style={styles.chapterTitleRail}>
+      <Text numberOfLines={1} style={[styles.chapterTitleRailText, styles.chapterTitleNeighbor]}>
+        {previous?.title ?? ""}
+      </Text>
+      <Text numberOfLines={1} style={[styles.chapterTitleRailText, styles.chapterTitleCurrent]}>
+        {current?.title ?? fallbackTitle ?? ""}
+      </Text>
+      <Text numberOfLines={1} style={[styles.chapterTitleRailText, styles.chapterTitleNeighbor]}>
+        {next?.title ?? ""}
+      </Text>
+    </View>
   );
 }
 
@@ -326,7 +381,22 @@ const styles = StyleSheet.create({
   storyboardImage: {
     position: "absolute"
   },
-  chapterTitle: {
+  chapterTitleRail: {
+    width: "92%",
+    marginTop: spacing.sm,
+    minHeight: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm
+  },
+  chapterTitleRailText: {
+    minWidth: 0,
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.8)",
+    textShadowRadius: 6
+  },
+  chapterTitleFallback: {
     maxWidth: "88%",
     marginTop: spacing.sm,
     color: colors.text,
@@ -335,6 +405,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textShadowColor: "rgba(0,0,0,0.8)",
     textShadowRadius: 6
+  },
+  chapterTitleCurrent: {
+    flex: 1.35,
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900"
+  },
+  chapterTitleNeighbor: {
+    flex: 1,
+    color: "rgba(255,255,255,0.42)",
+    fontSize: 13,
+    fontWeight: "800"
   },
   timeLabel: {
     marginTop: spacing.xs,

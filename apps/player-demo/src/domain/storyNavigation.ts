@@ -29,6 +29,12 @@ export interface ChapterTick {
   percent: number;
 }
 
+export interface ChapterTitleRailItem {
+  chapterId: string;
+  title: string;
+  state: "previous" | "current" | "next";
+}
+
 export interface StoryboardCell {
   sheetUrl: string;
   frameWidth: number;
@@ -147,6 +153,70 @@ export function getTimelineTimeFromPageX({
   }
   const ratio = clamp((pageX - trackPageX) / trackWidth, 0, 1);
   return ratio * duration;
+}
+
+export function getSnappedTimelineTime({
+  time,
+  chapters,
+  snapThresholdSeconds
+}: {
+  time: number;
+  chapters: StoryChapter[] | undefined;
+  snapThresholdSeconds: number;
+}): { time: number; boundaryId?: string; boundaryTime?: number } {
+  if (!chapters || chapters.length === 0 || snapThresholdSeconds <= 0) {
+    return { time };
+  }
+  const boundaries = chapters
+    .filter((chapter) => chapter.startTime > 0)
+    .map((chapter) => ({
+      chapterId: chapter.chapterId,
+      time: chapter.startTime
+    }));
+  let closest: { chapterId: string; time: number; distance: number } | undefined;
+  for (const boundary of boundaries) {
+    const distance = Math.abs(time - boundary.time);
+    if (distance <= snapThresholdSeconds && (!closest || distance < closest.distance)) {
+      closest = { chapterId: boundary.chapterId, time: boundary.time, distance };
+    }
+  }
+  if (!closest) {
+    return { time };
+  }
+  return {
+    time: closest.time,
+    boundaryId: closest.chapterId,
+    boundaryTime: closest.time
+  };
+}
+
+export function getChapterTitleRailItems(
+  chapters: StoryChapter[] | undefined,
+  time: number
+): ChapterTitleRailItem[] {
+  if (!chapters || chapters.length === 0) {
+    return [];
+  }
+  const sorted = [...chapters].sort((a, b) => a.startTime - b.startTime);
+  const current = getStoryChapterAtTime(sorted, time);
+  if (!current) {
+    return [];
+  }
+  const currentIndex = sorted.findIndex((chapter) => chapter.chapterId === current.chapterId);
+  if (currentIndex < 0) {
+    return [];
+  }
+  const items: ChapterTitleRailItem[] = [];
+  const previous = sorted[currentIndex - 1];
+  const next = sorted[currentIndex + 1];
+  if (previous) {
+    items.push({ chapterId: previous.chapterId, title: previous.title, state: "previous" });
+  }
+  items.push({ chapterId: current.chapterId, title: current.title, state: "current" });
+  if (next) {
+    items.push({ chapterId: next.chapterId, title: next.title, state: "next" });
+  }
+  return items;
 }
 
 export function normalizeStoryChapters(value: unknown): StoryChapter[] {

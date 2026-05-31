@@ -1,5 +1,7 @@
 import {
   getChapterTicks,
+  getChapterTitleRailItems,
+  getSnappedTimelineTime,
   getTimelineTimeFromPageX,
   getStoryboardCell,
   getStoryChapterAtTime,
@@ -74,6 +76,33 @@ describe("storyNavigation", () => {
     expect(getTimelineTimeFromPageX({ pageX: 220, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
     expect(getTimelineTimeFromPageX({ pageX: -200, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(0);
     expect(getTimelineTimeFromPageX({ pageX: 420, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
+  });
+
+  it("snaps timeline time to nearby chapter boundaries", () => {
+    expect(getSnappedTimelineTime({ time: 9.4, chapters, snapThresholdSeconds: 0.8 })).toEqual({
+      time: 10,
+      boundaryId: "ch_002",
+      boundaryTime: 10
+    });
+    expect(getSnappedTimelineTime({ time: 10.6, chapters, snapThresholdSeconds: 0.8 })).toEqual({
+      time: 10,
+      boundaryId: "ch_002",
+      boundaryTime: 10
+    });
+    expect(getSnappedTimelineTime({ time: 8.9, chapters, snapThresholdSeconds: 0.8 })).toEqual({
+      time: 8.9
+    });
+  });
+
+  it("builds a neighboring chapter title rail around the current chapter", () => {
+    expect(getChapterTitleRailItems(chapters, 5)).toEqual([
+      { chapterId: "ch_001", title: "债主堵门", state: "current" },
+      { chapterId: "ch_002", title: "女主反击", state: "next" }
+    ]);
+    expect(getChapterTitleRailItems(chapters, 10)).toEqual([
+      { chapterId: "ch_001", title: "债主堵门", state: "previous" },
+      { chapterId: "ch_002", title: "女主反击", state: "current" }
+    ]);
   });
 
   it("normalizes snake case story chapter payloads", () => {
