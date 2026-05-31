@@ -681,6 +681,18 @@ option_score =
 
 ---
 
+#### 3.2.5 Story Q&A 辅助服务
+
+Story Q&A 辅助服务属于业务层的可选在线能力，用于回答用户在当前观看进度内提出的剧情问题。它基于已入库的字幕、帧分析和剧集摘要做 RAG 检索，并按照 `series_id`、`current_episode` 和 `current_time` 过滤资料，避免向用户暴露后续剧情。
+
+该服务对外提供 `/api/story-qa/ask`、`/api/story-qa/ingest` 和 `/api/story-qa/collections`。它不替代 `Highlight Asset`、`Interaction Plan` 或 `User Event`，也不负责高光识别、互动方案生成、用户事件统计或策略更新。
+
+MVP 阶段该能力作为演示增强项存在。没有配置 OpenAI-compatible API Key 和 Chroma 存储时，核心播放、互动和事件链路仍应可独立运行。
+
+LightRAG 可作为 Story Q&A 的可选后端，通过 `STORY_QA_BACKEND=lightrag` 启用。该模式加载离线构建好的 LightRAG working directory，保持 `/api/story-qa/*` 对外接口不变；知识图谱抽取仍属于离线流程，不进入在线 API 路径。
+
+---
+
 ### 3.3 数据层模块契约
 
 数据层负责系统运行过程中关键数据的持久化、查询与更新。

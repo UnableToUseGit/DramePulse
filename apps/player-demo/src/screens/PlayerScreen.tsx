@@ -1,8 +1,17 @@
-import { useCallback, useEffect, useState } from "react";
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
-import { API_BASE_URL } from "../config";
-import { getFeedPageIndex } from "../domain/playerFeed";
+import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "../config";
+import { findNextEpisodeIndex, getFeedPageIndex, shouldPreloadFeedPage } from "../domain/playerFeed";
 import { loadPlayerVideos, PlayerVideo } from "../domain/playerApi";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
@@ -10,20 +19,23 @@ import { colors, radii, spacing } from "../theme";
 export function PlayerScreen() {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [hasStartedFeed, setHasStartedFeed] = useState(false);
+  const [playbackPositions, setPlaybackPositions] = useState<Record<string, number>>({});
   const [pageHeight, setPageHeight] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const listRef = useRef<FlatList<PlayerVideo>>(null);
+  const viewport = useWindowDimensions();
+  const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
     setLoadError(undefined);
     try {
-      const nextVideos = await loadPlayerVideos({ apiBaseUrl: API_BASE_URL });
+      const nextVideos = await loadPlayerVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
       setVideos(nextVideos);
       setActiveIndex(0);
-      setHasStartedFeed(false);
+      setPlaybackPositions({});
       setLoadState("ready");
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
@@ -35,12 +47,12 @@ export function PlayerScreen() {
     let cancelled = false;
     setLoadState("loading");
     setLoadError(undefined);
-    loadPlayerVideos({ apiBaseUrl: API_BASE_URL })
+    loadPlayerVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS })
       .then((nextVideos) => {
         if (!cancelled) {
           setVideos(nextVideos);
           setActiveIndex(0);
-          setHasStartedFeed(false);
+          setPlaybackPositions({});
           setLoadState("ready");
         }
       })
@@ -57,19 +69,42 @@ export function PlayerScreen() {
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      setActiveIndex(
-        getFeedPageIndex({
-          offsetY: event.nativeEvent.contentOffset.y,
-          pageHeight,
-          itemCount: videos.length
-        })
-      );
+      const nextIndex = getFeedPageIndex({
+        offsetY: event.nativeEvent.contentOffset.y,
+        pageHeight: resolvedPageHeight,
+        itemCount: videos.length
+      });
+      setActiveIndex(nextIndex);
     },
-    [pageHeight, videos.length]
+    [resolvedPageHeight, videos.length]
   );
 
   const handleChangePresentationType = useCallback((type: InteractionPresentationType) => {
     setSelectedPresentationType(type);
+  }, []);
+
+  const handlePlayNextEpisode = useCallback(
+    (currentIndex: number) => {
+      const nextIndex = findNextEpisodeIndex(videos, currentIndex);
+      if (nextIndex === undefined) {
+        return;
+      }
+      setActiveIndex(nextIndex);
+      listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    },
+    [videos]
+  );
+
+  const handlePlaybackPositionChange = useCallback((videoId: string, time: number) => {
+    setPlaybackPositions((positions) => {
+      if (positions[videoId] === time) {
+        return positions;
+      }
+      return {
+        ...positions,
+        [videoId]: time
+      };
+    });
   }, []);
 
   if (loadState === "loading") {
@@ -77,6 +112,7 @@ export function PlayerScreen() {
       <View style={[styles.root, styles.centerState]}>
         <Text style={styles.stateTitle}>正在连接后端视频源</Text>
         <Text style={styles.stateText}>GET {API_BASE_URL}/api/videos</Text>
+        <Text style={styles.stateText}>最多等待 {Math.round(API_REQUEST_TIMEOUT_MS / 1000)} 秒</Text>
       </View>
     );
   }
@@ -97,37 +133,56 @@ export function PlayerScreen() {
     <View
       style={styles.root}
       onLayout={(event) => {
-        setPageHeight(event.nativeEvent.layout.height);
+        const nextHeight = event.nativeEvent.layout.height;
+        if (nextHeight > 0) {
+          setPageHeight(nextHeight);
+        }
       }}
     >
-      {pageHeight > 0 ? (
+      {resolvedPageHeight > 0 ? (
         <FlatList
+          ref={listRef}
           data={videos}
           keyExtractor={(item) => item.videoId}
-          renderItem={({ item, index }) => (
-            <PlayerPage
-              video={item}
-              isActive={index === activeIndex}
-              height={pageHeight}
-              hasStartedFeed={hasStartedFeed}
-              selectedPresentationType={selectedPresentationType}
-              onChangePresentationType={handleChangePresentationType}
-              onStartFeed={() => setHasStartedFeed(true)}
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const nextEpisodeIndex = findNextEpisodeIndex(videos, index);
+            const nextEpisode = nextEpisodeIndex !== undefined ? videos[nextEpisodeIndex] : undefined;
+            return (
+              <PlayerPage
+                video={item}
+                isActive={index === activeIndex}
+                shouldMountVideo={shouldPreloadFeedPage({ pageIndex: index, activeIndex })}
+                height={resolvedPageHeight}
+                initialPlaybackTime={playbackPositions[item.videoId]}
+                hasNextEpisode={nextEpisode !== undefined}
+                nextEpisodeLabel={nextEpisode?.episodeLabel}
+                selectedPresentationType={selectedPresentationType}
+                onChangePresentationType={handleChangePresentationType}
+                onPlaybackPositionChange={handlePlaybackPositionChange}
+                onPlayNextEpisode={() => handlePlayNextEpisode(index)}
+              />
+            );
+          }}
           pagingEnabled
           showsVerticalScrollIndicator={false}
           bounces
           decelerationRate="fast"
-          snapToInterval={pageHeight}
+          snapToInterval={resolvedPageHeight}
           snapToAlignment="start"
           disableIntervalMomentum
           onMomentumScrollEnd={handleMomentumScrollEnd}
-          getItemLayout={(_, index) => ({ length: pageHeight, offset: pageHeight * index, index })}
-          initialNumToRender={1}
-          maxToRenderPerBatch={2}
+          getItemLayout={(_, index) => ({
+            length: resolvedPageHeight,
+            offset: resolvedPageHeight * index,
+            index
+          })}
+          onScrollToIndexFailed={(info) => {
+            listRef.current?.scrollToOffset({ offset: resolvedPageHeight * info.index, animated: true });
+          }}
+          initialNumToRender={2}
+          maxToRenderPerBatch={3}
           windowSize={3}
-          removeClippedSubviews
+          removeClippedSubviews={false}
         />
       ) : null}
     </View>

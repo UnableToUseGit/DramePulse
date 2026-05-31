@@ -9,6 +9,13 @@ oss2>=2.19.0
 volcengine-python-sdk>=5.0.0
 opencv-python>=4.8.0
 scenedetect>=0.6,<0.8
+chromadb>=0.5.0
+pysqlite3-binary>=0.5.4
+llama-index>=0.10.0
+llama-index-vector-stores-chroma>=0.1.0
+llama-index-llms-openai>=0.1.0
+llama-index-embeddings-openai>=0.1.0
+openai>=1.30.0
 
 # Development and validation helpers.
 pytest>=8.0.0

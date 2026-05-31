@@ -16,6 +16,7 @@ const SPEED_PX_PER_SEC = 58;
 const MAX_PENDING_PER_TICK = 2;
 const ESTIMATED_TEXT_WIDTH = 180;
 const ESTIMATED_TEXT_HEIGHT = 28;
+const MIN_RENDER_INTERVAL_MS = 16;
 
 export function DanmakuLayer({
   currentTime,
@@ -36,6 +37,7 @@ export function DanmakuLayer({
   const runningItemsRef = useRef<RunningDanmakuItem[]>([]);
   const frameRef = useRef<number | undefined>(undefined);
   const lastFrameMs = useRef<number | undefined>(undefined);
+  const lastRenderMs = useRef(0);
   const measuredSizeRef = useRef<Map<string, { width: number; height: number }>>(new Map());
   const nextLaneRef = useRef(0);
 
@@ -46,10 +48,7 @@ export function DanmakuLayer({
 
   useEffect(() => {
     currentTimeRef.current = currentTime;
-    if (!isPlaying) {
-      clockSecRef.current = currentTime;
-    }
-  }, [currentTime, isPlaying]);
+  }, [currentTime]);
 
   useEffect(() => {
     positionRef.current = findStartPositionAfterSeek(danmaku, currentTime);
@@ -69,8 +68,6 @@ export function DanmakuLayer({
       lastFrameMs.current = undefined;
       return;
     }
-
-    clockSecRef.current = currentTimeRef.current;
 
     const tick = (frameMs: number) => {
       const previousFrameMs = lastFrameMs.current ?? frameMs;
@@ -102,7 +99,10 @@ export function DanmakuLayer({
         durationSec
       });
       runningItemsRef.current = nextRunning;
-      setPositionedItems(nextPositioned);
+      if (frameMs - lastRenderMs.current >= MIN_RENDER_INTERVAL_MS) {
+        lastRenderMs.current = frameMs;
+        setPositionedItems(nextPositioned);
+      }
 
       frameRef.current = requestAnimationFrame(tick);
     };
@@ -114,6 +114,7 @@ export function DanmakuLayer({
         frameRef.current = undefined;
       }
       lastFrameMs.current = undefined;
+      lastRenderMs.current = 0;
     };
   }, [danmaku, durationSec, isPlaying, stageWidth]);
 

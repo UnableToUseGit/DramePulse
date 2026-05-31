@@ -145,3 +145,12 @@ screenshots/
 
 hfd.sh
 docs/references
+
+.venv/
+shortvideo/
+node_modules/
+apps/player-demo/node_modules/
+.expo/
+.env
+__pycache__/
+*.pyc

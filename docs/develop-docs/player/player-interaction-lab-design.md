@@ -107,7 +107,7 @@ emoji_hold
 - 结果态短暂停留后消失；
 - 不记录事件，不更新统计。
 
-实现上可以复用现有 `InteractionPollBar` 的视觉基础，但不要继续依赖后端 `InteractionPlan` 数据源。必要时可以新增一个 example 专用的轻量组件，避免把实验代码和正式业务模型强绑在一起。
+实现上使用 example 专用的轻量组件，不依赖后端 `InteractionPlan` 数据源，避免把实验代码和正式业务模型强绑在一起。
 
 ### 6.3 danmaku_poll
 
