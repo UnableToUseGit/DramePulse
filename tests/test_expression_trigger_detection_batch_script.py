@@ -37,6 +37,23 @@ def make_episode(data_root: Path, *, series_id: str, episode_id: str, with_danma
     return episode_dir
 
 
+def write_danmaku_csv(data_root: Path) -> Path:
+    data_root.mkdir(parents=True, exist_ok=True)
+    path = data_root / "圈选剧前5集弹幕.csv"
+    path.write_text(
+        "\n".join(
+            [
+                "剧名称,group_title,发弹幕时刻相对于视频起始时间偏移量,累计点赞数,弹幕内容",
+                "北往,第1集,1500,3,CSV弹幕更全",
+                "北往,第2集,2500,1,第二集弹幕",
+            ]
+        )
+        + "\n",
+        encoding="gb18030",
+    )
+    return path
+
+
 def test_discover_episodes_scans_dataset_shape_with_filters_and_limit(tmp_path: Path) -> None:
     from scripts.run_expression_trigger_detection_batch import discover_episodes
 
@@ -127,6 +144,42 @@ def test_batch_main_writes_expression_trigger_outputs_for_dataset_episodes(tmp_p
     assert fake_pipeline.calls[0]["metadata"]["title"] == "series_a ep01"
     assert fake_pipeline.calls[0]["danmaku_items"][1]["time_sec"] == 2.5
     assert fake_pipeline.calls[0]["include_finale_trigger"] is True
+
+
+def test_batch_main_prefers_root_csv_danmaku_over_douyin_json(tmp_path: Path) -> None:
+    from scripts.run_expression_trigger_detection_batch import main
+
+    data_root = tmp_path / "DataForAlgorithm"
+    output_root = tmp_path / "output"
+    write_danmaku_csv(data_root)
+    make_episode(data_root, series_id="beiwang", episode_id="ep01")
+
+    class FakePipeline:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        def run(
+            self,
+            *,
+            video_id: str,
+            video_file_path: Path,
+            subtitle_file_path: Path,
+            metadata: dict[str, object],
+            danmaku_items: list[dict[str, object]],
+            include_finale_trigger: bool,
+        ) -> list[dict[str, object]]:
+            self.calls.append({"video_id": video_id, "danmaku_items": danmaku_items})
+            return []
+
+    fake_pipeline = FakePipeline()
+
+    result = main(["--data-root", str(data_root), "--output-root", str(output_root)], pipeline=fake_pipeline)
+
+    assert result == 0
+    assert fake_pipeline.calls[0]["video_id"] == "beiwang_ep01"
+    assert fake_pipeline.calls[0]["danmaku_items"][0]["text"] == "CSV弹幕更全"
+    assert fake_pipeline.calls[0]["danmaku_items"][0]["time_sec"] == 1.5
+    assert fake_pipeline.calls[0]["danmaku_items"][0]["digg_count"] == 3
 
 
 def test_batch_main_skips_existing_outputs_unless_force(tmp_path: Path) -> None:

@@ -57,6 +57,7 @@ if (item.cue_time !== 11.5) throw new Error('cue time mismatch');
 if (item.primary_expression !== '爽到了') throw new Error('expression mismatch');
 if (item.source_type !== 'plot') throw new Error('source type mismatch');
 if (item.interaction_mode !== 'single_tap') throw new Error('interaction mode mismatch');
+if (item.setup !== '') throw new Error('missing setup should normalize to empty string');
 """
     result = run_node(script)
 
@@ -157,6 +158,50 @@ if (payload.trigger_reviews[0].corrected_start_time !== 12.346) throw new Error(
 if (payload.missed_triggers[0].missed_id !== 'missed_demo_ep01_001') throw new Error('missed id mismatch');
 if (payload.missed_triggers[0].cue_time !== 42.199) throw new Error('missed time mismatch');
 if (payload.episode_review.status !== 'done') throw new Error('episode status mismatch');
+"""
+    result = run_node(script)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_review_tool_renders_trigger_list_with_reason_text() -> None:
+    html = Path("apps/algorithm-review-tool/index.html").read_text(encoding="utf-8")
+
+    assert "trigger-reason" in html
+    assert "${escapeHtml(item.reason || \"无原因\")}" in html
+    assert "trigger-release" in html
+    assert "${escapeHtml(item.setup || \"未提供\")}" in html
+    assert "${escapeHtml(item.turning_point || \"未提供\")}" in html
+    assert "${escapeHtml(item.expression_release || \"未提供\")}" in html
+
+
+def test_review_tool_normalizes_release_structure_fields() -> None:
+    script = """
+const logic = require('./apps/algorithm-review-tool/review_tool.js');
+
+const items = logic.normalizeAlgorithmOutput({
+  expression_triggers: [
+    {
+      trigger_id: 'et_demo_001',
+      start_time: 10,
+      end_time: 13,
+      cue_time: 11.5,
+      source_type: 'plot',
+      primary_expression: '爽到了',
+      confidence: 0.83,
+      summary: '女主反击',
+      setup: '女主此前被压制',
+      turning_point: '女主当众反击',
+      expression_release: '压抑释放形成爽感',
+      reason: '这是情绪释放点'
+    }
+  ]
+}, 'demo_ep01');
+
+const item = items[0];
+if (item.setup !== '女主此前被压制') throw new Error('setup mismatch');
+if (item.turning_point !== '女主当众反击') throw new Error('turning point mismatch');
+if (item.expression_release !== '压抑释放形成爽感') throw new Error('release mismatch');
 """
     result = run_node(script)
 

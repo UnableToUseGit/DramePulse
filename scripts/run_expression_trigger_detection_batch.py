@@ -12,6 +12,7 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
 from scripts.transcription.env import load_dotenv_values
 
 
@@ -204,6 +205,9 @@ def expression_trigger_to_highlight_asset(trigger: dict[str, Any], *, index: int
         "emotion": str(trigger.get("primary_expression", "")),
         "intensity": float(trigger.get("intensity", 0.0)),
         "summary": str(trigger.get("summary", "")),
+        "setup": str(trigger.get("setup", "")),
+        "turning_point": str(trigger.get("turning_point", "")),
+        "expression_release": str(trigger.get("expression_release", "")),
         "reason": str(trigger.get("reason", "")),
         "confidence": confidence,
         "highlight_score": confidence,
@@ -260,12 +264,15 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         print(f"RUN  {episode.video_id}")
         source_payload = load_source_payload(episode.source_json_path)
         try:
+            danmaku_items = load_danmaku_csv_items(args.data_root, series_id=episode.series_id, episode_id=episode.episode_id)
+            if not danmaku_items:
+                danmaku_items = extract_danmaku_items(source_payload)
             expression_triggers = active_pipeline.run(
                 video_id=episode.video_id,
                 video_file_path=episode.video_path,
                 subtitle_file_path=episode.subtitle_path,
                 metadata=extract_video_metadata(source_payload),
-                danmaku_items=extract_danmaku_items(source_payload),
+                danmaku_items=danmaku_items,
                 include_finale_trigger=args.include_finale_trigger,
             )
             written_path = write_episode_output(

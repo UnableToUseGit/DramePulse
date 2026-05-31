@@ -80,17 +80,23 @@
         white-space: nowrap;
       }
       .video-wrap {
+        position: relative;
         display: grid;
         place-items: center;
         min-height: 0;
+        overflow: hidden;
         background: #050607;
         border: 1px solid #050607;
       }
       video {
+        position: absolute;
+        inset: 0;
         display: block;
-        width: auto;
+        width: 100%;
         height: 100%;
         max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
         background: #000;
       }
       .subtitle-line {
@@ -169,6 +175,20 @@
       .trigger-item.reviewed { border-left: 4px solid var(--green); }
       .time { font-variant-numeric: tabular-nums; color: var(--accent); }
       .meta { color: var(--muted); font-size: 12px; }
+      .trigger-reason {
+        color: #d8dde0;
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .trigger-release {
+        display: grid;
+        gap: 3px;
+        border-left: 2px solid var(--accent);
+        padding-left: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
       .detail {
         overflow: auto;
         border: 1px solid var(--line);
@@ -346,6 +366,12 @@
             <div><span class="time">${ReviewTool.formatClock(item.cue_time)}</span> ${item.primary_expression || item.kind}</div>
             <div class="meta">${item.source_type} · ${item.interaction_mode} · ${review.verdict || "pending"}</div>
             <div>${escapeHtml(item.summary || item.reason || "无摘要")}</div>
+            <div class="trigger-release">
+              <div>铺垫：${escapeHtml(item.setup || "未提供")}</div>
+              <div>转折：${escapeHtml(item.turning_point || "未提供")}</div>
+              <div>释放：${escapeHtml(item.expression_release || "未提供")}</div>
+            </div>
+            <div class="trigger-reason">原因：${escapeHtml(item.reason || "无原因")}</div>
           </div>`;
         }).join("") || '<div class="meta">没有可审阅的算法输出，可以直接新增漏检点。</div>';
       }
@@ -385,6 +411,11 @@
           <div class="meta">${item.id} · ${item.kind}</div>
           <p><span class="time">${ReviewTool.formatClock(item.start_time)} - ${ReviewTool.formatClock(item.end_time)}</span></p>
           <p>${escapeHtml(item.summary || "无摘要")}</p>
+          <div class="trigger-release">
+            <div>铺垫：${escapeHtml(item.setup || "未提供")}</div>
+            <div>转折：${escapeHtml(item.turning_point || "未提供")}</div>
+            <div>释放：${escapeHtml(item.expression_release || "未提供")}</div>
+          </div>
           <p class="meta">${escapeHtml(item.reason || "")}</p>
           <div class="verdicts">
             ${verdictButton("correct", "准确", review)}

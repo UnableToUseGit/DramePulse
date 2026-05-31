@@ -20,12 +20,8 @@ SUPPORTED_INTERACTION_MODES = {"single_tap", "hold_burst", "repeat_tap", "stance
 PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
     ("爽到了", "压抑后的反击、打脸、胜利、惩恶扬善带来的解气和爽感。"),
     ("震惊", "身份、真相、关系、能力或局势突然揭晓带来的意外感。"),
-    ("气死了", "角色被欺负、被误解、被背叛或反派过分时带来的愤怒。"),
     ("磕到了", "暧昧、甜宠、守护、双向奔赴或亲密关系推进。"),
-    ("心疼", "角色受伤、牺牲、隐忍、委屈或处境艰难。"),
-    ("紧张", "危机逼近、对峙、追逐、暴露风险或结果悬而未决。"),
-    ("站主角", "剧情形成明确立场，用户自然想支持主角或主角阵营。"),
-    ("想看后续", "当前信息制造强悬念，用户主要表达继续看下去的欲望。"),
+    ("看哭了", "亲情、爱情、牺牲、重逢、守护或善意带来的感动、悲伤和泪目。"),
 )
 SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS}
 
@@ -106,9 +102,14 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
         primary_expression = _clean_text(item.get("primary_expression") or item.get("emotion"))
         summary = _clean_text(item.get("summary"))
         reason = _clean_text(item.get("reason"))
+        setup = "" if item.get("setup") is None else _clean_text(item.get("setup"))
+        turning_point = "" if item.get("turning_point") is None else _clean_text(item.get("turning_point"))
+        expression_release = "" if item.get("expression_release") is None else _clean_text(item.get("expression_release"))
         if not primary_expression or not summary or not reason:
             continue
         if source_type == "plot" and primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
+            continue
+        if source_type == "plot" and (not setup or not turning_point or not expression_release):
             continue
 
         cue_time = float(item.get("cue_time", start_time + (end_time - start_time) / 2.0))
@@ -125,6 +126,9 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
             "intensity": intensity,
             "confidence": confidence,
             "summary": summary,
+            "setup": setup,
+            "turning_point": turning_point,
+            "expression_release": expression_release,
             "reason": reason,
             "evidence": item.get("evidence") if isinstance(item.get("evidence"), dict) else {},
             "status": _clean_text(item.get("status", "verified")) or "verified",
@@ -147,6 +151,9 @@ def expression_trigger_to_highlight_asset(trigger: dict[str, Any], *, index: int
         "emotion": str(trigger["primary_expression"]),
         "intensity": float(trigger["intensity"]),
         "summary": str(trigger["summary"]),
+        "setup": str(trigger.get("setup") or ""),
+        "turning_point": str(trigger.get("turning_point") or ""),
+        "expression_release": str(trigger.get("expression_release") or ""),
         "reason": str(trigger["reason"]),
         "confidence": confidence,
         "highlight_score": confidence,
@@ -352,22 +359,33 @@ def _build_user_prompt(
             primary_expression_text,
             "- `primary_expression` must be exactly one of the allowed values above.",
             "- If none of the allowed `primary_expression` values fits clearly, skip the moment.",
+            "- A valid trigger must be an emotional release point, not merely the moment where a bad, sad, tense, or important event happens.",
+            "- A release point requires setup before the current moment and a clear turning point at the current moment.",
+            "- Every trigger must explain the release structure with `setup`, `turning_point`, and `expression_release`.",
+            "- `setup` should state what prior disadvantage, expectation, misdirection, restraint, relationship tension, or emotional pressure was built before this moment.",
+            "- `turning_point` should state what changes at this exact moment: counterattack, payoff, reveal, relationship advancement, reunion, sacrifice, or emotional breakthrough.",
+            "- `expression_release` should state what accumulated emotion is released and why the viewer would want to tap now.",
+            "- For `爽到了`, require prior disadvantage, suppression, humiliation, doubt, or unfairness before the current counterattack, face-slap, win, or payoff.",
+            "- For `震惊`, require a previous information gap, misdirection, hidden identity, hidden truth, or hidden ability before the current reveal.",
+            "- For `磕到了`, require prior relationship tension, ambiguity, restraint, misunderstanding, or protection before the current relationship advancement.",
+            "- For `看哭了`, require prior emotional setup around family, love, sacrifice, reunion, protection, kindness, or loss before the current emotional release.",
             "- Prefer fewer high-confidence triggers over broad plot summaries or generic dramatic moments.",
             "- Skip moments that are only exposition, setup, neutral conversation, or unclear without future context.",
+            "- Skip moments that only create anger, pity, worry, support, or curiosity without an immediate release point.",
             "- `start_time` and `end_time` should describe the short window where the expression desire appears.",
             "- `cue_time` should be the best moment to show the interaction entry, usually near the emotional release or key reveal.",
             "- Choose times from subtitle/frame evidence. Do not invent events outside the provided timeline.",
             "- `summary` should be one concise factual Chinese sentence grounded in subtitles and/or frames.",
-            "- `reason` should explain why this exact moment creates low-friction expression desire, not why it is generally important to the story.",
+            "- `reason` should summarize why this exact moment is an emotional release point, not why it is generally important to the story.",
             "- `intensity` should estimate expression strength from 0.0 to 1.0.",
             "- `confidence` should estimate evidence reliability from 0.0 to 1.0.",
             "",
             "## OUTPUT",
             "Return JSON only. Do not wrap it in markdown.",
             "The top-level object must contain exactly one key: `expression_triggers`.",
-            "Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `reason`.",
+            "Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.",
             "Output shape:",
-            '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","reason":"压抑后的反击能让用户自然表达解气和爽感。"}]}',
+            '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}',
             "Field constraints:",
             "- `start_time`, `end_time`, and `cue_time` are numbers in seconds.",
             "- `start_time` must be >= 0.0.",
@@ -375,6 +393,7 @@ def _build_user_prompt(
             "- `cue_time` must be within [start_time, end_time].",
             "- `source_type` must be `plot`.",
             "- `primary_expression` must be one of the allowed values.",
+            "- `setup`, `turning_point`, `expression_release`, `summary`, and `reason` must be non-empty concise Chinese strings.",
             "- `intensity` and `confidence` must be numbers from 0.0 to 1.0.",
             "- Do not include any extra keys.",
             "",
@@ -438,6 +457,7 @@ class ExpressionTriggerPipeline:
                     video_path=video_file_path,
                     output_dir=output_dir,
                     timestamps_seconds=timestamps,
+                    max_height=512,
                 )
                 image_paths = sorted(output_dir.glob("*.png")) if extraction.frame_count > 0 else []
             except Exception:

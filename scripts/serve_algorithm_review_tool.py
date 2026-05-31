@@ -7,8 +7,14 @@ import argparse
 import json
 from pathlib import Path
 import re
+import sys
 from typing import Any, Sequence
 from urllib.parse import unquote, urlparse
+
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.algorithm_danmaku_csv import discover_danmaku_csv_paths, load_danmaku_csv_items
 
 
 DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
@@ -58,6 +64,27 @@ def resolve_algorithm_output(video_id: str, output_root: Path) -> tuple[str | No
     return None, None
 
 
+def resolve_danmaku_source(*, data_root: Path, episode_dir: Path, series_id: str, episode_id: str) -> tuple[str | None, Path | None]:
+    csv_items = load_danmaku_csv_items(data_root, series_id=series_id, episode_id=episode_id)
+    if csv_items:
+        csv_paths = discover_danmaku_csv_paths(data_root)
+        return "csv", csv_paths[0] if csv_paths else None
+    douyin_path = episode_dir / "douyin.json"
+    if douyin_path.exists():
+        return "douyin_json", douyin_path
+    return None, None
+
+
+def load_episode_danmaku_payload(*, data_root: Path, episode_dir: Path, series_id: str, episode_id: str) -> dict[str, Any]:
+    csv_items = load_danmaku_csv_items(data_root, series_id=series_id, episode_id=episode_id)
+    if csv_items:
+        return {"source": "csv", "count": len(csv_items), "items": csv_items}
+    payload = read_json(episode_dir / "douyin.json")
+    if isinstance(payload, dict):
+        return {**payload, "source": "douyin_json"}
+    return {"source": None, "count": 0, "items": []}
+
+
 def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]:
     episodes: list[dict[str, Any]] = []
     for video_path in sorted(data_root.glob("*/ep*/video.mp4")):
@@ -66,6 +93,7 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
         episode_id = episode_dir.name
         video_id = f"{series_id}_{episode_id}"
         output_type, algorithm_output_path = resolve_algorithm_output(video_id, output_root)
+        danmaku_source, danmaku_path = resolve_danmaku_source(data_root=data_root, episode_dir=episode_dir, series_id=series_id, episode_id=episode_id)
         feedback_path = output_root / video_id / FEEDBACK_FILENAME
         episodes.append(
             {
@@ -76,12 +104,13 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
                 "episode_dir": str(episode_dir),
                 "video_path": str(video_path),
                 "subtitle_path": str(episode_dir / "video.srt") if (episode_dir / "video.srt").exists() else None,
-                "danmaku_path": str(episode_dir / "douyin.json") if (episode_dir / "douyin.json").exists() else None,
+                "danmaku_path": str(danmaku_path) if danmaku_path else None,
+                "danmaku_source": danmaku_source,
                 "scene_detection_path": str(episode_dir / "scene_detection.json")
                 if (episode_dir / "scene_detection.json").exists()
                 else None,
                 "has_subtitle": (episode_dir / "video.srt").exists(),
-                "has_danmaku": (episode_dir / "douyin.json").exists(),
+                "has_danmaku": danmaku_path is not None,
                 "has_scene_detection": (episode_dir / "scene_detection.json").exists(),
                 "algorithm_output_type": output_type,
                 "algorithm_output_path": str(algorithm_output_path) if algorithm_output_path else None,
@@ -170,7 +199,14 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             self._send_file(episode_dir / "video.srt")
             return
         if resource == "danmaku":
-            self._send_json(read_json(episode_dir / "douyin.json") or {})
+            self._send_json(
+                load_episode_danmaku_payload(
+                    data_root=self.data_root,
+                    episode_dir=episode_dir,
+                    series_id=str(episode["series_id"]),
+                    episode_id=str(episode["episode_id"]),
+                )
+            )
             return
         if resource == "scene-detection":
             self._send_json(read_json(episode_dir / "scene_detection.json") or {})
@@ -196,7 +232,7 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        self._write_response_body(body)
 
     def _send_file(self, path: Path, *, allow_range: bool = False) -> None:
         if not path.exists() or path.is_dir():
@@ -216,7 +252,7 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
         if allow_range:
             self.send_header("Accept-Ranges", "bytes")
         self.end_headers()
-        self.wfile.write(body)
+        self._write_response_body(body)
 
     def _send_file_range(self, path: Path, byte_range: tuple[int, int]) -> None:
         start, end = byte_range
@@ -230,7 +266,13 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Range", f"bytes {start}-{end}/{path.stat().st_size}")
         self.send_header("Content-Length", str(content_length))
         self.end_headers()
-        self.wfile.write(body)
+        self._write_response_body(body)
+
+    def _write_response_body(self, body: bytes) -> None:
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     @staticmethod
     def _parse_single_range(value: str, file_size: int) -> tuple[int, int] | None:

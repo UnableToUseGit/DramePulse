@@ -101,6 +101,9 @@
       confidence: toFiniteNumber(source.confidence, 0),
       intensity: toFiniteNumber(source.intensity, 0),
       summary: cleanText(source.summary),
+      setup: cleanText(source.setup),
+      turning_point: cleanText(source.turning_point),
+      expression_release: cleanText(source.expression_release),
       reason: cleanText(source.reason),
       raw: source,
     };
@@ -122,6 +125,9 @@
       confidence: toFiniteNumber(source.confidence, 0),
       intensity: toFiniteNumber(source.intensity, 0),
       summary: cleanText(source.summary),
+      setup: cleanText(source.setup),
+      turning_point: cleanText(source.turning_point),
+      expression_release: cleanText(source.expression_release),
       reason: cleanText(source.reason),
       raw: source,
     };
@@ -144,6 +150,9 @@
       confidence: toFiniteNumber(source.confidence, 0),
       intensity: 0,
       summary: cleanText(source.summary || source.context_subtitles || source.utterance),
+      setup: "",
+      turning_point: "",
+      expression_release: "",
       reason: cleanText(source.reason || "候选召回结果，需要人工判断是否适合低摩擦表达。"),
       raw: source,
     };
