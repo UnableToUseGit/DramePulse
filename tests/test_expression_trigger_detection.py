@@ -167,6 +167,32 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(len(triggers), 1)
         self.assertEqual(triggers[0]["primary_expression"], "看哭了")
 
+    def test_parse_expression_triggers_accepts_rising_plot_expression(self) -> None:
+        triggers = parse_expression_triggers(
+            {
+                "expression_triggers": [
+                    {
+                        "start_time": 46.0,
+                        "end_time": 51.0,
+                        "cue_time": 50.0,
+                        "source_type": "plot",
+                        "primary_expression": "燃起来了",
+                        "intensity": 0.82,
+                        "confidence": 0.86,
+                        "summary": "男主受辱后立誓一定要出人头地。",
+                        "reason": "该点是低谷后的立志觉醒，不是当场反击打脸。",
+                        "setup": "男主此前贫穷潦倒，还被村民讨债羞辱。",
+                        "turning_point": "男主明确喊出自己一定要出人头地。",
+                        "expression_release": "受辱后的不甘转化为逆袭决心，观众适合表达燃起来了。",
+                    }
+                ]
+            },
+            video_id="demo_ep01",
+        )
+
+        self.assertEqual(len(triggers), 1)
+        self.assertEqual(triggers[0]["primary_expression"], "燃起来了")
+
     def test_expression_trigger_maps_to_highlight_asset_contract_fields(self) -> None:
         trigger = parse_expression_triggers(
             {
@@ -254,7 +280,7 @@ class DanmakuEnhancementTest(unittest.TestCase):
 
 
 class ExpressionTriggerPromptTest(unittest.TestCase):
-    def test_build_user_prompt_uses_structured_sections_and_output_contract(self) -> None:
+    def test_build_user_prompt_uses_decision_process_and_separate_rule_sections(self) -> None:
         prompt = _build_user_prompt(
             video_id="demo_ep01",
             subtitles_timeline="[1.000-2.000] 你终于输了",
@@ -264,30 +290,40 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
 
         self.assertIn("## TASK", prompt)
         self.assertIn("## INPUT", prompt)
-        self.assertIn("## RULES", prompt)
+        self.assertIn("## DECISION PROCESS", prompt)
+        self.assertIn("## GATING RULES", prompt)
+        self.assertIn("## PRIMARY_EXPRESSIONS", prompt)
+        self.assertIn("## TIMING", prompt)
+        self.assertIn("## FIELD WRITING", prompt)
         self.assertIn("## OUTPUT", prompt)
         self.assertIn("VIDEO_ID: demo_ep01", prompt)
         self.assertIn("FRAME_TIMESTAMPS_SECONDS: 0.000, 1.000, 2.000", prompt)
         self.assertIn("You will receive one sampled video frame for each timestamp listed above.", prompt)
         self.assertIn("Use video frames to understand silent actions, facial expressions, locations, transitions, and visible story situations.", prompt)
         self.assertIn("Use subtitles to understand dialogue, relationship context, and semantic plot progression.", prompt)
-        self.assertIn("Allowed `primary_expression` values:", prompt)
-        self.assertIn("- 爽到了: 压抑后的反击、打脸、胜利、惩恶扬善带来的解气和爽感。", prompt)
-        self.assertIn("- 震惊: 身份、真相、关系、能力或局势突然揭晓带来的意外感。", prompt)
-        self.assertIn("- 磕到了: 暧昧、甜宠、守护、双向奔赴或亲密关系推进。", prompt)
-        self.assertIn("- 看哭了: 亲情、爱情、牺牲、重逢、守护或善意带来的感动、悲伤和泪目。", prompt)
+        self.assertIn("1. First decide whether the moment is an emotional release point.", prompt)
+        self.assertIn("2. Verify the release structure: prior setup -> current turning point -> expression release.", prompt)
+        self.assertIn("3. Match exactly one `primary_expression` from `## PRIMARY_EXPRESSIONS`.", prompt)
+        self.assertIn("5. Choose `cue_time` after the viewer understands the release.", prompt)
+        self.assertIn("### 爽到了", prompt)
+        self.assertIn("Definition: 主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。", prompt)
+        self.assertIn("Reject: simple danger relief, being helped by someone else, being recognized, receiving an opportunity, or a generic positive turn.", prompt)
+        self.assertIn("### 震惊", prompt)
+        self.assertIn("### 磕到了", prompt)
+        self.assertIn("### 看哭了", prompt)
+        self.assertIn("Reject: mere hardship, pity, bullying, debt pressure, or ordinary sadness without emotional payoff.", prompt)
+        self.assertIn("### 燃起来了", prompt)
+        self.assertIn("Required: a clear vow, awakening, irreversible choice, or decision to change fate after low status, humiliation, poverty, failure, or being underestimated.", prompt)
+        self.assertIn("Reject: generic approval, help, recruitment, or opportunity unless the protagonist makes an explicit inner turn or decisive choice.", prompt)
         self.assertNotIn("气死了", prompt)
         self.assertNotIn("心疼", prompt)
         self.assertNotIn("紧张", prompt)
         self.assertNotIn("站主角", prompt)
         self.assertNotIn("想看后续", prompt)
         self.assertIn("If none of the allowed `primary_expression` values fits clearly, skip the moment.", prompt)
-        self.assertIn("A valid trigger must be an emotional release point, not merely the moment where a bad, sad, tense, or important event happens.", prompt)
-        self.assertIn("Every trigger must explain the release structure with `setup`, `turning_point`, and `expression_release`.", prompt)
-        self.assertIn("For `爽到了`, require prior disadvantage, suppression, humiliation, doubt, or unfairness before the current counterattack, face-slap, win, or payoff.", prompt)
-        self.assertIn("For `震惊`, require a previous information gap, misdirection, hidden identity, hidden truth, or hidden ability before the current reveal.", prompt)
-        self.assertIn("For `磕到了`, require prior relationship tension, ambiguity, restraint, misunderstanding, or protection before the current relationship advancement.", prompt)
-        self.assertIn("For `看哭了`, require prior emotional setup around family, love, sacrifice, reunion, protection, kindness, or loss before the current emotional release.", prompt)
+        self.assertIn("`start_time` and `end_time` describe the short emotional release window.", prompt)
+        self.assertIn("`cue_time` is the interaction entry moment inside that window.", prompt)
+        self.assertIn("Prefer `cue_time` on a reaction shot, pause, emotional aftertaste, or immediately after the turning point.", prompt)
         self.assertIn("The top-level object must contain exactly one key: `expression_triggers`.", prompt)
         self.assertIn("Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.", prompt)
         self.assertIn('{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}', prompt)
