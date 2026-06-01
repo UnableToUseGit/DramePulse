@@ -304,7 +304,10 @@ export function PlayerPage({
         example={DEFAULT_INTERACTION_EXAMPLE}
         presentationType={selectedPresentationType}
         visible={isInteractionExampleVisible}
+        currentTime={currentTime}
+        isActive={isActive}
         onDismiss={dismissInteractionExample}
+        onTogglePlayback={handleTogglePlay}
       />
       <PlayerChrome
         liked={liked}

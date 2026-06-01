@@ -7,6 +7,7 @@ describe("interaction example trigger helpers", () => {
     expect(getPresentationLabel("poll_bar")).toBe("Poll Bar");
     expect(getPresentationLabel("danmaku_poll")).toBe("Danmaku Poll");
     expect(getPresentationLabel("emoji_hold")).toBe("Emoji Hold");
+    expect(getPresentationLabel("emotion_aura")).toBe("Emotion Aura");
   });
 
   it("shows the fixed example only after playback starts and reaches the trigger", () => {
@@ -58,7 +59,7 @@ describe("interaction example trigger helpers", () => {
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec + 1,
         isStarted: true,
         dismissed: true,
-        presentationType: "emoji_hold"
+        presentationType: "emotion_aura"
       })
     ).toBe(false);
   });
