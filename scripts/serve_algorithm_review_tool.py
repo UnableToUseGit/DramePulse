@@ -14,12 +14,13 @@ from urllib.parse import unquote, urlparse
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.algorithm_danmaku_csv import discover_danmaku_csv_paths, load_danmaku_csv_items
+from scripts.algorithm_danmaku_csv import index_danmaku_csv_episodes, load_danmaku_csv_items
 
 
 DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
 DEFAULT_OUTPUT_ROOT = Path("output")
 TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "algorithm-review-tool"
+ANNOTATION_TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "annotation-tool"
 FEEDBACK_FILENAME = "expression_trigger_feedback.json"
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
@@ -64,11 +65,16 @@ def resolve_algorithm_output(video_id: str, output_root: Path) -> tuple[str | No
     return None, None
 
 
-def resolve_danmaku_source(*, data_root: Path, episode_dir: Path, series_id: str, episode_id: str) -> tuple[str | None, Path | None]:
-    csv_items = load_danmaku_csv_items(data_root, series_id=series_id, episode_id=episode_id)
-    if csv_items:
-        csv_paths = discover_danmaku_csv_paths(data_root)
-        return "csv", csv_paths[0] if csv_paths else None
+def resolve_danmaku_source(
+    *,
+    episode_dir: Path,
+    series_id: str,
+    episode_id: str,
+    csv_episode_paths: dict[tuple[str, str], Path],
+) -> tuple[str | None, Path | None]:
+    csv_path = csv_episode_paths.get((series_id, episode_id))
+    if csv_path is not None:
+        return "csv", csv_path
     douyin_path = episode_dir / "douyin.json"
     if douyin_path.exists():
         return "douyin_json", douyin_path
@@ -87,13 +93,19 @@ def load_episode_danmaku_payload(*, data_root: Path, episode_dir: Path, series_i
 
 def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]:
     episodes: list[dict[str, Any]] = []
+    csv_episode_paths = index_danmaku_csv_episodes(data_root)
     for video_path in sorted(data_root.glob("*/ep*/video.mp4")):
         episode_dir = video_path.parent
         series_id = episode_dir.parent.name
         episode_id = episode_dir.name
         video_id = f"{series_id}_{episode_id}"
         output_type, algorithm_output_path = resolve_algorithm_output(video_id, output_root)
-        danmaku_source, danmaku_path = resolve_danmaku_source(data_root=data_root, episode_dir=episode_dir, series_id=series_id, episode_id=episode_id)
+        danmaku_source, danmaku_path = resolve_danmaku_source(
+            episode_dir=episode_dir,
+            series_id=series_id,
+            episode_id=episode_id,
+            csv_episode_paths=csv_episode_paths,
+        )
         feedback_path = output_root / video_id / FEEDBACK_FILENAME
         episodes.append(
             {
@@ -150,6 +162,12 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             return
         if path == "/review_tool.js":
             self._send_file(TOOL_DIR / "review_tool.js")
+            return
+        if path in {"/apps/annotation-tool", "/apps/annotation-tool/"}:
+            self._send_file(ANNOTATION_TOOL_DIR / "index.html")
+            return
+        if path == "/apps/annotation-tool/annotation_tool.js":
+            self._send_file(ANNOTATION_TOOL_DIR / "annotation_tool.js")
             return
         if path == "/api/episodes":
             self._send_json(build_episode_index(data_root=self.data_root, output_root=self.output_root))

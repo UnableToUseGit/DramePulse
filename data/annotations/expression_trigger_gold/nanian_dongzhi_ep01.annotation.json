@@ -1,0 +1,26 @@
+{
+  "video_id": "nanian_dongzhi_ep01",
+  "video_path": "/api/episodes/nanian_dongzhi_ep01/video",
+  "subtitle_path": "/api/episodes/nanian_dongzhi_ep01/subtitle",
+  "source_json_path": "/api/episodes/nanian_dongzhi_ep01/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_nanian_dongzhi_ep01_001",
+      "cue_time": 70.426,
+      "primary_expression": "笑死",
+      "reason": "本来男主很严肃的提出条件，女主直接上来脱男主衣服，还说要赶紧做，令人忍俊不禁。"
+    },
+    {
+      "annotation_id": "gold_nanian_dongzhi_ep01_002",
+      "cue_time": 135.087,
+      "primary_expression": "笑死",
+      "reason": "女主给男主建议，说要么赶紧做，要么我们先培养感情再做，最后剩一个月给你安排后事。好笑。"
+    },
+    {
+      "annotation_id": "gold_nanian_dongzhi_ep01_003",
+      "cue_time": 174.536,
+      "primary_expression": "磕到了",
+      "reason": "本来气氛都凝固了，男主女主突然亲吻"
+    }
+  ]
+}

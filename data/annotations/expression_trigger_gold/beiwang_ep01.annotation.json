@@ -1,0 +1,44 @@
+{
+  "video_id": "beiwang_ep01",
+  "video_path": "/api/episodes/beiwang_ep01/video",
+  "subtitle_path": "/api/episodes/beiwang_ep01/subtitle",
+  "source_json_path": "/api/episodes/beiwang_ep01/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_beiwang_ep01_001",
+      "cue_time": 26.232,
+      "primary_expression": "笑死",
+      "reason": "男主带人上门找欠薪的老板讨债，用力踹门但是门没锁，男主趔趄在地上，挺搞笑的"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_002",
+      "cue_time": 39.965,
+      "primary_expression": "笑死",
+      "reason": "男主角本来是上来讨债的，一脚把门踹开趔趄在地上，老板走过来，男主角怂怂的说了句过年好，反转效果，很搞笑"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_003",
+      "cue_time": 41.077,
+      "primary_expression": "笑死",
+      "reason": "男主趔趄在地上之后，老板为他这是干嘛，男主说了句“过年好”，笑死"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_004",
+      "cue_time": 83.093,
+      "primary_expression": "笑死",
+      "reason": "本来这一帮人来讨债，拿着甘蔗是想打老板的，没成想老板人挺好，把钱给他们了，老板问他们拿着啥，他们傻笑着说甘蔗，然后还啃了一下。"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_005",
+      "cue_time": 222.963,
+      "primary_expression": "看哭了",
+      "reason": "男主钱都寄回家了，没钱买机票回去过年，打电话跟母亲说过年不回去了，母亲表现的有点难受，然后男主转口说妈妈你听错了，我今年回去，母亲转悲为喜，说起她和他爸多盼着儿子回来，男主爱吃的东西都准备好了。令人动容。"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_006",
+      "cue_time": 293.525,
+      "primary_expression": "笑死",
+      "reason": "这里男主说不买票也能回去，然后镜头一转两个人面前放着一辆跑车，男儿一直在吐槽，这里观众是差诧异的，哪来的跑车，以及如果是跑车，男儿为什么吐槽。紧接着，跑车开走了，漏出两辆破摩托车，令人忍俊不禁。"
+    }
+  ]
+}

@@ -193,6 +193,32 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(len(triggers), 1)
         self.assertEqual(triggers[0]["primary_expression"], "燃起来了")
 
+    def test_parse_expression_triggers_accepts_comedy_plot_expression(self) -> None:
+        triggers = parse_expression_triggers(
+            {
+                "expression_triggers": [
+                    {
+                        "start_time": 24.0,
+                        "end_time": 28.0,
+                        "cue_time": 26.2,
+                        "source_type": "plot",
+                        "primary_expression": "笑死",
+                        "intensity": 0.78,
+                        "confidence": 0.84,
+                        "summary": "男主踹门失败后摔倒，还尴尬地向老板拜年。",
+                        "reason": "动作失误和台词反差形成明确笑点。",
+                        "setup": "男主带人气势汹汹上门讨债。",
+                        "turning_point": "男主踹门后失去气势，摔倒在地并尴尬拜年。",
+                        "expression_release": "讨债气势和狼狈反应形成反差，观众适合表达笑死。",
+                    }
+                ]
+            },
+            video_id="demo_ep01",
+        )
+
+        self.assertEqual(len(triggers), 1)
+        self.assertEqual(triggers[0]["primary_expression"], "笑死")
+
     def test_expression_trigger_maps_to_highlight_asset_contract_fields(self) -> None:
         trigger = parse_expression_triggers(
             {
@@ -315,6 +341,10 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("### 燃起来了", prompt)
         self.assertIn("Required: a clear vow, awakening, irreversible choice, or decision to change fate after low status, humiliation, poverty, failure, or being underestimated.", prompt)
         self.assertIn("Reject: generic approval, help, recruitment, or opportunity unless the protagonist makes an explicit inner turn or decisive choice.", prompt)
+        self.assertIn("### 笑死", prompt)
+        self.assertIn("Definition: 台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。", prompt)
+        self.assertIn("Required: a visible or subtitle-supported comedic beat such as punchline, physical gag, awkward reversal, absurd reaction, misunderstanding, or comic timing.", prompt)
+        self.assertIn("Reject: ordinary light tone, generic cuteness, actor charm, or comments that are only funny because of external fandom context.", prompt)
         self.assertNotIn("气死了", prompt)
         self.assertNotIn("心疼", prompt)
         self.assertNotIn("紧张", prompt)

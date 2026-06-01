@@ -85,3 +85,15 @@ def load_danmaku_csv_items(data_root: Path, *, series_id: str, episode_id: str) 
             if item["series_id"] == series_id and item["episode_id"] == episode_id:
                 items.append(item)
     return sorted(items, key=lambda item: (float(item["time_sec"]), str(item["danmaku_id"])))
+
+
+def index_danmaku_csv_episodes(data_root: Path) -> dict[tuple[str, str], Path]:
+    episode_paths: dict[tuple[str, str], Path] = {}
+    for csv_path in discover_danmaku_csv_paths(data_root):
+        for index, row in enumerate(_read_csv_rows(csv_path)):
+            item = _normalize_csv_row(row, index=index)
+            if item is None:
+                continue
+            key = (str(item["series_id"]), str(item["episode_id"]))
+            episode_paths.setdefault(key, csv_path)
+    return episode_paths

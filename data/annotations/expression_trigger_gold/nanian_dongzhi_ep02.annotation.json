@@ -1,0 +1,14 @@
+{
+  "video_id": "nanian_dongzhi_ep02",
+  "video_path": "/api/episodes/nanian_dongzhi_ep02/video",
+  "subtitle_path": "/api/episodes/nanian_dongzhi_ep02/subtitle",
+  "source_json_path": "/api/episodes/nanian_dongzhi_ep02/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_nanian_dongzhi_ep02_001",
+      "cue_time": 34.108,
+      "primary_expression": "笑死",
+      "reason": "女主占据主动权，调戏男生说这么亲了你一口，你这么大反应，男主颤颤巍巍的说“怎么可能”，比较好笑和可爱"
+    }
+  ]
+}

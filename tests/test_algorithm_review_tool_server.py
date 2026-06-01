@@ -102,6 +102,31 @@ def test_review_server_indexes_danmaku_csv_when_available(tmp_path: Path) -> Non
     assert episode["has_danmaku"] is True
 
 
+def test_review_server_scans_danmaku_csv_once_when_building_episode_index(tmp_path: Path, monkeypatch) -> None:
+    data_root = tmp_path / "DataForAlgorithm"
+    output_root = tmp_path / "output"
+    make_episode(data_root, series_id="beiwang", episode_id="ep01")
+    make_episode(data_root, series_id="beiwang", episode_id="ep02")
+    csv_path = write_danmaku_csv(data_root)
+
+    from scripts import serve_algorithm_review_tool
+
+    calls: list[Path] = []
+    original_index = serve_algorithm_review_tool.index_danmaku_csv_episodes
+
+    def tracked_index(data_root_arg: Path):
+        calls.append(data_root_arg)
+        return original_index(data_root_arg)
+
+    monkeypatch.setattr(serve_algorithm_review_tool, "index_danmaku_csv_episodes", tracked_index)
+
+    index = serve_algorithm_review_tool.build_episode_index(data_root=data_root, output_root=output_root)
+
+    assert calls == [data_root]
+    assert [episode["danmaku_path"] for episode in index["episodes"]] == [str(csv_path), str(csv_path)]
+    assert [episode["danmaku_source"] for episode in index["episodes"]] == ["csv", "csv"]
+
+
 def test_review_server_serves_csv_danmaku_before_douyin_json(tmp_path: Path) -> None:
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -191,6 +216,14 @@ def test_review_server_http_serves_range_video_and_feedback_api(tmp_path: Path) 
         with opener.open(f"http://127.0.0.1:{port}/api/episodes", timeout=5) as response:
             index = json.loads(response.read().decode("utf-8"))
         assert index["episodes"][0]["video_id"] == "demo_series_ep01"
+
+        with opener.open(f"http://127.0.0.1:{port}/apps/annotation-tool/", timeout=5) as response:
+            annotation_html = response.read().decode("utf-8")
+        assert "DramePulse 高光标注" in annotation_html
+
+        with opener.open(f"http://127.0.0.1:{port}/apps/annotation-tool/annotation_tool.js", timeout=5) as response:
+            annotation_js = response.read().decode("utf-8")
+        assert "normalizeVideoContext" in annotation_js
 
         request = Request(
             f"http://127.0.0.1:{port}/api/episodes/demo_series_ep01/video",

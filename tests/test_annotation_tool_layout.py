@@ -18,31 +18,19 @@ import json
 
 class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/api/videos":
+        if self.path == "/api/episodes":
             self._send_json({
-                "videos": [
+                "episodes": [
                     {
                         "video_id": "ep_10",
                         "series_name": "测试短剧",
                         "title": "第10集",
                         "episode_label": "ep10",
-                        "stream_url": "/api/videos/ep_10/stream",
-                        "danmaku_url": "/api/videos/ep_10/danmaku",
                     }
                 ]
             })
             return
-        if self.path == "/api/videos/ep_10":
-            self._send_json({
-                "video_id": "ep_10",
-                "series_name": "测试短剧",
-                "title": "第10集",
-                "episode_label": "ep10",
-                "stream_url": "/api/videos/ep_10/stream",
-                "danmaku_url": "/api/videos/ep_10/danmaku",
-            })
-            return
-        if self.path == "/api/videos/ep_10/danmaku":
+        if self.path == "/api/episodes/ep_10/danmaku":
             self._send_json({
                 "video_id": "ep_10",
                 "available": True,

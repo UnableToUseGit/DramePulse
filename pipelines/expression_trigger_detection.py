@@ -23,6 +23,7 @@ PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
     ("磕到了", "角色之间在暧昧、克制、误会、保护或双向在意的铺垫之后，关系出现明确升温、确认或亲密推进。"),
     ("看哭了", "亲情、爱情、牺牲、重逢、告别、无私守护或善意在充分铺垫后兑现，带来感动、悲伤或泪目。"),
     ("燃起来了", "主角在贫穷、低谷、失败、受辱、被轻视或命运压迫之后，明确立志、觉醒、选择改变命运或踏上逆袭路。"),
+    ("笑死", "台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。"),
 )
 SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS}
 
@@ -400,6 +401,11 @@ def _build_user_prompt(
             f"Definition: {expression_definitions['燃起来了']}",
             "Required: a clear vow, awakening, irreversible choice, or decision to change fate after low status, humiliation, poverty, failure, or being underestimated.",
             "Reject: generic approval, help, recruitment, or opportunity unless the protagonist makes an explicit inner turn or decisive choice.",
+            "",
+            "### 笑死",
+            f"Definition: {expression_definitions['笑死']}",
+            "Required: a visible or subtitle-supported comedic beat such as punchline, physical gag, awkward reversal, absurd reaction, misunderstanding, or comic timing.",
+            "Reject: ordinary light tone, generic cuteness, actor charm, or comments that are only funny because of external fandom context.",
             "",
             "## TIMING",
             "- `start_time` and `end_time` describe the short emotional release window.",

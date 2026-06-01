@@ -376,7 +376,7 @@
         <header class="topbar">
           <div class="brand">
             <h1>DramePulse 高光标注</h1>
-            <p id="videoMeta">加载视频列表中 · 精简字段：cue_time、emotion、reason</p>
+            <p id="videoMeta">加载视频列表中 · 标注字段：cue_time、primary_expression、reason</p>
           </div>
           <select id="videoPicker" class="video-picker" aria-label="选择标注视频" disabled>
             <option value="">加载中</option>
@@ -404,16 +404,14 @@
               <input id="cueTime" inputmode="decimal" placeholder="0.000">
             </label>
             <label>
-              emotion
-              <select id="emotion">
-                <option value="shock">shock</option>
-                <option value="tension">tension</option>
-                <option value="anger">anger</option>
-                <option value="joy">joy</option>
-                <option value="sweet">sweet</option>
-                <option value="sadness">sadness</option>
-                <option value="curiosity">curiosity</option>
-                <option value="other">other</option>
+              primary_expression
+              <select id="primaryExpression">
+                <option value="爽到了">爽到了</option>
+                <option value="震惊">震惊</option>
+                <option value="磕到了">磕到了</option>
+                <option value="看哭了">看哭了</option>
+                <option value="燃起来了">燃起来了</option>
+                <option value="笑死">笑死</option>
               </select>
             </label>
             <label>
@@ -457,7 +455,7 @@
       const videoPickerEl = document.getElementById("videoPicker");
       const currentTimeEl = document.getElementById("currentTime");
       const cueTimeInput = document.getElementById("cueTime");
-      const emotionInput = document.getElementById("emotion");
+      const primaryExpressionInput = document.getElementById("primaryExpression");
       const reasonInput = document.getElementById("reason");
       const danmakuListEl = document.getElementById("danmakuList");
       const danmakuStatusEl = document.getElementById("danmakuStatus");
@@ -468,6 +466,7 @@
       let activeDanmakuIndex = -1;
       let annotations = [];
       let videoContext = null;
+      let stateEpisodes = [];
 
       function setCurrentTime(value) {
         video.currentTime = Math.max(0, Number(value) || 0);
@@ -524,7 +523,7 @@
         if (context.seriesName) parts.push(context.seriesName);
         if (context.episodeLabel) parts.push(context.episodeLabel);
         if (context.title && context.title !== context.videoId) parts.push(context.title);
-        videoMetaEl.textContent = `${parts.join(" · ")} · 精简字段：cue_time、emotion、reason`;
+        videoMetaEl.textContent = `${parts.join(" · ")} · 标注字段：cue_time、primary_expression、reason`;
         currentTimeEl.textContent = AnnotationTool.formatClock(0);
         renderAnnotations();
       }
@@ -566,7 +565,7 @@
           item.innerHTML = `
             <div class="annotation-meta">
               <strong>${AnnotationTool.formatClock(annotation.cue_time)}</strong>
-              <span>${annotation.emotion}</span>
+              <span>${annotation.primary_expression}</span>
             </div>
             <p class="annotation-reason"></p>
             <div>
@@ -587,19 +586,19 @@
 
       function addAnnotation() {
         const cueTime = AnnotationTool.roundTime(cueTimeInput.value);
-        const emotion = emotionInput.value.trim();
+        const primaryExpression = primaryExpressionInput.value.trim();
         const reason = reasonInput.value.trim();
         if (!Number.isFinite(Number(cueTimeInput.value)) || cueTime < 0) {
           alert("cue_time 必须是非负数字。");
           return;
         }
-        if (!emotion || !reason) {
-          alert("emotion 和 reason 不能为空。");
+        if (!primaryExpression || !reason) {
+          alert("primary_expression 和 reason 不能为空。");
           return;
         }
         annotations.push({
           cue_time: cueTime,
-          emotion,
+          primary_expression: primaryExpression,
           reason,
         });
         annotations.sort((a, b) => a.cue_time - b.cue_time);
@@ -658,7 +657,8 @@
       async function loadVideoById(videoId) {
         danmakuStatusEl.textContent = "加载中";
         danmakuListEl.innerHTML = '<div class="empty">正在从后端服务读取弹幕。</div>';
-        const videoPayload = await fetchJson(`/api/videos/${encodeURIComponent(videoId)}`);
+        const videoPayload = stateEpisodes.find((item) => item.video_id === videoId);
+        if (!videoPayload) throw new Error(`Episode not found: ${videoId}`);
         const context = AnnotationTool.normalizeVideoContext(videoPayload, config);
         setVideoContext(context);
         await loadDanmaku(context);
@@ -666,8 +666,9 @@
 
       async function loadInitialVideo() {
         try {
-          const listPayload = await fetchJson("/api/videos");
+          const listPayload = await fetchJson("/api/episodes");
           const videos = AnnotationTool.normalizeVideoList(listPayload);
+          stateEpisodes = videos;
           const selected = AnnotationTool.selectInitialVideo(videos, config.videoId);
           if (!selected) throw new Error(config.videoId ? `Video not found: ${config.videoId}` : "No videos available");
           renderVideoPicker(videos, selected.video_id);
@@ -681,7 +682,7 @@
           videoPickerEl.appendChild(option);
           videoPickerEl.disabled = true;
           danmakuStatusEl.textContent = "加载失败";
-          danmakuListEl.innerHTML = '<div class="empty">无法读取 /api/videos。启动后端后可用 ?api_base_url=http://127.0.0.1:8000 指定服务地址。</div>';
+          danmakuListEl.innerHTML = '<div class="empty">无法读取 /api/episodes。请通过 scripts/serve_algorithm_review_tool.py 启动本地数据服务。</div>';
         }
       }
 
