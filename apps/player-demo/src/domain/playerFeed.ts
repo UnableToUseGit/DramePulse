@@ -34,6 +34,18 @@ export function getVideoPlaybackState({
   };
 }
 
+export function getTimelineChromeVisibility({ isTimelineDragging }: { isTimelineDragging: boolean }) {
+  return {
+    showActionRail: !isTimelineDragging,
+    showMeta: !isTimelineDragging,
+    showBottomTabs: true
+  };
+}
+
+export function getFeedScrollEnabled({ isTimelineDragging }: { isTimelineDragging: boolean }) {
+  return !isTimelineDragging;
+}
+
 export function shouldPreloadFeedPage({
   pageIndex,
   activeIndex,
@@ -85,4 +97,15 @@ export function findNextEpisodeIndex(videos: PlayerVideo[], currentIndex: number
   }
   const nextIndex = videos.findIndex((video, index) => index > currentIndex && getSeriesKey(video) === currentSeriesKey);
   return nextIndex >= 0 ? nextIndex : undefined;
+}
+
+export function getNextEpisodeInfoByIndex(videos: PlayerVideo[]) {
+  return videos.map((video, index) => {
+    const nextIndex = findNextEpisodeIndex(videos, index);
+    const nextEpisode = nextIndex !== undefined ? videos[nextIndex] : undefined;
+    return {
+      hasNextEpisode: nextEpisode !== undefined,
+      nextEpisodeLabel: nextEpisode?.episodeLabel
+    };
+  });
 }

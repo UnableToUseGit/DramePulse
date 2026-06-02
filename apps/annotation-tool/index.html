@@ -376,7 +376,7 @@
         <header class="topbar">
           <div class="brand">
             <h1>DramePulse 高光标注</h1>
-            <p id="videoMeta">加载视频列表中 · 精简字段：时间段、emotion、reason</p>
+            <p id="videoMeta">加载视频列表中 · 精简字段：cue_time、emotion、reason</p>
           </div>
           <select id="videoPicker" class="video-picker" aria-label="选择标注视频" disabled>
             <option value="">加载中</option>
@@ -393,21 +393,15 @@
 
         <section class="form-panel" aria-label="高光标注表单">
           <div class="controls">
-            <button id="markStart" type="button">设为开始</button>
-            <button id="markEnd" type="button">设为结束</button>
-            <button id="jumpStart" type="button" class="ghost">跳到开始</button>
-            <button id="jumpEnd" type="button" class="ghost">跳到结束</button>
+            <button id="markCue" type="button">标记当前时间</button>
+            <button id="jumpCue" type="button" class="ghost">跳到标记</button>
             <button id="exportJson" type="button" class="primary">导出 JSON</button>
           </div>
 
           <div class="form-grid" style="margin-top: 12px;">
             <label>
-              start_time
-              <input id="startTime" inputmode="decimal" placeholder="0.000">
-            </label>
-            <label>
-              end_time
-              <input id="endTime" inputmode="decimal" placeholder="0.000">
+              cue_time
+              <input id="cueTime" inputmode="decimal" placeholder="0.000">
             </label>
             <label>
               emotion
@@ -439,7 +433,7 @@
             <span class="status-pill" id="annotationCount">0 条</span>
           </div>
           <div id="annotationList" class="annotation-list">
-            <div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光区间。</div>
+            <div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光点。</div>
           </div>
         </section>
       </section>
@@ -462,8 +456,7 @@
       const videoMetaEl = document.getElementById("videoMeta");
       const videoPickerEl = document.getElementById("videoPicker");
       const currentTimeEl = document.getElementById("currentTime");
-      const startTimeInput = document.getElementById("startTime");
-      const endTimeInput = document.getElementById("endTime");
+      const cueTimeInput = document.getElementById("cueTime");
       const emotionInput = document.getElementById("emotion");
       const reasonInput = document.getElementById("reason");
       const danmakuListEl = document.getElementById("danmakuList");
@@ -531,7 +524,7 @@
         if (context.seriesName) parts.push(context.seriesName);
         if (context.episodeLabel) parts.push(context.episodeLabel);
         if (context.title && context.title !== context.videoId) parts.push(context.title);
-        videoMetaEl.textContent = `${parts.join(" · ")} · 精简字段：时间段、emotion、reason`;
+        videoMetaEl.textContent = `${parts.join(" · ")} · 精简字段：cue_time、emotion、reason`;
         currentTimeEl.textContent = AnnotationTool.formatClock(0);
         renderAnnotations();
       }
@@ -564,7 +557,7 @@
         annotationCountEl.textContent = `${annotations.length} 条`;
         annotationListEl.textContent = "";
         if (!annotations.length) {
-          annotationListEl.innerHTML = '<div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光区间。</div>';
+          annotationListEl.innerHTML = '<div class="empty">还没有标注。播放视频，结合右侧弹幕时间轴选择高光点。</div>';
           return;
         }
         annotations.forEach((annotation, index) => {
@@ -572,7 +565,7 @@
           item.className = "annotation-item";
           item.innerHTML = `
             <div class="annotation-meta">
-              <strong>${AnnotationTool.formatClock(annotation.start_time)} - ${AnnotationTool.formatClock(annotation.end_time)}</strong>
+              <strong>${AnnotationTool.formatClock(annotation.cue_time)}</strong>
               <span>${annotation.emotion}</span>
             </div>
             <p class="annotation-reason"></p>
@@ -583,7 +576,7 @@
           `;
           item.querySelector(".annotation-reason").textContent = annotation.reason;
           const buttons = item.querySelectorAll("button");
-          buttons[0].addEventListener("click", () => setCurrentTime(annotation.start_time));
+          buttons[0].addEventListener("click", () => setCurrentTime(annotation.cue_time));
           buttons[1].addEventListener("click", () => {
             annotations.splice(index, 1);
             renderAnnotations();
@@ -593,12 +586,11 @@
       }
 
       function addAnnotation() {
-        const startTime = AnnotationTool.roundTime(startTimeInput.value);
-        const endTime = AnnotationTool.roundTime(endTimeInput.value);
+        const cueTime = AnnotationTool.roundTime(cueTimeInput.value);
         const emotion = emotionInput.value.trim();
         const reason = reasonInput.value.trim();
-        if (!(endTime > startTime)) {
-          alert("end_time 必须大于 start_time。");
+        if (!Number.isFinite(Number(cueTimeInput.value)) || cueTime < 0) {
+          alert("cue_time 必须是非负数字。");
           return;
         }
         if (!emotion || !reason) {
@@ -606,12 +598,11 @@
           return;
         }
         annotations.push({
-          start_time: startTime,
-          end_time: endTime,
+          cue_time: cueTime,
           emotion,
           reason,
         });
-        annotations.sort((a, b) => a.start_time - b.start_time);
+        annotations.sort((a, b) => a.cue_time - b.cue_time);
         reasonInput.value = "";
         renderAnnotations();
       }
@@ -694,14 +685,10 @@
         }
       }
 
-      document.getElementById("markStart").addEventListener("click", () => {
-        startTimeInput.value = AnnotationTool.roundTime(video.currentTime).toFixed(3);
+      document.getElementById("markCue").addEventListener("click", () => {
+        cueTimeInput.value = AnnotationTool.roundTime(video.currentTime).toFixed(3);
       });
-      document.getElementById("markEnd").addEventListener("click", () => {
-        endTimeInput.value = AnnotationTool.roundTime(video.currentTime).toFixed(3);
-      });
-      document.getElementById("jumpStart").addEventListener("click", () => setCurrentTime(startTimeInput.value));
-      document.getElementById("jumpEnd").addEventListener("click", () => setCurrentTime(endTimeInput.value));
+      document.getElementById("jumpCue").addEventListener("click", () => setCurrentTime(cueTimeInput.value));
       document.getElementById("addAnnotation").addEventListener("click", addAnnotation);
       document.getElementById("exportJson").addEventListener("click", exportJson);
       videoPickerEl.addEventListener("change", () => {

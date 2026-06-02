@@ -21,8 +21,10 @@ def _resolve_tool_path(env_var: str, tool_name: str) -> str:
     return tool_name
 
 
-def prepare_audio_for_transcription(audio_path: Path) -> Path:
-    normalized_audio_path = audio_path.parent / f"{audio_path.stem}.16k-mono.wav"
+def prepare_audio_for_transcription(audio_path: Path, *, output_dir: Path | None = None) -> Path:
+    normalized_dir = output_dir or audio_path.parent
+    normalized_dir.mkdir(parents=True, exist_ok=True)
+    normalized_audio_path = normalized_dir / f"{audio_path.stem}.16k-mono.wav"
     if normalized_audio_path.exists() and normalized_audio_path.stat().st_size > 0:
         return normalized_audio_path
     command = [

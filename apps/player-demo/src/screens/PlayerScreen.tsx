@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   NativeScrollEvent,
@@ -11,7 +11,13 @@ import {
 } from "react-native";
 import { PlayerPage } from "../components/PlayerPage";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "../config";
-import { findNextEpisodeIndex, getFeedPageIndex, shouldPreloadFeedPage } from "../domain/playerFeed";
+import {
+  findNextEpisodeIndex,
+  getFeedPageIndex,
+  getFeedScrollEnabled,
+  getNextEpisodeInfoByIndex,
+  shouldPreloadFeedPage
+} from "../domain/playerFeed";
 import { loadPlayerVideos, PlayerVideo } from "../domain/playerApi";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { colors, radii, spacing } from "../theme";
@@ -19,14 +25,17 @@ import { colors, radii, spacing } from "../theme";
 export function PlayerScreen() {
   const [videos, setVideos] = useState<PlayerVideo[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [playbackPositions, setPlaybackPositions] = useState<Record<string, number>>({});
   const [pageHeight, setPageHeight] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const listRef = useRef<FlatList<PlayerVideo>>(null);
+  const playbackPositionsRef = useRef<Record<string, number>>({});
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
+  const nextEpisodeInfoByIndex = useMemo(() => getNextEpisodeInfoByIndex(videos), [videos]);
+  const feedScrollEnabled = getFeedScrollEnabled({ isTimelineDragging });
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
@@ -35,7 +44,7 @@ export function PlayerScreen() {
       const nextVideos = await loadPlayerVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
       setVideos(nextVideos);
       setActiveIndex(0);
-      setPlaybackPositions({});
+      playbackPositionsRef.current = {};
       setLoadState("ready");
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
@@ -52,7 +61,7 @@ export function PlayerScreen() {
         if (!cancelled) {
           setVideos(nextVideos);
           setActiveIndex(0);
-          setPlaybackPositions({});
+          playbackPositionsRef.current = {};
           setLoadState("ready");
         }
       })
@@ -96,16 +105,39 @@ export function PlayerScreen() {
   );
 
   const handlePlaybackPositionChange = useCallback((videoId: string, time: number) => {
-    setPlaybackPositions((positions) => {
-      if (positions[videoId] === time) {
-        return positions;
-      }
-      return {
-        ...positions,
-        [videoId]: time
-      };
-    });
+    playbackPositionsRef.current[videoId] = time;
   }, []);
+
+  const renderPlayerPage = useCallback(
+    ({ item, index }: { item: PlayerVideo; index: number }) => {
+      const nextEpisodeInfo = nextEpisodeInfoByIndex[index];
+      return (
+        <PlayerFeedItem
+          video={item}
+          index={index}
+          activeIndex={activeIndex}
+          pageHeight={resolvedPageHeight}
+          initialPlaybackTime={playbackPositionsRef.current[item.videoId]}
+          hasNextEpisode={nextEpisodeInfo?.hasNextEpisode ?? false}
+          nextEpisodeLabel={nextEpisodeInfo?.nextEpisodeLabel}
+          selectedPresentationType={selectedPresentationType}
+          onChangePresentationType={handleChangePresentationType}
+          onPlaybackPositionChange={handlePlaybackPositionChange}
+          onTimelineDragStateChange={setIsTimelineDragging}
+          onPlayNextEpisode={handlePlayNextEpisode}
+        />
+      );
+    },
+    [
+      activeIndex,
+      handleChangePresentationType,
+      handlePlayNextEpisode,
+      handlePlaybackPositionChange,
+      nextEpisodeInfoByIndex,
+      resolvedPageHeight,
+      selectedPresentationType
+    ]
+  );
 
   if (loadState === "loading") {
     return (
@@ -144,28 +176,11 @@ export function PlayerScreen() {
           ref={listRef}
           data={videos}
           keyExtractor={(item) => item.videoId}
-          renderItem={({ item, index }) => {
-            const nextEpisodeIndex = findNextEpisodeIndex(videos, index);
-            const nextEpisode = nextEpisodeIndex !== undefined ? videos[nextEpisodeIndex] : undefined;
-            return (
-              <PlayerPage
-                video={item}
-                isActive={index === activeIndex}
-                shouldMountVideo={shouldPreloadFeedPage({ pageIndex: index, activeIndex })}
-                height={resolvedPageHeight}
-                initialPlaybackTime={playbackPositions[item.videoId]}
-                hasNextEpisode={nextEpisode !== undefined}
-                nextEpisodeLabel={nextEpisode?.episodeLabel}
-                selectedPresentationType={selectedPresentationType}
-                onChangePresentationType={handleChangePresentationType}
-                onPlaybackPositionChange={handlePlaybackPositionChange}
-                onPlayNextEpisode={() => handlePlayNextEpisode(index)}
-              />
-            );
-          }}
+          renderItem={renderPlayerPage}
           pagingEnabled
           showsVerticalScrollIndicator={false}
           bounces
+          scrollEnabled={feedScrollEnabled}
           decelerationRate="fast"
           snapToInterval={resolvedPageHeight}
           snapToAlignment="start"
@@ -188,6 +203,54 @@ export function PlayerScreen() {
     </View>
   );
 }
+
+const PlayerFeedItem = memo(function PlayerFeedItem({
+  video,
+  index,
+  activeIndex,
+  pageHeight,
+  initialPlaybackTime,
+  hasNextEpisode,
+  nextEpisodeLabel,
+  selectedPresentationType,
+  onChangePresentationType,
+  onPlaybackPositionChange,
+  onTimelineDragStateChange,
+  onPlayNextEpisode
+}: {
+  video: PlayerVideo;
+  index: number;
+  activeIndex: number;
+  pageHeight: number;
+  initialPlaybackTime?: number;
+  hasNextEpisode: boolean;
+  nextEpisodeLabel?: string;
+  selectedPresentationType: InteractionPresentationType;
+  onChangePresentationType: (type: InteractionPresentationType) => void;
+  onPlaybackPositionChange: (videoId: string, time: number) => void;
+  onTimelineDragStateChange: (isDragging: boolean) => void;
+  onPlayNextEpisode: (currentIndex: number) => void;
+}) {
+  const handlePlayNextEpisode = useCallback(() => {
+    onPlayNextEpisode(index);
+  }, [index, onPlayNextEpisode]);
+  return (
+    <PlayerPage
+      video={video}
+      isActive={index === activeIndex}
+      shouldMountVideo={shouldPreloadFeedPage({ pageIndex: index, activeIndex })}
+      height={pageHeight}
+      initialPlaybackTime={initialPlaybackTime}
+      hasNextEpisode={hasNextEpisode}
+      nextEpisodeLabel={nextEpisodeLabel}
+      selectedPresentationType={selectedPresentationType}
+      onChangePresentationType={onChangePresentationType}
+      onPlaybackPositionChange={onPlaybackPositionChange}
+      onTimelineDragStateChange={onTimelineDragStateChange}
+      onPlayNextEpisode={handlePlayNextEpisode}
+    />
+  );
+});
 
 const styles = StyleSheet.create({
   root: {

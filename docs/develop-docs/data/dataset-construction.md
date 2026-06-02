@@ -27,7 +27,45 @@
 
 视频下载工具：https://github.com/CharlesPikachu/videodl#
 
-### 2.2 弹幕爬取
+### 2.2 语音转写
+
+本地视频可以先用阿里云语音识别脚本生成字幕。`--output` 参数传输出目录，脚本会把本次转写的主要产物集中写入该目录：
+
+```bash
+python scripts/transcribe_video.py /path/to/video.mp4 -o output/beipai_xunbao_biji_ep02
+```
+
+输出示例：
+
+```text
+output/beipai_xunbao_biji_ep02/video.srt
+output/beipai_xunbao_biji_ep02/video.transcription.json
+output/beipai_xunbao_biji_ep02/video.16k-mono.wav
+```
+
+其中 `.srt` 是后续高光识别使用的字幕，`.transcription.json` 保留阿里云原始返回结果，`.16k-mono.wav` 是转写前归一化后的音频文件，便于复查和复跑。
+
+### 2.3 音频可视化
+
+为了辅助观察短剧节奏和情绪强度，可以为本地视频生成音频能量图、声谱图和能量采样数据：
+
+```bash
+python scripts/generate_audio_visualization.py /path/to/video.mp4 --media-id beipai_xunbao_biji_ep02
+```
+
+输出写入：
+
+```text
+output/<media_id>/audio/energy.json
+output/<media_id>/audio/waveform.svg
+output/<media_id>/audio/spectrogram.png
+```
+
+- `waveform.svg`：按时间展示 RMS 音量变化，便于快速定位尖叫、争吵、静音和音乐高潮；
+- `spectrogram.png`：展示频率能量分布，便于区分人声、音乐和尖锐音效；
+- `energy.json`：保留每个时间采样点的 `rms_db`，后续可以和字幕、镜头切分、高光点合并到同一时间轴。
+
+### 2.4 弹幕爬取
 
 操作步骤：
 
@@ -204,13 +242,88 @@ TheThreeKeyboardeers/ShortDramas
 
 后续开发和演示时，应先从该数据集下载数据，再移动或整理到本仓库的 `data/` 目录下。
 
-## 4. 高光点验证集标注
+## 4. 镜头切分
+
+镜头切分用于把本地短剧视频拆成可检查的片段，方便人工观察剧情节奏、切分质量和后续高光识别的候选窗口。
+
+当前脚本直接接收本地视频路径，不依赖数据库或后端 API：
+
+- 输入为本机可访问的 MP4 文件；
+- 默认使用文件名 stem 作为 `video_id`；
+- 对于 `ep02/video.mp4` 这类通用文件名，建议显式传入 `--video-id`，避免多个视频都输出到 `output/video/`。
+
+运行一个视频：
+
+```bash
+python scripts/run_scene_detection.py /Users/qinminghao/Desktop/ByteDance/VideoData/raw/beipai_xunbao_biji/ep02/video.mp4 --video-id beipai_xunbao_biji_ep02
+```
+
+如果视频文件名本身就是稳定 ID，也可以省略 `--video-id`：
+
+```bash
+python scripts/run_scene_detection.py data/case1/ep01.mp4
+```
+
+可以根据切分效果调整 PySceneDetect `ContentDetector` 参数：
+
+```bash
+python scripts/run_scene_detection.py /path/to/video.mp4 --video-id demo_ep01 --threshold 24 --min-scene-len 12
+```
+
+输出写入：
+
+```text
+output/<video_id>/scene_detection.json
+output/<video_id>/scenes/<video_id>_scene_001.mp4
+output/<video_id>/scenes/<video_id>_scene_002.mp4
+```
+
+其中 `scene_detection.json` 记录每个片段的起止时间、帧号、timecode 和 `clip_path`；`scenes/` 下的 MP4 片段用于人工查看。生成视频片段依赖 PySceneDetect 的 `split_video_ffmpeg`，因此本机需要可用的 `ffmpeg`。
+
+## 5. 高光候选召回
+
+第一版高光识别采用两阶段思路：
+
+```text
+带时间戳字幕
+  ↓
+Stage 1: 文本 LLM 粗召回 candidate_cues
+  ↓
+Stage 1.5: 将 cue_time 映射到 PySceneDetect scene，生成 candidate_scene_cues
+  ↓
+Stage 2: 后续再接 MLLM 审核 target_scene 是否真实承载情感/价值跃迁
+```
+
+当前已实现 Stage 1 和 Stage 1.5：
+
+```bash
+python scripts/run_highlight_candidate_generation.py beipai_xunbao_biji_ep02 \
+  --transcription output/beipai_xunbao_biji_ep02/video.transcription.json \
+  --scene-detection output/beipai_xunbao_biji_ep02/scene_detection.json
+```
+
+输出写入：
+
+```text
+output/beipai_xunbao_biji_ep02/highlight_candidates.json
+```
+
+其中：
+
+- `candidate_cues` 来自文本 LLM，表示“哪句台词可能位于高光镜头内”；
+- `candidate_scene_cues` 是系统把 cue 的时间点映射到 PySceneDetect 切出的目标镜头；
+- `target_scene` 是 Stage 2 要审核的镜头；
+- `context_scene_ids` 和 `context_subtitles` 只作为 Stage 2 审核上下文，不代表整段都是高光。
+
+可以通过 `--context-size` 控制 `target_scene` 前后各带几个相邻镜头作为审核上下文。
+
+## 6. 高光点验证集标注
 
 本阶段先用 `case1_ep01` 跑通验证集制作流程，不急于扩展样本规模，也不急于定义完整高光类型体系。
 
 第一版验证集只服务一个目标：为高光点识别算法提供可重复对照的人工标注结果。后续 prompt、抽帧策略或模型选择发生变化时，可以用同一批人工标注判断识别结果是否更接近人工标准。
 
-### 4.1 第一版流程
+### 6.1 第一版流程
 
 ```text
 data/case1/ep01.mp4
@@ -219,14 +332,14 @@ data/case1/ep01.json
   ↓
 apps/annotation-tool/index.html
   ↓
-人工标注高光时间段、emotion、reason
+人工标注高光点 cue_time、emotion、reason
   ↓
 导出 <video_id>.annotation.json
 ```
 
 第一版暂不实现自动评测脚本。标注数据格式会预留给后续评测脚本使用。
 
-### 4.2 标注工具
+### 6.2 标注工具
 
 当前标注工具为本地静态页面外壳，但视频、元信息和弹幕数据从后端 API 读取：
 
@@ -276,12 +389,12 @@ http://127.0.0.1:8770/apps/annotation-tool/
 - 在播放器右侧展示按时间排序的弹幕列表；
 - 视频播放时自动滚动到当前时间对应的弹幕行；
 - 点击弹幕行可以跳转到对应视频时间；
-- 支持记录 `start_time` 和 `end_time`；
+- 支持记录 `cue_time`；
 - 支持填写 `emotion` 和 `reason`；
 - 支持添加、删除标注；
 - 支持导出人工标注 JSON。
 
-### 4.3 标注字段
+### 6.3 标注字段
 
 第一版人工标注字段刻意保持精简：
 
@@ -294,8 +407,7 @@ http://127.0.0.1:8770/apps/annotation-tool/
   "annotations": [
     {
       "annotation_id": "gold_case1_ep01_001",
-      "start_time": 8.96,
-      "end_time": 12.04,
+      "cue_time": 8.96,
       "emotion": "shock",
       "reason": "开场女主醒来发现自己正在亲吻陌生男人，弹幕集中吐槽和震惊，适合作为互动触发点。"
     }
@@ -308,10 +420,9 @@ http://127.0.0.1:8770/apps/annotation-tool/
 | 字段 | 说明 |
 | --- | --- |
 | `annotation_id` | 人工标注 ID，由导出工具按顺序生成。 |
-| `start_time` | 高光开始时间，单位为秒。 |
-| `end_time` | 高光结束时间，单位为秒，必须大于 `start_time`。 |
+| `cue_time` | 高光点时间，单位为秒。后续可映射到 PySceneDetect 切出的镜头，用于生成审核上下文和互动触发时间。 |
 | `emotion` | 该高光主要激发的用户情绪。 |
-| `reason` | 为什么该片段值得触发互动，必须结合剧情内容说明；可引用弹幕共鸣作为辅助证据。 |
+| `reason` | 为什么该时间点值得触发互动，必须结合剧情内容说明；可引用弹幕共鸣作为辅助证据。 |
 
 第一版暂不标注以下字段：
 
@@ -322,9 +433,9 @@ http://127.0.0.1:8770/apps/annotation-tool/
 
 这些字段等标注一批样本、有足够经验后，再根据真实标注分布补充。
 
-### 4.4 标注原则
+### 6.4 标注原则
 
-高光点标注的对象不是普通剧情片段，而是“适合在播放器内触发低摩擦互动”的剧情瞬间。
+高光点标注的对象不是普通剧情片段，而是“适合在播放器内触发低摩擦互动”的剧情瞬间。人工标注只记录一个 `cue_time`，算法侧再把这个点映射到它所在的镜头和上下文窗口。
 
 优先标注以下片段：
 
@@ -334,12 +445,12 @@ http://127.0.0.1:8770/apps/annotation-tool/
 - 甜蜜撒糖、暧昧、关系推进；
 - 明显引发观众站队、预测、吐槽的位置。
 
-不建议标注以下片段：
+不建议标注以下位置：
 
 - 纯过场、铺垫、环境交代；
 - 只有信息量但缺少情绪表达空间的说明；
 - 弹幕很多但剧情本身不构成互动触发点的位置；
-- 时间跨度过长、难以落到一个明确互动窗口的片段。
+- 难以落到一个明确镜头或互动触发点的位置。
 
 弹幕代表观众共鸣，是判断高光点的重要辅助信号。标注时可以重点观察：
 
@@ -350,10 +461,12 @@ http://127.0.0.1:8770/apps/annotation-tool/
 
 但弹幕不能替代剧情判断。一个片段是否标为高光，最终仍要看它是否能支撑播放器内即时互动。
 
-### 4.5 时间边界原则
+### 6.5 cue_time 选择原则
 
-`start_time` 应尽量落在情绪触发点之前或刚出现时。
+`cue_time` 应尽量落在情绪跃迁真正发生的台词、动作或表情上，而不是整场戏的开始时间。
 
-`end_time` 应覆盖用户能够理解该高光的最短剧情窗口，不宜为了包含后续讨论而拉得过长。
+如果高光由一句台词触发，优先取该句台词开始后、观众刚能理解其含义的位置。
 
-如果一个长片段中连续出现多个独立情绪触发点，应拆成多条标注；如果多个台词共同构成一个反转或冲突，则可以合并为一条标注。
+如果高光由动作或表情触发，优先取动作完成或表情反应出现的时间点。
+
+如果一个长片段中连续出现多个独立情绪触发点，应拆成多条标注。即使多个台词共同构成一个反转或冲突，也应选择最能代表情绪跃迁的那个 `cue_time`。

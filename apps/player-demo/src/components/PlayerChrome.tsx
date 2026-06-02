@@ -15,7 +15,10 @@ export function PlayerChrome({
   onSelectPlaybackRate,
   title,
   plotSummary,
-  episodeLabel
+  episodeLabel,
+  showActionRail = true,
+  showMeta = true,
+  showBottomTabs = true
 }: {
   liked: boolean;
   onToggleLike: () => void;
@@ -27,6 +30,9 @@ export function PlayerChrome({
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  showActionRail?: boolean;
+  showMeta?: boolean;
+  showBottomTabs?: boolean;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -36,9 +42,9 @@ export function PlayerChrome({
         onToggleSpeedMenu={onToggleSpeedMenu}
         onSelectPlaybackRate={onSelectPlaybackRate}
       />
-      <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} />
-      <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} />
-      <PlayerBottomTabs />
+      {showActionRail ? <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} /> : null}
+      {showMeta ? <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} /> : null}
+      {showBottomTabs ? <PlayerBottomTabs /> : null}
     </View>
   );
 }

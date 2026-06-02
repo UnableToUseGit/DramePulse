@@ -121,8 +121,7 @@
       source_json_path: String(config.sourceJsonPath || config.source_json_path || ""),
       annotations: annotations.map((item, index) => ({
         annotation_id: `gold_${videoId}_${String(index + 1).padStart(3, "0")}`,
-        start_time: roundTime(item.start_time),
-        end_time: roundTime(item.end_time),
+        cue_time: roundTime(item.cue_time),
         emotion: String(item.emotion || "").trim(),
         reason: String(item.reason || "").trim(),
       })),

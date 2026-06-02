@@ -1,7 +1,10 @@
 import {
   findNextEpisodeIndex,
   getFeedPageIndex,
+  getFeedScrollEnabled,
+  getNextEpisodeInfoByIndex,
   getResumePlaybackTime,
+  getTimelineChromeVisibility,
   getVideoPlaybackState,
   getSeriesKey,
   shouldPreloadFeedPage
@@ -74,6 +77,20 @@ describe("playerFeed", () => {
     expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
   });
 
+  it("precomputes next episode labels for each feed item", () => {
+    const videos = [
+      makeVideo({ videoId: "s1e1", seriesId: "s1", episodeLabel: "ep01" }),
+      makeVideo({ videoId: "other", seriesId: "s2", episodeLabel: "ep01" }),
+      makeVideo({ videoId: "s1e2", seriesId: "s1", episodeLabel: "ep02" })
+    ];
+
+    expect(getNextEpisodeInfoByIndex(videos)).toEqual([
+      { hasNextEpisode: true, nextEpisodeLabel: "ep02" },
+      { hasNextEpisode: false, nextEpisodeLabel: undefined },
+      { hasNextEpisode: false, nextEpisodeLabel: undefined }
+    ]);
+  });
+
   it("preloads the active feed page and its direct neighbors", () => {
     expect(shouldPreloadFeedPage({ pageIndex: 0, activeIndex: 0 })).toBe(true);
     expect(shouldPreloadFeedPage({ pageIndex: 1, activeIndex: 0 })).toBe(true);
@@ -91,5 +108,23 @@ describe("playerFeed", () => {
     expect(getResumePlaybackTime({ savedTime: -4, duration: 60 })).toBe(0);
     expect(getResumePlaybackTime({ savedTime: 59, duration: 60 })).toBe(0);
     expect(getResumePlaybackTime({ savedTime: 59, duration: 0 })).toBe(59);
+  });
+
+  it("keeps app tabs visible while hiding video metadata chrome during timeline dragging", () => {
+    expect(getTimelineChromeVisibility({ isTimelineDragging: false })).toEqual({
+      showActionRail: true,
+      showMeta: true,
+      showBottomTabs: true
+    });
+    expect(getTimelineChromeVisibility({ isTimelineDragging: true })).toEqual({
+      showActionRail: false,
+      showMeta: false,
+      showBottomTabs: true
+    });
+  });
+
+  it("disables feed scrolling while timeline dragging is active", () => {
+    expect(getFeedScrollEnabled({ isTimelineDragging: false })).toBe(true);
+    expect(getFeedScrollEnabled({ isTimelineDragging: true })).toBe(false);
   });
 });

@@ -135,17 +135,19 @@ def _normalize_timestamps(timestamps_seconds: list[float]) -> list[float]:
     return sorted({max(0.0, round(float(ts), 3)) for ts in timestamps_seconds})
 
 
-def _downscale_frame_if_needed(frame: Any) -> Any:
+def _downscale_frame_if_needed(frame: Any, *, max_height: int = 720) -> Any:
     shape = getattr(frame, "shape", None)
     if not shape or len(shape) < 2:
         return frame
     height = int(shape[0])
     width = int(shape[1])
-    if height <= 0 or width <= 0 or height <= 720 or cv2 is None:
+    if max_height <= 0:
+        raise ValueError("max_height must be positive")
+    if height <= 0 or width <= 0 or height <= max_height or cv2 is None:
         return frame
-    scale = 720 / float(height)
+    scale = max_height / float(height)
     target_width = max(2, int(round((width * scale) / 2.0) * 2))
-    return cv2.resize(frame, (target_width, 720))
+    return cv2.resize(frame, (target_width, max_height))
 
 
 def _extract_timestamps_with_opencv(
@@ -153,6 +155,7 @@ def _extract_timestamps_with_opencv(
     video_path: Path,
     output_dir: Path,
     timestamps_seconds: list[float],
+    max_height: int = 720,
 ) -> FrameExtractionResult:
     if cv2 is None:
         raise RuntimeError("OpenCV is not available")
@@ -170,7 +173,7 @@ def _extract_timestamps_with_opencv(
             if not ok:
                 continue
             out_path = output_dir / f"t_{int(round(ts * 1000)):09d}.png"
-            frame = _downscale_frame_if_needed(frame)
+            frame = _downscale_frame_if_needed(frame, max_height=max_height)
             if cv2.imwrite(str(out_path), frame):
                 saved += 1
     finally:
@@ -183,6 +186,7 @@ def _extract_timestamps_with_ffmpeg(
     video_path: Path,
     output_dir: Path,
     timestamps_seconds: list[float],
+    max_height: int = 720,
 ) -> FrameExtractionResult:
     if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg is required for fallback frame extraction")
@@ -195,7 +199,7 @@ def _extract_timestamps_with_ffmpeg(
             "-i",
             str(video_path),
             "-vf",
-            "scale=-2:720:force_original_aspect_ratio=decrease",
+            f"scale=-2:{max_height}:force_original_aspect_ratio=decrease",
             "-frames:v",
             "1",
             str(output_dir / f"t_{int(round(ts * 1000)):09d}.png"),
@@ -217,6 +221,7 @@ def extract_frames_at_timestamps(
     video_path: Path,
     output_dir: Path,
     timestamps_seconds: list[float],
+    max_height: int = 720,
 ) -> FrameExtractionResult:
     _prepare_output_dir(output_dir)
     try:
@@ -224,6 +229,7 @@ def extract_frames_at_timestamps(
             video_path=video_path,
             output_dir=output_dir,
             timestamps_seconds=timestamps_seconds,
+            max_height=max_height,
         )
     except Exception as exc:  # noqa: BLE001
         _prepare_output_dir(output_dir)
@@ -231,6 +237,7 @@ def extract_frames_at_timestamps(
             video_path=video_path,
             output_dir=output_dir,
             timestamps_seconds=timestamps_seconds,
+            max_height=max_height,
         )
         return FrameExtractionResult(
             backend=fallback.backend,

@@ -12,7 +12,27 @@ describe("playerApi", () => {
           episode_label: "ep63",
           duration: 123.45,
           stream_url: "/api/videos/beipai_xunbao_biji_ep63/stream",
-          danmaku_url: "/api/videos/beipai_xunbao_biji_ep63/danmaku"
+          danmaku_url: "/api/videos/beipai_xunbao_biji_ep63/danmaku",
+          story_chapters: [
+            {
+              chapter_id: "ch_001",
+              video_id: "beipai_xunbao_biji_ep63",
+              start_time: 0,
+              end_time: 12,
+              title: "债主堵门",
+              summary: "债主上门逼债。",
+              importance: 0.7
+            }
+          ],
+          storyboard: {
+            video_id: "beipai_xunbao_biji_ep63",
+            interval_seconds: 1,
+            frame_width: 160,
+            frame_height: 90,
+            columns: 5,
+            rows: 5,
+            sheets: [{ url: "/storyboards/beipai_xunbao_biji_ep63/sheet_000.jpg", start_time: 0, frame_count: 25 }]
+          }
         },
         "http://127.0.0.1:8000"
       )
@@ -25,7 +45,33 @@ describe("playerApi", () => {
       episodeLabel: "ep63",
       duration: 123.45,
       streamUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/stream",
-      danmakuUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/danmaku"
+      danmakuUrl: "http://127.0.0.1:8000/api/videos/beipai_xunbao_biji_ep63/danmaku",
+      storyChapters: [
+        {
+          chapterId: "ch_001",
+          videoId: "beipai_xunbao_biji_ep63",
+          startTime: 0,
+          endTime: 12,
+          title: "债主堵门",
+          summary: "债主上门逼债。",
+          importance: 0.7
+        }
+      ],
+      storyboard: {
+        videoId: "beipai_xunbao_biji_ep63",
+        intervalSeconds: 1,
+        frameWidth: 160,
+        frameHeight: 90,
+        columns: 5,
+        rows: 5,
+        sheets: [
+          {
+            url: "http://127.0.0.1:8000/storyboards/beipai_xunbao_biji_ep63/sheet_000.jpg",
+            startTime: 0,
+            frameCount: 25
+          }
+        ]
+      }
     });
   });
 

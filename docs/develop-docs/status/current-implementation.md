@@ -156,7 +156,23 @@ output/case1_ep01/interaction_plan_generation.json
 - 互动方案生成消费 `Highlight Asset`、字幕窗口、关键帧和弹幕上下文；
 - 当前互动方案生成以 `danmaku_poll` 为主；
 - 生成失败时有 fallback 模板；
+- 剧情导航章节生成支持 text-only baseline 和 multimodal 高成本版本；
+- 剧情导航验证 viewer 可用于播放视频、对照 scene 边界和 story chapter 边界；
 - 样例输出保存在 `example_output/case1_ep01/`。
+
+剧情导航章节生成入口：
+
+```text
+scripts/run_story_chapter_generation.py
+scripts/run_story_chapter_generation_batch.py
+scripts/run_story_chapter_generation_multimodal.py
+scripts/run_story_chapter_generation_multimodal_batch.py
+scripts/story_chapter_viewer_server.py
+```
+
+剧情导航章节生成的当前实现与验证结论见：
+
+- `docs/develop-docs/module-designs/story-chapter-generation.md`
 
 运行前提：
 

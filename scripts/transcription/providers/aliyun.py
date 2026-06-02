@@ -148,7 +148,7 @@ class AliyunAsrClient:
                     transcription_url = result.get("transcription_url")
                     if transcription_url:
                         raw_result = self._download_transcription_result(transcription_url)
-                        return parse_aliyun_transcription_result(raw_result)
+                        return raw_result
 
             for result in results:
                 if result.get("subtask_status") == "FAILED":
@@ -189,8 +189,8 @@ class AliyunTranscriber:
             return f"{prefix}/{unique_id}/{audio_path.name}"
         return f"{unique_id}/{audio_path.name}"
 
-    def _prepare_audio_for_transcription(self, audio_path: Path) -> Path:
-        return prepare_audio_for_transcription(audio_path)
+    def _prepare_audio_for_transcription(self, audio_path: Path, *, output_dir: Path | None = None) -> Path:
+        return prepare_audio_for_transcription(audio_path, output_dir=output_dir)
 
     def _split_audio_for_transcription(self, normalized_audio_path: Path) -> list[tuple[Path, float]]:
         return split_audio_by_duration(
@@ -206,7 +206,7 @@ class AliyunTranscriber:
         return self.asr_client.transcribe_raw_from_url(file_url)
 
     def transcribe(self, request: TranscriptionRequest) -> TranscriptionResult:
-        normalized_audio_path = self._prepare_audio_for_transcription(request.audio_path)
+        normalized_audio_path = self._prepare_audio_for_transcription(request.audio_path, output_dir=request.work_dir)
         chunks = self._split_audio_for_transcription(normalized_audio_path)
         chunks_dir = chunks[0][0].parent if chunks else None
         total_chunks = len(chunks)

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
-import { getResumePlaybackTime, getVideoPlaybackState, UserPlaybackIntent } from "../domain/playerFeed";
+import {
+  getResumePlaybackTime,
+  getTimelineChromeVisibility,
+  getVideoPlaybackState,
+  UserPlaybackIntent
+} from "../domain/playerFeed";
 import { PlayerVideo } from "../domain/playerApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
@@ -34,6 +39,7 @@ export function PlayerPage({
   selectedPresentationType,
   onChangePresentationType,
   onPlaybackPositionChange,
+  onTimelineDragStateChange,
   onPlayNextEpisode
 }: {
   video: PlayerVideo;
@@ -46,6 +52,7 @@ export function PlayerPage({
   selectedPresentationType: InteractionPresentationType;
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
+  onTimelineDragStateChange?: (isDragging: boolean) => void;
   onPlayNextEpisode: () => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
@@ -55,6 +62,7 @@ export function PlayerPage({
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
+  const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
@@ -64,6 +72,7 @@ export function PlayerPage({
   const lastReportedPositionRef = useRef(0);
   const storyQaRequestRef = useRef(0);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
+  const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
   const {
     dismiss: dismissInteractionExample,
     reset: resetInteractionExample,
@@ -220,6 +229,14 @@ export function PlayerPage({
     [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
+  const handleTimelineDragStateChange = useCallback(
+    (isDragging: boolean) => {
+      setIsTimelineDragging(isDragging);
+      onTimelineDragStateChange?.(isDragging);
+    },
+    [onTimelineDragStateChange]
+  );
+
   const handleSubmitStoryQa = useCallback(
     (quickQuestion?: string) => {
       const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
@@ -317,6 +334,9 @@ export function PlayerPage({
         title={video.title}
         plotSummary={video.plotSummary}
         episodeLabel={video.episodeLabel}
+        showActionRail={timelineChromeVisibility.showActionRail}
+        showMeta={timelineChromeVisibility.showMeta}
+        showBottomTabs={timelineChromeVisibility.showBottomTabs}
       />
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
@@ -327,6 +347,9 @@ export function PlayerPage({
         hasNextEpisode={hasNextEpisode}
         nextEpisodeLabel={nextEpisodeLabel}
         onSeekCommit={handleSeekCommit}
+        onDragStateChange={handleTimelineDragStateChange}
+        storyChapters={video.storyChapters}
+        storyboard={video.storyboard}
       />
       <StoryQaPanel
         visible={storyQaState.isOpen}
