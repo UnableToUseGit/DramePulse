@@ -12,6 +12,7 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from pipelines.client import OpenAiLlmClient, VolcArkLlmClient
 from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
 from scripts.transcription.env import load_dotenv_values
 
@@ -39,17 +40,30 @@ def discover_episodes(
     *,
     data_root: Path,
     series_id: str | None = None,
+    series_ids: Sequence[str] | None = None,
     episode_id: str | None = None,
+    episode_ids: Sequence[str] | None = None,
+    video_ids: Sequence[str] | None = None,
     limit: int = 0,
 ) -> list[EpisodeInput]:
+    allowed_series_ids = set(series_ids or [])
+    if series_id:
+        allowed_series_ids.add(series_id)
+    allowed_episode_ids = set(episode_ids or [])
+    if episode_id:
+        allowed_episode_ids.add(episode_id)
+    allowed_video_ids = set(video_ids or [])
     episodes: list[EpisodeInput] = []
     for video_path in sorted(data_root.glob("*/ep*/video.mp4")):
         current_episode_dir = video_path.parent
         current_series_id = current_episode_dir.parent.name
         current_episode_id = current_episode_dir.name
-        if series_id and current_series_id != series_id:
+        current_video_id = f"{current_series_id}_{current_episode_id}"
+        if allowed_series_ids and current_series_id not in allowed_series_ids:
             continue
-        if episode_id and current_episode_id != episode_id:
+        if allowed_episode_ids and current_episode_id not in allowed_episode_ids:
+            continue
+        if allowed_video_ids and current_video_id not in allowed_video_ids:
             continue
         subtitle_path = current_episode_dir / "video.srt"
         if not subtitle_path.exists():
@@ -57,7 +71,7 @@ def discover_episodes(
         source_json_path = current_episode_dir / "douyin.json"
         episodes.append(
             EpisodeInput(
-                video_id=f"{current_series_id}_{current_episode_id}",
+                video_id=current_video_id,
                 series_id=current_series_id,
                 episode_id=current_episode_id,
                 episode_dir=current_episode_dir,
@@ -149,25 +163,63 @@ def extract_danmaku_items(source_payload: dict[str, Any]) -> list[dict[str, Any]
     return items
 
 
-def build_ark_client(*, env_path: Path | None = None):
-    from pipelines.client import VolcArkLlmClient
+def _first_env_value(dotenv_values: dict[str, str], keys: Sequence[str]) -> str | None:
+    for key in keys:
+        value = dotenv_values.get(key)
+        if value:
+            return value
+    for key in keys:
+        value = os.environ.get(key)
+        if value:
+            return value
+    return None
 
+
+def _llm_config_value(dotenv_values: dict[str, str], generic_key: str, legacy_keys: Sequence[str]) -> str | None:
+    generic_value = _first_env_value(dotenv_values, [generic_key])
+    if generic_value:
+        return generic_value
+    return _first_env_value(dotenv_values, legacy_keys)
+
+
+def build_llm_client(*, env_path: Path | None = None):
     dotenv_values = load_dotenv_values(env_path)
-    return VolcArkLlmClient(
-        api_key=dotenv_values.get("ARK_API_KEY") or os.environ.get("ARK_API_KEY") or None,
-        base_url=dotenv_values.get("ARK_BASE_URL") or os.environ.get("ARK_BASE_URL") or None,
-        model_name=dotenv_values.get("ARK_MODEL") or os.environ.get("ARK_MODEL") or None,
-    )
+    provider = (_first_env_value(dotenv_values, ["LLM_PROVIDER"]) or "ark").strip().lower()
+    if provider in {"ark", "volc", "volc_ark", "volcark"}:
+        return VolcArkLlmClient(
+            api_key=_llm_config_value(dotenv_values, "API_KEY", ["ARK_API_KEY"]),
+            base_url=_llm_config_value(dotenv_values, "BASE_URL", ["ARK_BASE_URL"]),
+            model_name=_llm_config_value(dotenv_values, "MODEL", ["ARK_MODEL"]),
+        )
+    if provider in {"openai", "open_ai"}:
+        return OpenAiLlmClient(
+            api_key=_llm_config_value(dotenv_values, "API_KEY", ["OPENAI_API_KEY"]),
+            base_url=_llm_config_value(dotenv_values, "BASE_URL", ["OPENAI_BASE_URL"]),
+            model_name=_llm_config_value(dotenv_values, "MODEL", ["OPENAI_MODEL"]),
+        )
+    raise ValueError(f"Unsupported LLM_PROVIDER: {provider}")
 
 
-def build_pipeline(*, env_path: Path, sample_interval_sec: float, frames_per_interval: int, max_frames: int | None):
+def build_ark_client(*, env_path: Path | None = None):
+    return build_llm_client(env_path=env_path)
+
+
+def build_pipeline(
+    *,
+    env_path: Path,
+    sample_interval_sec: float,
+    frames_per_interval: int,
+    max_frames: int | None,
+    enable_danmaku_enhancement: bool,
+):
     from pipelines.expression_trigger_detection import ExpressionTriggerPipeline
 
     return ExpressionTriggerPipeline(
-        llm_client=build_ark_client(env_path=env_path),
+        llm_client=build_llm_client(env_path=env_path),
         sample_interval_sec=sample_interval_sec,
         frames_per_interval=frames_per_interval,
         max_frames=max_frames,
+        enable_danmaku_enhancement=enable_danmaku_enhancement,
     )
 
 
@@ -176,6 +228,7 @@ def write_episode_output(
     episode: EpisodeInput,
     output_root: Path,
     expression_triggers: list[dict[str, Any]],
+    llm_call: dict[str, Any] | None = None,
 ) -> Path:
     output_dir = output_root / episode.video_id
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -185,10 +238,43 @@ def write_episode_output(
         "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
         "subtitle_path": str(episode.subtitle_path),
         "created_at": now_iso(),
+        "llm_call": llm_call or {},
         "expression_triggers": expression_triggers,
         "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
     }
     output_path = output_dir / "highlight_recognition.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
+def write_failure_diagnostics(
+    *,
+    episode: EpisodeInput,
+    output_root: Path,
+    error: Exception,
+    metadata: dict[str, Any],
+    danmaku_items: list[dict[str, Any]],
+    llm_call: dict[str, Any] | None = None,
+) -> Path:
+    output_dir = output_root / episode.video_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    raw_response_text = getattr(error, "raw_response_text", "")
+    payload = {
+        "video_id": episode.video_id,
+        "series_id": episode.series_id,
+        "episode_id": episode.episode_id,
+        "video_path": str(episode.video_path),
+        "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
+        "subtitle_path": str(episode.subtitle_path),
+        "created_at": now_iso(),
+        "error_type": type(error).__name__,
+        "error": str(error),
+        "metadata": metadata,
+        "danmaku_count": len(danmaku_items),
+        "llm_call": llm_call or {},
+        "raw_response_text": raw_response_text if isinstance(raw_response_text, str) else str(raw_response_text),
+    }
+    output_path = output_dir / "llm_failure.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output_path
 
@@ -226,11 +312,32 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
-    parser.add_argument("--series-id", help="Only process one series directory, for example beipai_xunbao_biji.")
-    parser.add_argument("--episode-id", help="Only process one episode directory, for example ep01.")
+    parser.add_argument(
+        "--series-id",
+        nargs="+",
+        action="append",
+        help="Only process selected series directories, for example --series-id beiwang nanian_dongzhi.",
+    )
+    parser.add_argument(
+        "--episode-id",
+        nargs="+",
+        action="append",
+        help="Only process selected episode directories across selected series, for example --episode-id ep01 ep02.",
+    )
+    parser.add_argument(
+        "--video-id",
+        nargs="+",
+        action="append",
+        help="Only process exact video ids, for example --video-id beiwang_ep01 nanian_dongzhi_ep02.",
+    )
     parser.add_argument("--limit", type=int, default=0, help="Process at most N episodes. Default: all.")
     parser.add_argument("--force", action="store_true", help="Regenerate outputs that already exist.")
     parser.add_argument("--include-finale-trigger", action="store_true")
+    parser.add_argument(
+        "--disable-danmaku-enhancement",
+        action="store_true",
+        help="Only use multimodal LLM cold-start detection and skip rule-based danmaku supplemental triggers.",
+    )
     parser.add_argument("--sample-interval-sec", type=float, default=1.0)
     parser.add_argument("--frames-per-interval", type=int, default=1)
     parser.add_argument("--max-frames", type=int)
@@ -239,10 +346,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
+    series_ids = [series_id for group in (args.series_id or []) for series_id in group]
+    episode_ids = [episode_id for group in (args.episode_id or []) for episode_id in group]
+    video_ids = [video_id for group in (args.video_id or []) for video_id in group]
     episodes = discover_episodes(
         data_root=args.data_root,
-        series_id=args.series_id,
-        episode_id=args.episode_id,
+        series_ids=series_ids,
+        episode_ids=episode_ids,
+        video_ids=video_ids,
         limit=args.limit,
     )
     active_pipeline = pipeline or build_pipeline(
@@ -250,6 +361,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         sample_interval_sec=args.sample_interval_sec,
         frames_per_interval=args.frames_per_interval,
         max_frames=args.max_frames,
+        enable_danmaku_enhancement=not args.disable_danmaku_enhancement,
     )
 
     processed = 0
@@ -263,6 +375,9 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
             continue
         print(f"RUN  {episode.video_id}")
         source_payload = load_source_payload(episode.source_json_path)
+        metadata = extract_video_metadata(source_payload)
+        danmaku_items: list[dict[str, Any]] = []
+        llm_call: dict[str, Any] = {}
         try:
             danmaku_items = load_danmaku_csv_items(args.data_root, series_id=episode.series_id, episode_id=episode.episode_id)
             if not danmaku_items:
@@ -271,18 +386,31 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
                 video_id=episode.video_id,
                 video_file_path=episode.video_path,
                 subtitle_file_path=episode.subtitle_path,
-                metadata=extract_video_metadata(source_payload),
+                metadata=metadata,
                 danmaku_items=danmaku_items,
                 include_finale_trigger=args.include_finale_trigger,
             )
+            raw_llm_call = getattr(active_pipeline, "last_llm_call", {})
+            llm_call = dict(raw_llm_call) if isinstance(raw_llm_call, dict) else {}
             written_path = write_episode_output(
                 episode=episode,
                 output_root=args.output_root,
                 expression_triggers=expression_triggers,
+                llm_call=llm_call,
             )
         except Exception as exc:  # noqa: BLE001 - batch jobs should continue and report all episode failures.
+            raw_llm_call = getattr(active_pipeline, "last_llm_call", {})
+            llm_call = dict(raw_llm_call) if isinstance(raw_llm_call, dict) else llm_call
             failed.append((episode.video_id, str(exc)))
-            print(f"FAIL {episode.video_id}: {exc}", file=sys.stderr)
+            diagnostic_path = write_failure_diagnostics(
+                episode=episode,
+                output_root=args.output_root,
+                error=exc,
+                metadata=metadata,
+                danmaku_items=danmaku_items,
+                llm_call=llm_call,
+            )
+            print(f"FAIL {episode.video_id}: {exc} (diagnostics: {diagnostic_path})", file=sys.stderr)
             continue
         processed += 1
         print(f"WROTE {written_path}")

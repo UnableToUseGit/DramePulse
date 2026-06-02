@@ -77,7 +77,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(len(triggers), 1)
         self.assertEqual(triggers[0]["interaction_mode"], "single_tap")
 
-    def test_parse_expression_triggers_rejects_plot_trigger_without_release_structure(self) -> None:
+    def test_parse_expression_triggers_allows_empty_explanation_fields_for_iteration(self) -> None:
         triggers = parse_expression_triggers(
             {
                 "expression_triggers": [
@@ -89,15 +89,18 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "primary_expression": "爽到了",
                         "intensity": 0.88,
                         "confidence": 0.82,
-                        "summary": "女主当众反击。",
-                        "reason": "压抑后的反击适合低摩擦表达爽感。",
                     }
                 ]
             },
             video_id="demo_ep01",
         )
 
-        self.assertEqual(triggers, [])
+        self.assertEqual(len(triggers), 1)
+        self.assertEqual(triggers[0]["summary"], "")
+        self.assertEqual(triggers[0]["reason"], "")
+        self.assertEqual(triggers[0]["setup"], "")
+        self.assertEqual(triggers[0]["turning_point"], "")
+        self.assertEqual(triggers[0]["expression_release"], "")
 
     def test_parse_expression_triggers_rejects_unsupported_source_type(self) -> None:
         triggers = parse_expression_triggers(
@@ -356,6 +359,10 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("Prefer `cue_time` on a reaction shot, pause, emotional aftertaste, or immediately after the turning point.", prompt)
         self.assertIn("The top-level object must contain exactly one key: `expression_triggers`.", prompt)
         self.assertIn("Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.", prompt)
+        self.assertIn("Use this exact object template for every trigger, in this exact key order:", prompt)
+        self.assertIn('"setup":""', prompt)
+        self.assertIn("Never output a bare string value after `summary`; the next key must be `setup`.", prompt)
+        self.assertIn("- `summary`, `setup`, `turning_point`, `expression_release`, and `reason` are strings. Use an empty string only if the evidence is unclear.", prompt)
         self.assertIn('{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}', prompt)
         self.assertNotIn("interaction_mode", prompt)
         self.assertIn("[METADATA]", prompt)
@@ -391,6 +398,12 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
 
     def test_pipeline_combines_cold_start_and_danmaku_triggers(self) -> None:
         class FakeClient:
+            last_call_diagnostics = {
+                "status": "success",
+                "elapsed_sec": 1.23,
+                "usage": {"total_tokens": 18},
+            }
+
             def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], frame_timestamps_seconds: list[float] | None = None, max_tokens: int = 2400):
                 self.user_prompt = user_prompt
                 return {
@@ -434,6 +447,88 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertEqual(triggers[0]["source_type"], "plot")
         self.assertTrue(any(trigger["source_type"] == "performance" for trigger in triggers))
+        self.assertEqual(pipeline.last_llm_call["status"], "success")
+        self.assertEqual(pipeline.last_llm_call["usage"]["total_tokens"], 18)
+
+    def test_pipeline_can_disable_danmaku_enhancement(self) -> None:
+        class FakeClient:
+            def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], frame_timestamps_seconds: list[float] | None = None, max_tokens: int = 2400):
+                return {
+                    "expression_triggers": [
+                        {
+                            "start_time": 5.0,
+                            "end_time": 8.0,
+                            "source_type": "plot",
+                            "primary_expression": "爽到了",
+                            "interaction_mode": "single_tap",
+                            "intensity": 0.9,
+                            "confidence": 0.85,
+                            "summary": "女主反击。",
+                            "reason": "用户适合表达爽感。",
+                            "setup": "女主此前被压制。",
+                            "turning_point": "女主当前反击。",
+                            "expression_release": "压抑释放形成爽感。",
+                        }
+                    ]
+                }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            subtitle_path = tmp_path / "subtitle.srt"
+            video_path.write_bytes(b"fake-video")
+            subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
+
+            pipeline = ExpressionTriggerPipeline(
+                llm_client=FakeClient(),
+                sample_interval_sec=1.0,
+                max_frames=1,
+                enable_danmaku_enhancement=False,
+            )
+            triggers = pipeline.run(
+                video_id="demo_ep01",
+                video_file_path=video_path,
+                subtitle_file_path=subtitle_path,
+                metadata={"title": "Demo"},
+                danmaku_items=[
+                    {"time_sec": 20.0, "text": "笑死我了"},
+                    {"time_sec": 21.0, "text": "哈哈哈哈"},
+                    {"time_sec": 22.0, "text": "绷不住"},
+                ],
+            )
+
+        self.assertEqual([trigger["source_type"] for trigger in triggers], ["plot"])
+
+    def test_pipeline_preserves_llm_call_diagnostics_on_failure(self) -> None:
+        class FakeClient:
+            last_call_diagnostics = {
+                "status": "failed",
+                "elapsed_sec": 90.0,
+                "error_type": "TimeoutError",
+                "error": "Request timed out.",
+                "usage": {},
+            }
+
+            def generate_json_multimodal(self, **kwargs: object) -> dict[str, object]:
+                raise TimeoutError("Request timed out.")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            subtitle_path = tmp_path / "subtitle.srt"
+            video_path.write_bytes(b"fake-video")
+            subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
+
+            pipeline = ExpressionTriggerPipeline(llm_client=FakeClient(), sample_interval_sec=1.0, max_frames=1)
+            with self.assertRaises(TimeoutError):
+                pipeline.run(
+                    video_id="demo_ep01",
+                    video_file_path=video_path,
+                    subtitle_file_path=subtitle_path,
+                )
+
+        self.assertEqual(pipeline.last_llm_call["status"], "failed")
+        self.assertEqual(pipeline.last_llm_call["error"], "Request timed out.")
 
     def test_pipeline_does_not_run_finale_detection_unless_enabled(self) -> None:
         class FakeClient:

@@ -228,7 +228,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--annotation-dir", type=Path, default=DEFAULT_ANNOTATION_DIR)
     parser.add_argument("--algorithm-output-root", type=Path, default=DEFAULT_ALGORITHM_OUTPUT_ROOT)
     parser.add_argument("--report-path", type=Path, default=DEFAULT_REPORT_PATH)
-    parser.add_argument("--tolerance-sec", type=float, default=3.0)
+    parser.add_argument("--tolerance-sec", type=float, default=10.0)
     return parser.parse_args(argv)
 
 

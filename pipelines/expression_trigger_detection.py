@@ -102,16 +102,14 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
             continue
 
         primary_expression = _clean_text(item.get("primary_expression") or item.get("emotion"))
-        summary = _clean_text(item.get("summary"))
-        reason = _clean_text(item.get("reason"))
+        summary = "" if item.get("summary") is None else _clean_text(item.get("summary"))
+        reason = "" if item.get("reason") is None else _clean_text(item.get("reason"))
         setup = "" if item.get("setup") is None else _clean_text(item.get("setup"))
         turning_point = "" if item.get("turning_point") is None else _clean_text(item.get("turning_point"))
         expression_release = "" if item.get("expression_release") is None else _clean_text(item.get("expression_release"))
-        if not primary_expression or not summary or not reason:
+        if not primary_expression:
             continue
         if source_type == "plot" and primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
-            continue
-        if source_type == "plot" and (not setup or not turning_point or not expression_release):
             continue
 
         cue_time = float(item.get("cue_time", start_time + (end_time - start_time) / 2.0))
@@ -415,12 +413,13 @@ def _build_user_prompt(
             "- Choose times from subtitle/frame evidence. Do not invent events outside the provided timeline.",
             "",
             "## FIELD WRITING",
-            "- Every trigger must explain the release structure with `setup`, `turning_point`, and `expression_release`.",
+            "- Every trigger should explain the release structure with `setup`, `turning_point`, and `expression_release` when evidence is clear.",
             "- `setup` should state what prior disadvantage, expectation, misdirection, restraint, relationship tension, humiliation, low status, or emotional pressure was built before this moment.",
             "- `turning_point` should state what changes at this exact moment: counterattack, face-slap, win, reveal, relationship advancement, reunion, sacrifice, emotional breakthrough, vow, awakening, or decisive life choice.",
             "- `expression_release` should state what accumulated emotion is released after the key line/action lands and why the viewer would want to tap now.",
             "- `summary` should be one concise factual Chinese sentence grounded in subtitles and/or frames.",
             "- `reason` should summarize why this exact moment is an emotional release point, not why it is generally important to the story.",
+            "- If evidence for `summary`, `setup`, `turning_point`, `expression_release`, or `reason` is unclear, output an empty string for that field instead of omitting the key.",
             "- `intensity` should estimate expression strength from 0.0 to 1.0.",
             "- `confidence` should estimate evidence reliability from 0.0 to 1.0.",
             "",
@@ -428,6 +427,10 @@ def _build_user_prompt(
             "Return JSON only. Do not wrap it in markdown.",
             "The top-level object must contain exactly one key: `expression_triggers`.",
             "Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.",
+            "Use this exact object template for every trigger, in this exact key order:",
+            '{"start_time":0.0,"end_time":0.0,"cue_time":0.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.0,"confidence":0.0,"summary":"","setup":"","turning_point":"","expression_release":"","reason":""}',
+            "Never output a bare string value after `summary`; the next key must be `setup`.",
+            "Never omit a key. If a text field is uncertain, keep the key and set its value to an empty string.",
             "Output shape:",
             '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}',
             "Field constraints:",
@@ -437,7 +440,7 @@ def _build_user_prompt(
             "- `cue_time` must be within [start_time, end_time].",
             "- `source_type` must be `plot`.",
             "- `primary_expression` must be one of the allowed values.",
-            "- `setup`, `turning_point`, `expression_release`, `summary`, and `reason` must be non-empty concise Chinese strings.",
+            "- `summary`, `setup`, `turning_point`, `expression_release`, and `reason` are strings. Use an empty string only if the evidence is unclear.",
             "- `intensity` and `confidence` must be numbers from 0.0 to 1.0.",
             "- Do not include any extra keys.",
             "",
@@ -456,12 +459,15 @@ class ExpressionTriggerPipeline:
         frames_per_interval: int = 1,
         max_frames: int | None = None,
         max_output_tokens: int = 2400,
+        enable_danmaku_enhancement: bool = True,
     ) -> None:
         self.llm_client = llm_client
         self.sample_interval_sec = sample_interval_sec
         self.frames_per_interval = frames_per_interval
         self.max_frames = max_frames
         self.max_output_tokens = max_output_tokens
+        self.enable_danmaku_enhancement = enable_danmaku_enhancement
+        self.last_llm_call: dict[str, Any] = {}
 
     def run(
         self,
@@ -507,27 +513,32 @@ class ExpressionTriggerPipeline:
             except Exception:
                 image_paths = []
 
-            raw = self.llm_client.generate_json_multimodal(
-                system_prompt=_build_system_prompt(),
-                user_prompt=_build_user_prompt(
-                    video_id=video_id,
-                    subtitles_timeline=subtitles_timeline,
-                    metadata=metadata,
-                    timestamps_seconds=timestamps,
-                ),
-                image_paths=image_paths,
-                frame_timestamps_seconds=timestamps,
-                max_tokens=self.max_output_tokens,
-            )
+            try:
+                raw = self.llm_client.generate_json_multimodal(
+                    system_prompt=_build_system_prompt(),
+                    user_prompt=_build_user_prompt(
+                        video_id=video_id,
+                        subtitles_timeline=subtitles_timeline,
+                        metadata=metadata,
+                        timestamps_seconds=timestamps,
+                    ),
+                    image_paths=image_paths,
+                    frame_timestamps_seconds=timestamps,
+                    max_tokens=self.max_output_tokens,
+                )
+            finally:
+                diagnostics = getattr(self.llm_client, "last_call_diagnostics", {})
+                self.last_llm_call = dict(diagnostics) if isinstance(diagnostics, dict) else {}
 
         triggers = parse_expression_triggers(raw, video_id=video_id)
-        triggers.extend(
-            detect_danmaku_expression_triggers(
-                video_id=video_id,
-                danmaku_items=danmaku_items,
-                duration_sec=duration_sec if duration_sec > 0 else None,
+        if self.enable_danmaku_enhancement:
+            triggers.extend(
+                detect_danmaku_expression_triggers(
+                    video_id=video_id,
+                    danmaku_items=danmaku_items,
+                    duration_sec=duration_sec if duration_sec > 0 else None,
+                )
             )
-        )
         if include_finale_trigger:
             finale_trigger = detect_finale_expression_trigger(
                 video_id=video_id,
