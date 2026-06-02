@@ -4,6 +4,7 @@ import {
   advanceRunningDanmaku,
   calculateDanmakuDuration,
   findStartPositionAfterSeek,
+  getNextPositionAfterDanmakuUpdate,
   getPendingDanmaku,
   PendingDanmakuItem,
   PositionedDanmakuItem,
@@ -40,6 +41,7 @@ export function DanmakuLayer({
   const lastRenderMs = useRef(0);
   const measuredSizeRef = useRef<Map<string, { width: number; height: number }>>(new Map());
   const nextLaneRef = useRef(0);
+  const previousDanmakuRef = useRef(danmaku);
 
   const durationSec = useMemo(
     () => calculateDanmakuDuration({ stageWidth, speed: SPEED_PX_PER_SEC }),
@@ -51,13 +53,24 @@ export function DanmakuLayer({
   }, [currentTime]);
 
   useEffect(() => {
+    const previousDanmaku = previousDanmakuRef.current;
+    previousDanmakuRef.current = danmaku;
+    positionRef.current = getNextPositionAfterDanmakuUpdate({
+      previousDanmaku,
+      nextDanmaku: danmaku,
+      previousPosition: positionRef.current,
+      currentTime
+    });
+  }, [currentTime, danmaku]);
+
+  useEffect(() => {
     positionRef.current = findStartPositionAfterSeek(danmaku, currentTime);
     clockSecRef.current = currentTime;
     currentTimeRef.current = currentTime;
     nextLaneRef.current = 0;
     runningItemsRef.current = [];
     setPositionedItems([]);
-  }, [danmaku, seekVersion]);
+  }, [seekVersion]);
 
   useEffect(() => {
     if (!isPlaying || stageWidth <= 0) {

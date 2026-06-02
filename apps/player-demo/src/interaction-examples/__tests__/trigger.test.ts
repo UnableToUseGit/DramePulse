@@ -7,9 +7,12 @@ describe("interaction example trigger helpers", () => {
     expect(getPresentationLabel("poll_bar")).toBe("Poll Bar");
     expect(getPresentationLabel("danmaku_poll")).toBe("Danmaku Poll");
     expect(getPresentationLabel("emoji_hold")).toBe("Emoji Hold");
+    expect(getPresentationLabel("emotion_aura")).toBe("Emotion Aura");
+    expect(getPresentationLabel("inner_voice_danmaku")).toBe("Inner Voice");
+    expect(getPresentationLabel("action_rail_resonance")).toBe("Rail Resonance");
   });
 
-  it("shows the fixed example only after playback starts and reaches the trigger", () => {
+  it("shows the selected example immediately after playback starts", () => {
     expect(
       shouldShowExample({
         example: DEFAULT_INTERACTION_EXAMPLE,
@@ -18,7 +21,7 @@ describe("interaction example trigger helpers", () => {
         dismissed: false,
         presentationType: "poll_bar"
       })
-    ).toBe(false);
+    ).toBe(true);
 
     expect(
       shouldShowExample({
@@ -58,7 +61,7 @@ describe("interaction example trigger helpers", () => {
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec + 1,
         isStarted: true,
         dismissed: true,
-        presentationType: "emoji_hold"
+        presentationType: "emotion_aura"
       })
     ).toBe(false);
   });

@@ -5,7 +5,15 @@ import { colors, radii, spacing } from "../theme";
 import { getPresentationLabel } from "./trigger";
 import type { InteractionPresentationType } from "./types";
 
-const OPTIONS: InteractionPresentationType[] = ["none", "poll_bar", "danmaku_poll", "emoji_hold"];
+const OPTIONS: InteractionPresentationType[] = [
+  "none",
+  "poll_bar",
+  "danmaku_poll",
+  "emoji_hold",
+  "emotion_aura",
+  "inner_voice_danmaku",
+  "action_rail_resonance"
+];
 
 export function InteractionLabControls({
   selectedType,

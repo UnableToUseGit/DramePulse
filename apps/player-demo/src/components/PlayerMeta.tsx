@@ -1,16 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { colors, radii, spacing } from "../theme";
+import { DanmakuEntryArea } from "./DanmakuEntryArea";
 
 export function PlayerMeta({
   title,
   plotSummary,
-  episodeLabel
+  episodeLabel,
+  currentTime,
+  isActive,
+  showInnerVoice,
+  onInnerVoiceGestureActiveChange,
+  onSendInnerVoiceDanmaku
 }: {
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  currentTime: number;
+  isActive: boolean;
+  showInnerVoice: boolean;
+  onInnerVoiceGestureActiveChange: (active: boolean) => void;
+  onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   const titleCanExpand = Array.from(title).length > 9;
   const [isTitleExpanded, setIsTitleExpanded] = useState(false);
@@ -23,6 +35,13 @@ export function PlayerMeta({
 
   return (
     <View style={styles.root}>
+      <DanmakuEntryArea
+        currentTime={currentTime}
+        isActive={isActive}
+        showInnerVoice={showInnerVoice}
+        onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+        onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}

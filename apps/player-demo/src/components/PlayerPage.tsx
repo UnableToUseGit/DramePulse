@@ -1,5 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActionRailResonanceBurstLayer } from "../action-rail-resonance/ActionRailResonanceBurstLayer";
+import { ACTION_RAIL_RESONANCE_CUES } from "../action-rail-resonance/cues";
+import {
+  getActiveActionRailResonanceCue,
+  getVisibleActionRailResonanceCue,
+  shouldResetActionRailResonanceCue
+} from "../action-rail-resonance/scheduler";
+import {
+  createInitialResonanceTapState,
+  ResonanceTapState
+} from "../action-rail-resonance/tapState";
+import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import {
   getResumePlaybackTime,
@@ -13,9 +25,14 @@ import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
+import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
+import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
-import { InteractionExampleRenderer } from "../interaction-examples/InteractionExampleRenderer";
+import { EmotionAuraExample } from "../emotion-aura/EmotionAuraExample";
+import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
+import { EmojiHoldExample } from "../interaction-examples/EmojiHoldExample";
 import { InteractionLabControls } from "../interaction-examples/InteractionLabControls";
+import { PollBarExample } from "../interaction-examples/PollBarExample";
 import { shouldResetExample } from "../interaction-examples/trigger";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { DanmakuLayer } from "./DanmakuLayer";
@@ -28,6 +45,8 @@ import { SeekRequest, VideoStage } from "./VideoStage";
 import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
+const ACTION_RAIL_RESONANCE_PREVIEW_CUE =
+  ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "甜点") ?? ACTION_RAIL_RESONANCE_CUES[0];
 
 export function PlayerPage({
   video,
@@ -74,6 +93,12 @@ export function PlayerPage({
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+  const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
+  const [completedResonanceCueIds, setCompletedResonanceCueIds] = useState<Set<string>>(() => new Set());
+  const [participatingResonanceCue, setParticipatingResonanceCue] = useState<ActionRailResonanceCue | undefined>();
+  const [resonanceTapState, setResonanceTapState] = useState<ResonanceTapState>(() =>
+    createInitialResonanceTapState()
+  );
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
@@ -84,6 +109,27 @@ export function PlayerPage({
   const storyQaRequestRef = useRef(0);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
+  const activeActionRailResonanceCue = useMemo(
+    () => {
+      if (selectedPresentationType !== "action_rail_resonance" || !isActive || !playbackState.isStarted) {
+        return undefined;
+      }
+      const previewCue = ACTION_RAIL_RESONANCE_PREVIEW_CUE;
+      if (previewCue && !completedResonanceCueIds.has(previewCue.cueId)) {
+        return previewCue;
+      }
+      return getActiveActionRailResonanceCue({
+        cues: ACTION_RAIL_RESONANCE_CUES,
+        currentTime,
+        completedCueIds: completedResonanceCueIds
+      });
+    },
+    [completedResonanceCueIds, currentTime, isActive, playbackState.isStarted, selectedPresentationType]
+  );
+  const actionRailResonanceCue = getVisibleActionRailResonanceCue({
+    activeCue: activeActionRailResonanceCue,
+    participatingCue: participatingResonanceCue
+  });
   const {
     dismiss: dismissInteractionExample,
     reset: resetInteractionExample,
@@ -120,6 +166,11 @@ export function PlayerPage({
     resetKey: video.videoId
   });
 
+  const mergedDanmaku = useMemo(
+    () => [...danmaku, ...toDanmakuItems(sentInnerVoiceDanmaku)].sort((a, b) => a.time_sec - b.time_sec),
+    [danmaku, sentInnerVoiceDanmaku]
+  );
+
   useEffect(() => {
     if (!isActive) {
       wasActiveRef.current = false;
@@ -138,6 +189,10 @@ export function PlayerPage({
       setUserPlaybackIntent("playing");
       setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
       setSeekVersion((version) => version + 1);
+      setSentInnerVoiceDanmaku([]);
+      setCompletedResonanceCueIds(new Set());
+      setParticipatingResonanceCue(undefined);
+      setResonanceTapState(createInitialResonanceTapState());
       resetInteractionExample();
       storyQaRequestRef.current += 1;
       setStoryQaState(resetStoryQaState());
@@ -154,6 +209,12 @@ export function PlayerPage({
     setResolvedDuration(video.duration);
   }, [video.duration, video.videoId]);
 
+  useEffect(() => {
+    setCompletedResonanceCueIds(new Set());
+    setParticipatingResonanceCue(undefined);
+    setResonanceTapState(createInitialResonanceTapState());
+  }, [selectedPresentationType, video.videoId]);
+
   const handleTimeChange = useCallback(
     (time: number) => {
       if (isActive) {
@@ -165,6 +226,17 @@ export function PlayerPage({
           })
         ) {
           resetInteractionExample();
+        }
+        if (
+          shouldResetActionRailResonanceCue({
+            previousTime: previousTimeRef.current,
+            currentTime: time,
+            firstTriggerTime: ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0
+          })
+        ) {
+          setCompletedResonanceCueIds(new Set());
+          setParticipatingResonanceCue(undefined);
+          setResonanceTapState(createInitialResonanceTapState());
         }
         previousTimeRef.current = time;
         const previousPublishedTime = lastPublishedTimeRef.current;
@@ -233,6 +305,11 @@ export function PlayerPage({
       if (time < DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec) {
         resetInteractionExample();
       }
+      if (time < (ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0)) {
+        setCompletedResonanceCueIds(new Set());
+        setParticipatingResonanceCue(undefined);
+        setResonanceTapState(createInitialResonanceTapState());
+      }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
       setSeekRequest({ id: Date.now(), time });
@@ -247,6 +324,57 @@ export function PlayerPage({
     },
     [onTimelineDragStateChange]
   );
+
+  const handleInnerVoiceGestureActiveChange = useCallback(
+    (isGestureActive: boolean) => {
+      onTimelineDragStateChange?.(isGestureActive);
+    },
+    [onTimelineDragStateChange]
+  );
+
+  const handleSendInnerVoiceDanmaku = useCallback(
+    (cue: InnerVoiceDanmakuCue) => {
+      setSentInnerVoiceDanmaku((items) => [
+        ...items,
+        createSentInnerVoiceDanmakuFromCue({
+          cue,
+          currentTime
+        })
+      ]);
+    },
+    [currentTime]
+  );
+
+  const handleParticipateResonance = useCallback((cue: ActionRailResonanceCue, nextState: ResonanceTapState) => {
+    setParticipatingResonanceCue(cue);
+    setResonanceTapState(nextState);
+    // First version records locally. Future API wiring can report cueId/highlightId/tapCount here.
+    void nextState;
+  }, []);
+
+  useEffect(() => {
+    if (activeActionRailResonanceCue || participatingResonanceCue) {
+      return;
+    }
+    if (selectedPresentationType !== "action_rail_resonance") {
+      return;
+    }
+    const expiredCue = ACTION_RAIL_RESONANCE_CUES.find(
+      (cue) =>
+        !completedResonanceCueIds.has(cue.cueId) &&
+        currentTime > cue.triggerTime + cue.durationSec &&
+        previousTimeRef.current >= cue.triggerTime
+    );
+    if (expiredCue) {
+      setCompletedResonanceCueIds((ids) => new Set(ids).add(expiredCue.cueId));
+    }
+  }, [
+    activeActionRailResonanceCue,
+    completedResonanceCueIds,
+    currentTime,
+    participatingResonanceCue,
+    selectedPresentationType
+  ]);
 
   const handleSubmitStoryQa = useCallback(
     (quickQuestion?: string) => {
@@ -315,7 +443,12 @@ export function PlayerPage({
         <View style={styles.inactiveVideoPlaceholder} />
       )}
       {isActive && playbackState.isStarted && danmakuState === "ready" ? (
-        <DanmakuLayer currentTime={currentTime} danmaku={danmaku} isPlaying={playbackState.shouldPlay} seekVersion={seekVersion} />
+        <DanmakuLayer
+          currentTime={currentTime}
+          danmaku={mergedDanmaku}
+          isPlaying={playbackState.shouldPlay}
+          seekVersion={seekVersion}
+        />
       ) : null}
       {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
       {isActive && playbackState.isStarted ? (
@@ -328,12 +461,29 @@ export function PlayerPage({
       ) : null}
       {isActive && danmakuState === "error" ? <Text style={styles.danmakuError}>弹幕暂不可用</Text> : null}
       <PlaybackHint visible={playbackState.shouldShowPauseHint} />
-      <InteractionExampleRenderer
-        example={DEFAULT_INTERACTION_EXAMPLE}
-        presentationType={selectedPresentationType}
-        visible={isInteractionExampleVisible}
-        onDismiss={dismissInteractionExample}
+      <ActionRailResonanceBurstLayer
+        cue={participatingResonanceCue}
+        tapCount={resonanceTapState.tapCount}
+        releaseCount={resonanceTapState.releaseCount}
       />
+      {isInteractionExampleVisible && selectedPresentationType === "emotion_aura" ? (
+        <EmotionAuraExample
+          currentTime={currentTime}
+          isActive={isActive}
+          showImmediately
+          onDismiss={() => undefined}
+          onTogglePlayback={handleTogglePlay}
+        />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "poll_bar" ? (
+        <PollBarExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
+        <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "emoji_hold" ? (
+        <EmojiHoldExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
       <PlayerChrome
         liked={liked}
         onToggleLike={() => setLiked((current) => !current)}
@@ -350,6 +500,14 @@ export function PlayerPage({
         showActionRail={timelineChromeVisibility.showActionRail}
         showMeta={timelineChromeVisibility.showMeta}
         mode={mode}
+        currentTime={currentTime}
+        isActive={isActive && playbackState.isStarted}
+        showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
+        onInnerVoiceGestureActiveChange={handleInnerVoiceGestureActiveChange}
+        onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
+        resonanceCue={actionRailResonanceCue}
+        resonanceTapState={resonanceTapState}
+        onParticipateResonance={handleParticipateResonance}
       >
         {mode === "series" && seriesEpisodeCount !== undefined && onOpenSeriesDetail ? (
           <SeriesEpisodeBar episodeCount={seriesEpisodeCount} onPress={onOpenSeriesDetail} />

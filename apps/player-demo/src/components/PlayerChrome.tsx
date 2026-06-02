@@ -1,5 +1,8 @@
 import { StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
+import type { ResonanceTapState } from "../action-rail-resonance/tapState";
+import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
+import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { PlayerActionRail } from "./PlayerActionRail";
 import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerMeta } from "./PlayerMeta";
@@ -22,6 +25,14 @@ export function PlayerChrome({
   showActionRail = true,
   showMeta = true,
   mode = "home",
+  currentTime,
+  isActive,
+  showInnerVoice,
+  onInnerVoiceGestureActiveChange,
+  onSendInnerVoiceDanmaku,
+  resonanceCue,
+  resonanceTapState,
+  onParticipateResonance,
   children
 }: {
   liked: boolean;
@@ -39,6 +50,14 @@ export function PlayerChrome({
   showActionRail?: boolean;
   showMeta?: boolean;
   mode?: "home" | "series";
+  currentTime: number;
+  isActive: boolean;
+  showInnerVoice: boolean;
+  onInnerVoiceGestureActiveChange: (active: boolean) => void;
+  onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
+  resonanceCue?: ActionRailResonanceCue;
+  resonanceTapState: ResonanceTapState;
+  onParticipateResonance: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
   children?: ReactNode;
 }) {
   return (
@@ -52,9 +71,29 @@ export function PlayerChrome({
         episodeLabel={episodeLabel}
         onBack={onBack}
       />
-      {showActionRail ? <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} /> : null}
-      {showMeta ? <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} /> : null}
-      {children}
+      {showActionRail ? (
+        <PlayerActionRail
+          liked={liked}
+          onToggleLike={onToggleLike}
+          onOpenStoryQa={onOpenStoryQa}
+          resonanceCue={resonanceCue}
+          resonanceTapState={resonanceTapState}
+          onParticipateResonance={onParticipateResonance}
+        />
+      ) : null}
+      {showMeta ? (
+        <PlayerMeta
+          title={title}
+          plotSummary={plotSummary}
+          episodeLabel={episodeLabel}
+          currentTime={currentTime}
+          isActive={isActive}
+          showInnerVoice={showInnerVoice}
+          onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+          onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+        />
+      ) : null}
+      {showMeta ? children : null}
       {mode === "home" ? <PlayerBottomTabs activeTab="首页" onPressTheater={onOpenTheater} /> : null}
     </View>
   );

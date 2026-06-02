@@ -107,7 +107,7 @@ npm start
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
 - 右侧操作栏、顶部/底部播放器 Chrome；
 - Story Q&A 面板，调用 `POST /api/story-qa/ask`；
-- Interaction Lab，用本地固定 example 对比 `poll_bar`、`danmaku_poll`、`emoji_hold` 等互动呈现方式。
+- Interaction Lab，用本地固定 example 对比 `poll_bar`、`danmaku_poll`、`emoji_hold`、`emotion_aura`、`inner_voice_danmaku` 等互动呈现方式。
 
 当前边界：
 

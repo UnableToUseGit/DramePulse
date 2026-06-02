@@ -3,6 +3,7 @@ import {
   calculateDanmakuDuration,
   findStartPositionAfterSeek,
   getDanmakuId,
+  getNextPositionAfterDanmakuUpdate,
   getPendingDanmaku
 } from "../danmakuScheduler";
 import type { DanmakuItem } from "../types";
@@ -91,5 +92,33 @@ describe("danmakuScheduler", () => {
       durationSec: 4
     });
     expect(offscreen).toEqual([]);
+  });
+
+  it("keeps the current scan position when new danmaku is appended after the scanned range", () => {
+    const nextDanmaku = [...danmaku, { danmaku_id: "new", time_sec: 5, text: "新发送" }];
+
+    expect(
+      getNextPositionAfterDanmakuUpdate({
+        previousDanmaku: danmaku,
+        nextDanmaku,
+        previousPosition: 3,
+        currentTime: 3
+      })
+    ).toBe(3);
+  });
+
+  it("repositions the scan when new danmaku is inserted before the scanned range", () => {
+    const nextDanmaku = [{ danmaku_id: "new", time_sec: 1.5, text: "插入" }, ...danmaku].sort(
+      (a, b) => a.time_sec - b.time_sec
+    );
+
+    expect(
+      getNextPositionAfterDanmakuUpdate({
+        previousDanmaku: danmaku,
+        nextDanmaku,
+        previousPosition: 3,
+        currentTime: 3
+      })
+    ).toBe(4);
   });
 });
