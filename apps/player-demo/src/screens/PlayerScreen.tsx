@@ -24,6 +24,7 @@ export function PlayerScreen() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [isFeedScrollEnabled, setIsFeedScrollEnabled] = useState(true);
   const listRef = useRef<FlatList<PlayerVideo>>(null);
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
@@ -160,10 +161,12 @@ export function PlayerScreen() {
                 onChangePresentationType={handleChangePresentationType}
                 onPlaybackPositionChange={handlePlaybackPositionChange}
                 onPlayNextEpisode={() => handlePlayNextEpisode(index)}
+                onFeedScrollEnabledChange={setIsFeedScrollEnabled}
               />
             );
           }}
           pagingEnabled
+          scrollEnabled={isFeedScrollEnabled}
           showsVerticalScrollIndicator={false}
           bounces
           decelerationRate="fast"

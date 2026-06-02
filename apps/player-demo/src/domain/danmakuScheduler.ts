@@ -55,6 +55,30 @@ export function findStartPositionAfterSeek(danmaku: DanmakuItem[], seekTime: num
   return left;
 }
 
+export function getNextPositionAfterDanmakuUpdate({
+  previousDanmaku,
+  nextDanmaku,
+  previousPosition,
+  currentTime
+}: {
+  previousDanmaku: DanmakuItem[];
+  nextDanmaku: DanmakuItem[];
+  previousPosition: number;
+  currentTime: number;
+}): number {
+  const previousScannedItems = previousDanmaku.slice(0, previousPosition);
+  let nextPosition = findStartPositionAfterSeek(nextDanmaku, currentTime);
+
+  for (const item of previousScannedItems) {
+    const nextIndex = nextDanmaku.findIndex((nextItem) => getDanmakuId(nextItem) === getDanmakuId(item));
+    if (nextIndex >= nextPosition) {
+      nextPosition = nextIndex + 1;
+    }
+  }
+
+  return nextPosition;
+}
+
 export function getPendingDanmaku({
   danmaku,
   position,

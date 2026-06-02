@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { PlayerActionRail } from "./PlayerActionRail";
 import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerMeta } from "./PlayerMeta";
@@ -15,7 +16,12 @@ export function PlayerChrome({
   onSelectPlaybackRate,
   title,
   plotSummary,
-  episodeLabel
+  episodeLabel,
+  currentTime,
+  isActive,
+  showInnerVoice,
+  onInnerVoiceGestureActiveChange,
+  onSendInnerVoiceDanmaku
 }: {
   liked: boolean;
   onToggleLike: () => void;
@@ -27,6 +33,11 @@ export function PlayerChrome({
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  currentTime: number;
+  isActive: boolean;
+  showInnerVoice: boolean;
+  onInnerVoiceGestureActiveChange: (active: boolean) => void;
+  onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
@@ -37,7 +48,16 @@ export function PlayerChrome({
         onSelectPlaybackRate={onSelectPlaybackRate}
       />
       <PlayerActionRail liked={liked} onToggleLike={onToggleLike} onOpenStoryQa={onOpenStoryQa} />
-      <PlayerMeta title={title} plotSummary={plotSummary} episodeLabel={episodeLabel} />
+      <PlayerMeta
+        title={title}
+        plotSummary={plotSummary}
+        episodeLabel={episodeLabel}
+        currentTime={currentTime}
+        isActive={isActive}
+        showInnerVoice={showInnerVoice}
+        onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+        onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+      />
       <PlayerBottomTabs />
     </View>
   );

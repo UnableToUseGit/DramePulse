@@ -8,6 +8,7 @@ describe("interaction example trigger helpers", () => {
     expect(getPresentationLabel("danmaku_poll")).toBe("Danmaku Poll");
     expect(getPresentationLabel("emoji_hold")).toBe("Emoji Hold");
     expect(getPresentationLabel("emotion_aura")).toBe("Emotion Aura");
+    expect(getPresentationLabel("inner_voice_danmaku")).toBe("Inner Voice");
   });
 
   it("shows the fixed example only after playback starts and reaches the trigger", () => {

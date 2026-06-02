@@ -5,7 +5,8 @@ const LABELS: Record<InteractionPresentationType, string> = {
   poll_bar: "Poll Bar",
   danmaku_poll: "Danmaku Poll",
   emoji_hold: "Emoji Hold",
-  emotion_aura: "Emotion Aura"
+  emotion_aura: "Emotion Aura",
+  inner_voice_danmaku: "Inner Voice"
 };
 
 export function getPresentationLabel(type: InteractionPresentationType) {

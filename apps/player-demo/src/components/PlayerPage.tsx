@@ -8,9 +8,14 @@ import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
+import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
+import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
-import { InteractionExampleRenderer } from "../interaction-examples/InteractionExampleRenderer";
+import { EmotionAuraExample } from "../emotion-aura/EmotionAuraExample";
+import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
+import { EmojiHoldExample } from "../interaction-examples/EmojiHoldExample";
 import { InteractionLabControls } from "../interaction-examples/InteractionLabControls";
+import { PollBarExample } from "../interaction-examples/PollBarExample";
 import { shouldResetExample } from "../interaction-examples/trigger";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { DanmakuLayer } from "./DanmakuLayer";
@@ -34,7 +39,8 @@ export function PlayerPage({
   selectedPresentationType,
   onChangePresentationType,
   onPlaybackPositionChange,
-  onPlayNextEpisode
+  onPlayNextEpisode,
+  onFeedScrollEnabledChange
 }: {
   video: PlayerVideo;
   isActive: boolean;
@@ -47,6 +53,7 @@ export function PlayerPage({
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onPlayNextEpisode: () => void;
+  onFeedScrollEnabledChange: (enabled: boolean) => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
@@ -55,6 +62,7 @@ export function PlayerPage({
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
+  const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
@@ -100,6 +108,11 @@ export function PlayerPage({
     resetKey: video.videoId
   });
 
+  const mergedDanmaku = useMemo(
+    () => [...danmaku, ...toDanmakuItems(sentInnerVoiceDanmaku)].sort((a, b) => a.time_sec - b.time_sec),
+    [danmaku, sentInnerVoiceDanmaku]
+  );
+
   useEffect(() => {
     if (!isActive) {
       wasActiveRef.current = false;
@@ -118,6 +131,7 @@ export function PlayerPage({
       setUserPlaybackIntent("playing");
       setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
       setSeekVersion((version) => version + 1);
+      setSentInnerVoiceDanmaku([]);
       resetInteractionExample();
       storyQaRequestRef.current += 1;
       setStoryQaState(resetStoryQaState());
@@ -220,6 +234,19 @@ export function PlayerPage({
     [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
+  const handleSendInnerVoiceDanmaku = useCallback(
+    (cue: InnerVoiceDanmakuCue) => {
+      setSentInnerVoiceDanmaku((items) => [
+        ...items,
+        createSentInnerVoiceDanmakuFromCue({
+          cue,
+          currentTime
+        })
+      ]);
+    },
+    [currentTime]
+  );
+
   const handleSubmitStoryQa = useCallback(
     (quickQuestion?: string) => {
       const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
@@ -287,7 +314,12 @@ export function PlayerPage({
         <View style={styles.inactiveVideoPlaceholder} />
       )}
       {isActive && playbackState.isStarted && danmakuState === "ready" ? (
-        <DanmakuLayer currentTime={currentTime} danmaku={danmaku} isPlaying={playbackState.shouldPlay} seekVersion={seekVersion} />
+        <DanmakuLayer
+          currentTime={currentTime}
+          danmaku={mergedDanmaku}
+          isPlaying={playbackState.shouldPlay}
+          seekVersion={seekVersion}
+        />
       ) : null}
       {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
       {isActive && playbackState.isStarted ? (
@@ -300,15 +332,23 @@ export function PlayerPage({
       ) : null}
       {isActive && danmakuState === "error" ? <Text style={styles.danmakuError}>弹幕暂不可用</Text> : null}
       <PlaybackHint visible={playbackState.shouldShowPauseHint} />
-      <InteractionExampleRenderer
-        example={DEFAULT_INTERACTION_EXAMPLE}
-        presentationType={selectedPresentationType}
-        visible={isInteractionExampleVisible}
-        currentTime={currentTime}
-        isActive={isActive}
-        onDismiss={dismissInteractionExample}
-        onTogglePlayback={handleTogglePlay}
-      />
+      {isInteractionExampleVisible && selectedPresentationType === "emotion_aura" ? (
+        <EmotionAuraExample
+          currentTime={currentTime}
+          isActive={isActive}
+          onDismiss={() => undefined}
+          onTogglePlayback={handleTogglePlay}
+        />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "poll_bar" ? (
+        <PollBarExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
+        <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
+      {isInteractionExampleVisible && selectedPresentationType === "emoji_hold" ? (
+        <EmojiHoldExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      ) : null}
       <PlayerChrome
         liked={liked}
         onToggleLike={() => setLiked((current) => !current)}
@@ -320,6 +360,11 @@ export function PlayerPage({
         title={video.title}
         plotSummary={video.plotSummary}
         episodeLabel={video.episodeLabel}
+        currentTime={currentTime}
+        isActive={isActive && playbackState.isStarted}
+        showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
+        onInnerVoiceGestureActiveChange={(active) => onFeedScrollEnabledChange(!active)}
+        onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
       />
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
