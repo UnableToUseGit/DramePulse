@@ -1,19 +1,38 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActionRailResonanceButton } from "../action-rail-resonance/ActionRailResonanceButton";
+import { ActionRailResonanceSlot } from "../action-rail-resonance/ActionRailResonanceSlot";
+import type { ResonanceTapState } from "../action-rail-resonance/tapState";
+import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import { colors, spacing } from "../theme";
 import { LikeReactionButton } from "./LikeReactionButton";
 
 export function PlayerActionRail({
   liked,
   onToggleLike,
-  onOpenStoryQa
+  onOpenStoryQa,
+  resonanceCue,
+  resonanceTapState,
+  onParticipateResonance
 }: {
   liked: boolean;
   onToggleLike: () => void;
   onOpenStoryQa: () => void;
+  resonanceCue?: ActionRailResonanceCue;
+  resonanceTapState: ResonanceTapState;
+  onParticipateResonance: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
 }) {
   return (
     <View style={styles.root}>
+      <ActionRailResonanceSlot cueId={resonanceCue?.cueId}>
+        {resonanceCue ? (
+          <ActionRailResonanceButton
+            cue={resonanceCue}
+            tapState={resonanceTapState}
+            onParticipate={onParticipateResonance}
+          />
+        ) : null}
+      </ActionRailResonanceSlot>
       <RailIcon icon="star" count="199.4万" />
       <RailIcon icon="chatbubble-ellipses" count="6626" accessibilityLabel="剧情问答" onPress={onOpenStoryQa} />
       <LikeReactionButton count="30.8万" liked={liked} onToggle={onToggleLike} />

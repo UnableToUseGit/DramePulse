@@ -29,12 +29,14 @@ export function EmotionAuraExample({
   currentTime,
   isActive,
   onDismiss,
-  onTogglePlayback
+  onTogglePlayback,
+  showImmediately = false
 }: {
   currentTime: number;
   isActive: boolean;
   onDismiss: () => void;
   onTogglePlayback: () => void;
+  showImmediately?: boolean;
 }) {
   const [completedCueIds, setCompletedCueIds] = useState<Set<string>>(() => new Set());
   const [tapState, setTapState] = useState<TapGestureState>(() => createInitialTapGestureState());
@@ -43,8 +45,14 @@ export function EmotionAuraExample({
   const [lastTapPoint, setLastTapPoint] = useState<{ x: number; y: number } | undefined>();
   const previousTimeRef = useRef(currentTime);
   const activeCue = useMemo(
-    () => findActiveEmotionAuraCue({ cues: EMOTION_AURA_CUES, currentTime, completedCueIds }),
-    [completedCueIds, currentTime]
+    () => {
+      const previewCue = showImmediately ? EMOTION_AURA_CUES[0] : undefined;
+      if (previewCue && !completedCueIds.has(previewCue.cueId)) {
+        return previewCue;
+      }
+      return findActiveEmotionAuraCue({ cues: EMOTION_AURA_CUES, currentTime, completedCueIds });
+    },
+    [completedCueIds, currentTime, showImmediately]
   );
   const cue = getVisibleEmotionAuraCue({ activeCue, engagedCue, settledCue });
   const tapStateRef = useRef(tapState);
@@ -160,6 +168,7 @@ export function EmotionAuraExample({
   useEffect(() => {
     if (
       activeCue &&
+      !showImmediately &&
       !engagedCue &&
       shouldTimeoutEmotionAuraCue({ cue: activeCue, currentTime }) &&
       canAutoDismissEmotionAura(tapState)
@@ -167,7 +176,7 @@ export function EmotionAuraExample({
       setCompletedCueIds((ids) => new Set(ids).add(activeCue.cueId));
       onDismiss();
     }
-  }, [activeCue, currentTime, engagedCue, onDismiss, tapState.phase]);
+  }, [activeCue, currentTime, engagedCue, onDismiss, showImmediately, tapState.phase]);
 
   useEffect(
     () => () => {

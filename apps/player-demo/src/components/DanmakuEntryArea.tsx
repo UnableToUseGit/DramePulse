@@ -24,6 +24,7 @@ export function DanmakuEntryArea({
         <InnerVoiceDanmakuExample
           currentTime={currentTime}
           isActive={isActive}
+          showImmediately
           onDismiss={() => undefined}
           onGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSend={onSendInnerVoiceDanmaku}

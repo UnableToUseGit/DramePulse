@@ -9,13 +9,15 @@ export function InnerVoiceDanmakuExample({
   isActive,
   onDismiss,
   onGestureActiveChange,
-  onSend
+  onSend,
+  showImmediately = false
 }: {
   currentTime: number;
   isActive: boolean;
   onDismiss: () => void;
   onGestureActiveChange: (active: boolean) => void;
   onSend: (cue: InnerVoiceDanmakuCue) => void;
+  showImmediately?: boolean;
 }) {
   const [completedCueIds, setCompletedCueIds] = useState<Set<string>>(() => new Set());
   const [launchingCue, setLaunchingCue] = useState<InnerVoiceDanmakuCue | undefined>();
@@ -23,13 +25,15 @@ export function InnerVoiceDanmakuExample({
   const activeCue = useMemo(
     () =>
       isActive
-        ? getActiveInnerVoiceCue({
+        ? showImmediately && INNER_VOICE_DANMAKU_CUES[0] && !completedCueIds.has(INNER_VOICE_DANMAKU_CUES[0].cueId)
+          ? INNER_VOICE_DANMAKU_CUES[0]
+          : getActiveInnerVoiceCue({
             cues: INNER_VOICE_DANMAKU_CUES,
             currentTime,
             completedCueIds
           })
         : undefined,
-    [completedCueIds, currentTime, isActive]
+    [completedCueIds, currentTime, isActive, showImmediately]
   );
 
   const visibleCue = getVisibleInnerVoiceCue({ activeCue, launchingCue });

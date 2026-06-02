@@ -11,7 +11,8 @@ const OPTIONS: InteractionPresentationType[] = [
   "danmaku_poll",
   "emoji_hold",
   "emotion_aura",
-  "inner_voice_danmaku"
+  "inner_voice_danmaku",
+  "action_rail_resonance"
 ];
 
 export function InteractionLabControls({

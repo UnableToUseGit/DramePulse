@@ -6,7 +6,8 @@ const LABELS: Record<InteractionPresentationType, string> = {
   danmaku_poll: "Danmaku Poll",
   emoji_hold: "Emoji Hold",
   emotion_aura: "Emotion Aura",
-  inner_voice_danmaku: "Inner Voice"
+  inner_voice_danmaku: "Inner Voice",
+  action_rail_resonance: "Rail Resonance"
 };
 
 export function getPresentationLabel(type: InteractionPresentationType) {
@@ -26,7 +27,9 @@ export function shouldShowExample({
   dismissed: boolean;
   presentationType: InteractionPresentationType;
 }) {
-  return presentationType !== "none" && isStarted && !dismissed && currentTime >= example.triggerTimeSec;
+  void example;
+  void currentTime;
+  return presentationType !== "none" && isStarted && !dismissed;
 }
 
 export function shouldResetExample({
