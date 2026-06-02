@@ -25,6 +25,7 @@ import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
 import { StoryQaPanel } from "./StoryQaPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
+import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
 
@@ -40,7 +41,12 @@ export function PlayerPage({
   onChangePresentationType,
   onPlaybackPositionChange,
   onTimelineDragStateChange,
-  onPlayNextEpisode
+  onPlayNextEpisode,
+  mode = "home",
+  seriesEpisodeCount,
+  onOpenTheater,
+  onBack,
+  onOpenSeriesDetail
 }: {
   video: PlayerVideo;
   isActive: boolean;
@@ -54,6 +60,11 @@ export function PlayerPage({
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onTimelineDragStateChange?: (isDragging: boolean) => void;
   onPlayNextEpisode: () => void;
+  mode?: "home" | "series";
+  seriesEpisodeCount?: number;
+  onOpenTheater?: () => void;
+  onBack?: () => void;
+  onOpenSeriesDetail?: () => void;
 }) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
@@ -327,6 +338,8 @@ export function PlayerPage({
         liked={liked}
         onToggleLike={() => setLiked((current) => !current)}
         onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
+        onOpenTheater={onOpenTheater}
+        onBack={onBack}
         playbackRate={speedControls.playbackRate}
         isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
         onToggleSpeedMenu={speedControls.toggleSpeedMenu}
@@ -336,8 +349,12 @@ export function PlayerPage({
         episodeLabel={video.episodeLabel}
         showActionRail={timelineChromeVisibility.showActionRail}
         showMeta={timelineChromeVisibility.showMeta}
-        showBottomTabs={timelineChromeVisibility.showBottomTabs}
-      />
+        mode={mode}
+      >
+        {mode === "series" && seriesEpisodeCount !== undefined && onOpenSeriesDetail ? (
+          <SeriesEpisodeBar episodeCount={seriesEpisodeCount} onPress={onOpenSeriesDetail} />
+        ) : null}
+      </PlayerChrome>
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
       ) : null}
