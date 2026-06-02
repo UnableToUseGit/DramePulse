@@ -30,13 +30,15 @@ def load_dotenv_values(env_path: Path | None = None) -> dict[str, str]:
 
 
 def get_env_value(key: str, *, env_path: Path | None = None) -> str | None:
+    dotenv_values = load_dotenv_values(env_path)
+    value = dotenv_values.get(key)
+    if value is not None:
+        value = value.strip()
+        if value:
+            return value
+
     value = os.environ.get(key)
     if value is not None:
         value = value.strip()
         return value or None
-    dotenv_values = load_dotenv_values(env_path)
-    value = dotenv_values.get(key)
-    if value is None:
-        return None
-    value = value.strip()
-    return value or None
+    return None
