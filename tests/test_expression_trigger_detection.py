@@ -170,7 +170,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(len(triggers), 1)
         self.assertEqual(triggers[0]["primary_expression"], "看哭了")
 
-    def test_parse_expression_triggers_accepts_rising_plot_expression(self) -> None:
+    def test_parse_expression_triggers_rejects_retired_plot_expression(self) -> None:
         triggers = parse_expression_triggers(
             {
                 "expression_triggers": [
@@ -187,14 +187,23 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "setup": "男主此前贫穷潦倒，还被村民讨债羞辱。",
                         "turning_point": "男主明确喊出自己一定要出人头地。",
                         "expression_release": "受辱后的不甘转化为逆袭决心，观众适合表达燃起来了。",
+                    },
+                    {
+                        "start_time": 60.0,
+                        "end_time": 64.0,
+                        "source_type": "plot",
+                        "primary_expression": "震惊",
+                        "intensity": 0.82,
+                        "confidence": 0.86,
+                        "summary": "身份突然揭晓。",
+                        "reason": "该点是身份反转。",
                     }
                 ]
             },
             video_id="demo_ep01",
         )
 
-        self.assertEqual(len(triggers), 1)
-        self.assertEqual(triggers[0]["primary_expression"], "燃起来了")
+        self.assertEqual(triggers, [])
 
     def test_parse_expression_triggers_accepts_comedy_plot_expression(self) -> None:
         triggers = parse_expression_triggers(
@@ -230,15 +239,15 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "start_time": 10.0,
                         "end_time": 12.0,
                         "source_type": "plot",
-                        "primary_expression": "震惊",
+                        "primary_expression": "磕到了",
                         "interaction_mode": "single_tap",
                         "intensity": 0.7,
                         "confidence": 0.8,
-                        "summary": "身份突然揭晓。",
-                        "reason": "用户适合表达震惊。",
-                        "setup": "角色身份此前一直被隐藏。",
-                        "turning_point": "当前时刻揭晓真实身份。",
-                        "expression_release": "认知反差让观众立刻想表达震惊。",
+                        "summary": "男女主关系升温。",
+                        "reason": "用户适合表达磕到了。",
+                        "setup": "两人此前互相保护但没有说破。",
+                        "turning_point": "当前时刻两人确认彼此心意。",
+                        "expression_release": "暧昧铺垫兑现为亲密关系推进。",
                     }
                 ]
             },
@@ -250,7 +259,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(asset["highlight_id"], "h_demo_ep01_001")
         self.assertEqual(asset["video_id"], "demo_ep01")
         self.assertEqual(asset["highlight_type"], "plot")
-        self.assertEqual(asset["emotion"], "震惊")
+        self.assertEqual(asset["emotion"], "磕到了")
         self.assertEqual(asset["highlight_score"], 0.8)
         self.assertNotIn("interaction_mode", asset)
 
@@ -312,6 +321,7 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
     def test_build_user_prompt_uses_decision_process_and_separate_rule_sections(self) -> None:
         prompt = _build_user_prompt(
             video_id="demo_ep01",
+            video_duration_seconds=123.456,
             subtitles_timeline="[1.000-2.000] 你终于输了",
             metadata={"title": "第 1 集", "series_name": "测试短剧"},
             timestamps_seconds=[0.0, 1.0, 2.0],
@@ -326,7 +336,9 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("## FIELD WRITING", prompt)
         self.assertIn("## OUTPUT", prompt)
         self.assertIn("VIDEO_ID: demo_ep01", prompt)
+        self.assertIn("VIDEO_DURATION_SECONDS: 123.456", prompt)
         self.assertIn("FRAME_TIMESTAMPS_SECONDS: 0.000, 1.000, 2.000", prompt)
+        self.assertIn("All subtitle timestamps and output times are plain seconds, not MM:SS or HH:MM:SS.", prompt)
         self.assertIn("You will receive one sampled video frame for each timestamp listed above.", prompt)
         self.assertIn("Use video frames to understand silent actions, facial expressions, locations, transitions, and visible story situations.", prompt)
         self.assertIn("Use subtitles to understand dialogue, relationship context, and semantic plot progression.", prompt)
@@ -337,17 +349,15 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("### 爽到了", prompt)
         self.assertIn("Definition: 主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。", prompt)
         self.assertIn("Reject: simple danger relief, being helped by someone else, being recognized, receiving an opportunity, or a generic positive turn.", prompt)
-        self.assertIn("### 震惊", prompt)
         self.assertIn("### 磕到了", prompt)
         self.assertIn("### 看哭了", prompt)
         self.assertIn("Reject: mere hardship, pity, bullying, debt pressure, or ordinary sadness without emotional payoff.", prompt)
-        self.assertIn("### 燃起来了", prompt)
-        self.assertIn("Required: a clear vow, awakening, irreversible choice, or decision to change fate after low status, humiliation, poverty, failure, or being underestimated.", prompt)
-        self.assertIn("Reject: generic approval, help, recruitment, or opportunity unless the protagonist makes an explicit inner turn or decisive choice.", prompt)
         self.assertIn("### 笑死", prompt)
         self.assertIn("Definition: 台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。", prompt)
         self.assertIn("Required: a visible or subtitle-supported comedic beat such as punchline, physical gag, awkward reversal, absurd reaction, misunderstanding, or comic timing.", prompt)
         self.assertIn("Reject: ordinary light tone, generic cuteness, actor charm, or comments that are only funny because of external fandom context.", prompt)
+        self.assertNotIn("### 震惊", prompt)
+        self.assertNotIn("### 燃起来了", prompt)
         self.assertNotIn("气死了", prompt)
         self.assertNotIn("心疼", prompt)
         self.assertNotIn("紧张", prompt)
@@ -357,6 +367,7 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("`start_time` and `end_time` describe the short emotional release window.", prompt)
         self.assertIn("`cue_time` is the interaction entry moment inside that window.", prompt)
         self.assertIn("Prefer `cue_time` on a reaction shot, pause, emotional aftertaste, or immediately after the turning point.", prompt)
+        self.assertIn("All output times must be between 0.0 and VIDEO_DURATION_SECONDS.", prompt)
         self.assertIn("The top-level object must contain exactly one key: `expression_triggers`.", prompt)
         self.assertIn("Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.", prompt)
         self.assertIn("Use this exact object template for every trigger, in this exact key order:", prompt)
@@ -449,6 +460,65 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertTrue(any(trigger["source_type"] == "performance" for trigger in triggers))
         self.assertEqual(pipeline.last_llm_call["status"], "success")
         self.assertEqual(pipeline.last_llm_call["usage"]["total_tokens"], 18)
+
+    def test_pipeline_uses_plain_second_subtitle_timeline_and_drops_out_of_range_llm_triggers(self) -> None:
+        class FakeClient:
+            last_call_diagnostics: dict[str, object] = {}
+
+            def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], frame_timestamps_seconds: list[float] | None = None, max_tokens: int = 2400):
+                self.user_prompt = user_prompt
+                return {
+                    "expression_triggers": [
+                        {
+                            "start_time": 435.28,
+                            "end_time": 455.25,
+                            "cue_time": 443.0,
+                            "source_type": "plot",
+                            "primary_expression": "笑死",
+                            "intensity": 0.8,
+                            "confidence": 0.8,
+                            "summary": "模型把 04:35 误写成 435 秒。",
+                            "reason": "越界结果应被过滤。",
+                        },
+                        {
+                            "start_time": 5.0,
+                            "end_time": 8.0,
+                            "cue_time": 7.0,
+                            "source_type": "plot",
+                            "primary_expression": "爽到了",
+                            "intensity": 0.8,
+                            "confidence": 0.8,
+                            "summary": "女主反击。",
+                            "reason": "有效结果应保留。",
+                        },
+                    ]
+                }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            subtitle_path = tmp_path / "subtitle.srt"
+            video_path.write_bytes(b"fake-video")
+            subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
+
+            client = FakeClient()
+            pipeline = ExpressionTriggerPipeline(
+                llm_client=client,
+                sample_interval_sec=1.0,
+                max_frames=1,
+                enable_danmaku_enhancement=False,
+            )
+            triggers = pipeline.run(
+                video_id="demo_ep01",
+                video_file_path=video_path,
+                subtitle_file_path=subtitle_path,
+            )
+
+        self.assertEqual(len(triggers), 1)
+        self.assertEqual(triggers[0]["start_time"], 5.0)
+        self.assertIn("VIDEO_DURATION_SECONDS: 8.000", client.user_prompt)
+        self.assertIn("[5.000-8.000] 你终于输了", client.user_prompt)
+        self.assertNotIn("[00:05.000 - 00:08.000] 你终于输了", client.user_prompt)
 
     def test_pipeline_can_disable_danmaku_enhancement(self) -> None:
         class FakeClient:

@@ -163,6 +163,26 @@ def test_review_server_saves_feedback_under_output_root(tmp_path: Path) -> None:
     assert "saved_at" in saved
 
 
+def test_review_server_loads_subtitle_density_payload(tmp_path: Path) -> None:
+    data_root = tmp_path / "DataForAlgorithm"
+    output_root = tmp_path / "output"
+    make_episode(data_root)
+    density_dir = output_root / "subtitle_dialogue_density" / "demo_series_ep01"
+    density_dir.mkdir(parents=True)
+    density_path = density_dir / "subtitle_dialogue_density.json"
+    density_path.write_text(
+        json.dumps({"video_id": "demo_series_ep01", "density_windows": []}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    from scripts.serve_algorithm_review_tool import load_subtitle_density_payload
+
+    payload = load_subtitle_density_payload(video_id="demo_series_ep01", output_root=output_root)
+
+    assert payload["video_id"] == "demo_series_ep01"
+    assert payload["_review_output_path"] == str(density_path)
+
+
 def test_review_server_ignores_client_disconnect_during_range_video(tmp_path: Path) -> None:
     from scripts.serve_algorithm_review_tool import AlgorithmReviewHandler
 
@@ -224,6 +244,14 @@ def test_review_server_http_serves_range_video_and_feedback_api(tmp_path: Path) 
         with opener.open(f"http://127.0.0.1:{port}/apps/annotation-tool/annotation_tool.js", timeout=5) as response:
             annotation_js = response.read().decode("utf-8")
         assert "normalizeVideoContext" in annotation_js
+
+        with opener.open(f"http://127.0.0.1:{port}/apps/subtitle-density-tool/", timeout=5) as response:
+            density_html = response.read().decode("utf-8")
+        assert "字幕密度对照" in density_html
+
+        with opener.open(f"http://127.0.0.1:{port}/apps/subtitle-density-tool/subtitle_density_tool.js", timeout=5) as response:
+            density_js = response.read().decode("utf-8")
+        assert "renderDensityTimeline" in density_js
 
         request = Request(
             f"http://127.0.0.1:{port}/api/episodes/demo_series_ep01/video",

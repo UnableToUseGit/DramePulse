@@ -7,9 +7,9 @@ from typing import Any, Iterable
 
 from pipelines.client import LlmClientProtocol
 from pipelines.utils import (
+    SubtitleSegment,
     build_sample_timestamps,
     extract_frames_at_timestamps,
-    format_subtitle_timeline,
     load_subtitle_segments,
     probe_video_duration_seconds,
 )
@@ -19,10 +19,8 @@ SUPPORTED_SOURCE_TYPES = {"plot", "performance", "character_appeal", "finale_jud
 SUPPORTED_INTERACTION_MODES = {"single_tap", "hold_burst", "repeat_tap", "stance_poll", "finale_rating"}
 PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
     ("爽到了", "主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。"),
-    ("震惊", "前面存在明确信息差、误导、隐藏身份、隐藏能力、隐藏真相或预期反转，当前揭晓带来的强意外感。"),
     ("磕到了", "角色之间在暧昧、克制、误会、保护或双向在意的铺垫之后，关系出现明确升温、确认或亲密推进。"),
     ("看哭了", "亲情、爱情、牺牲、重逢、告别、无私守护或善意在充分铺垫后兑现，带来感动、悲伤或泪目。"),
-    ("燃起来了", "主角在贫穷、低谷、失败、受辱、被轻视或命运压迫之后，明确立志、觉醒、选择改变命运或踏上逆袭路。"),
     ("笑死", "台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。"),
 )
 SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS}
@@ -324,9 +322,34 @@ def _build_system_prompt() -> str:
     )
 
 
+def format_expression_subtitle_timeline_seconds(segments: list[SubtitleSegment]) -> str:
+    lines = ["[SUBTITLE_TIMELINE]"]
+    for segment in segments:
+        text = " ".join(segment.text.split())
+        lines.append(f"[{segment.start:.3f}-{segment.end:.3f}] {text}")
+    lines.append("[/SUBTITLE_TIMELINE]")
+    return "\n".join(lines)
+
+
+def filter_triggers_within_duration(triggers: list[dict[str, Any]], *, duration_sec: float) -> list[dict[str, Any]]:
+    if duration_sec <= 0:
+        return triggers
+    filtered: list[dict[str, Any]] = []
+    for trigger in triggers:
+        try:
+            start_time = float(trigger["start_time"])
+            end_time = float(trigger["end_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0.0 <= start_time <= duration_sec and end_time <= duration_sec:
+            filtered.append(trigger)
+    return filtered
+
+
 def _build_user_prompt(
     *,
     video_id: str,
+    video_duration_seconds: float,
     subtitles_timeline: str,
     metadata: dict[str, Any] | None,
     timestamps_seconds: list[float],
@@ -345,9 +368,11 @@ def _build_user_prompt(
             "",
             "## INPUT",
             f"VIDEO_ID: {video_id}",
+            f"VIDEO_DURATION_SECONDS: {video_duration_seconds:.3f}",
             f"FRAME_TIMESTAMPS_SECONDS: {frame_hint}",
             "You will receive one sampled video frame for each timestamp listed above.",
             "You will also receive timestamped subtitle utterances.",
+            "All subtitle timestamps and output times are plain seconds, not MM:SS or HH:MM:SS.",
             "[METADATA]",
             metadata_text,
             "[/METADATA]",
@@ -380,11 +405,6 @@ def _build_user_prompt(
             "Required: the protagonist or justice side actively regains power, wins, exposes, punishes, or face-slaps at this moment.",
             "Reject: simple danger relief, being helped by someone else, being recognized, receiving an opportunity, or a generic positive turn.",
             "",
-            "### 震惊",
-            f"Definition: {expression_definitions['震惊']}",
-            "Required: a previous information gap, misdirection, hidden identity, hidden truth, hidden ability, or clear expectation reversal before the current reveal.",
-            "Reject: a fact that is merely important, expensive, intense, or plot-relevant without a clear reveal.",
-            "",
             "### 磕到了",
             f"Definition: {expression_definitions['磕到了']}",
             "Required: prior relationship tension, ambiguity, restraint, misunderstanding, protection, or mutual care before clear relationship advancement.",
@@ -394,11 +414,6 @@ def _build_user_prompt(
             f"Definition: {expression_definitions['看哭了']}",
             "Required: emotional payoff such as sacrifice, reunion, farewell, selfless protection, forgiveness, or family/love breakthrough.",
             "Reject: mere hardship, pity, bullying, debt pressure, or ordinary sadness without emotional payoff.",
-            "",
-            "### 燃起来了",
-            f"Definition: {expression_definitions['燃起来了']}",
-            "Required: a clear vow, awakening, irreversible choice, or decision to change fate after low status, humiliation, poverty, failure, or being underestimated.",
-            "Reject: generic approval, help, recruitment, or opportunity unless the protagonist makes an explicit inner turn or decisive choice.",
             "",
             "### 笑死",
             f"Definition: {expression_definitions['笑死']}",
@@ -411,6 +426,7 @@ def _build_user_prompt(
             "- Prefer `cue_time` on a reaction shot, pause, emotional aftertaste, or immediately after the turning point.",
             "- Do not place `cue_time` before the viewer understands the key line/action.",
             "- Choose times from subtitle/frame evidence. Do not invent events outside the provided timeline.",
+            "- All output times must be between 0.0 and VIDEO_DURATION_SECONDS.",
             "",
             "## FIELD WRITING",
             "- Every trigger should explain the release structure with `setup`, `turning_point`, and `expression_release` when evidence is clear.",
@@ -437,6 +453,7 @@ def _build_user_prompt(
             "- `start_time`, `end_time`, and `cue_time` are numbers in seconds.",
             "- `start_time` must be >= 0.0.",
             "- `end_time` must be greater than `start_time`.",
+            "- `end_time` must be <= VIDEO_DURATION_SECONDS.",
             "- `cue_time` must be within [start_time, end_time].",
             "- `source_type` must be `plot`.",
             "- `primary_expression` must be one of the allowed values.",
@@ -498,7 +515,7 @@ class ExpressionTriggerPipeline:
             frames_per_interval=self.frames_per_interval,
             max_frames=self.max_frames,
         )
-        subtitles_timeline = format_subtitle_timeline(subtitle_segments)
+        subtitles_timeline = format_expression_subtitle_timeline_seconds(subtitle_segments)
 
         with tempfile.TemporaryDirectory(prefix=f"expression_{video_id}_") as temp_dir:
             output_dir = Path(temp_dir) / "frames"
@@ -518,6 +535,7 @@ class ExpressionTriggerPipeline:
                     system_prompt=_build_system_prompt(),
                     user_prompt=_build_user_prompt(
                         video_id=video_id,
+                        video_duration_seconds=duration_sec,
                         subtitles_timeline=subtitles_timeline,
                         metadata=metadata,
                         timestamps_seconds=timestamps,
@@ -530,7 +548,7 @@ class ExpressionTriggerPipeline:
                 diagnostics = getattr(self.llm_client, "last_call_diagnostics", {})
                 self.last_llm_call = dict(diagnostics) if isinstance(diagnostics, dict) else {}
 
-        triggers = parse_expression_triggers(raw, video_id=video_id)
+        triggers = filter_triggers_within_duration(parse_expression_triggers(raw, video_id=video_id), duration_sec=duration_sec)
         if self.enable_danmaku_enhancement:
             triggers.extend(
                 detect_danmaku_expression_triggers(

@@ -21,6 +21,7 @@ DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
 DEFAULT_OUTPUT_ROOT = Path("output")
 TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "algorithm-review-tool"
 ANNOTATION_TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "annotation-tool"
+SUBTITLE_DENSITY_TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "subtitle-density-tool"
 FEEDBACK_FILENAME = "expression_trigger_feedback.json"
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
@@ -65,6 +66,28 @@ def resolve_algorithm_output(video_id: str, output_root: Path) -> tuple[str | No
     return None, None
 
 
+def resolve_subtitle_density_output(video_id: str, output_root: Path) -> Path | None:
+    candidates = (
+        output_root / video_id / "subtitle_dialogue_density.json",
+        output_root / "subtitle_dialogue_density" / video_id / "subtitle_dialogue_density.json",
+        output_root.parent / "subtitle_dialogue_density" / video_id / "subtitle_dialogue_density.json",
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def load_subtitle_density_payload(*, video_id: str, output_root: Path) -> dict[str, Any]:
+    output_path = resolve_subtitle_density_output(video_id, output_root)
+    if output_path is None:
+        return {"video_id": video_id, "output_type": None, "density_windows": [], "dialogue_ranges": [], "silent_ranges": []}
+    payload = read_json(output_path)
+    if isinstance(payload, dict):
+        return {**payload, "_review_output_type": "subtitle_dialogue_density", "_review_output_path": str(output_path)}
+    return {"video_id": video_id, "output_type": None, "density_windows": [], "dialogue_ranges": [], "silent_ranges": []}
+
+
 def resolve_danmaku_source(
     *,
     episode_dir: Path,
@@ -100,6 +123,7 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
         episode_id = episode_dir.name
         video_id = f"{series_id}_{episode_id}"
         output_type, algorithm_output_path = resolve_algorithm_output(video_id, output_root)
+        subtitle_density_path = resolve_subtitle_density_output(video_id, output_root)
         danmaku_source, danmaku_path = resolve_danmaku_source(
             episode_dir=episode_dir,
             series_id=series_id,
@@ -126,6 +150,8 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
                 "has_scene_detection": (episode_dir / "scene_detection.json").exists(),
                 "algorithm_output_type": output_type,
                 "algorithm_output_path": str(algorithm_output_path) if algorithm_output_path else None,
+                "subtitle_density_path": str(subtitle_density_path) if subtitle_density_path else None,
+                "has_subtitle_density": subtitle_density_path is not None,
                 "feedback_path": str(feedback_path),
                 "has_feedback": feedback_path.exists(),
             }
@@ -168,6 +194,12 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             return
         if path == "/apps/annotation-tool/annotation_tool.js":
             self._send_file(ANNOTATION_TOOL_DIR / "annotation_tool.js")
+            return
+        if path in {"/apps/subtitle-density-tool", "/apps/subtitle-density-tool/"}:
+            self._send_file(SUBTITLE_DENSITY_TOOL_DIR / "index.html")
+            return
+        if path == "/apps/subtitle-density-tool/subtitle_density_tool.js":
+            self._send_file(SUBTITLE_DENSITY_TOOL_DIR / "subtitle_density_tool.js")
             return
         if path == "/api/episodes":
             self._send_json(build_episode_index(data_root=self.data_root, output_root=self.output_root))
@@ -241,6 +273,9 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             return
         if resource == "feedback":
             self._send_json(read_json(self.output_root / video_id / FEEDBACK_FILENAME) or {"video_id": video_id})
+            return
+        if resource == "subtitle-density":
+            self._send_json(load_subtitle_density_payload(video_id=video_id, output_root=self.output_root))
             return
         self.send_error(HTTPStatus.NOT_FOUND, "Resource not found")
 

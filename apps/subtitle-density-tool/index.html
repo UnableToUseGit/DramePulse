@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DramePulse 字幕密度对照</title>
+    <link rel="icon" href="data:,">
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0e1113;
+        --panel: #171b1e;
+        --panel-soft: #20262a;
+        --line: #343d42;
+        --text: #f5f1e8;
+        --muted: #aab3b8;
+        --accent: #e2bf62;
+        --blue: #64b6ff;
+        --green: #73d18a;
+        --red: #ff786f;
+        --quiet: #3f4a50;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      button, select { font: inherit; }
+      button, select {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel-soft);
+        color: var(--text);
+        padding: 8px 10px;
+      }
+      button { cursor: pointer; }
+      button:hover { border-color: var(--accent); }
+      .app {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 440px;
+        gap: 14px;
+        height: 100vh;
+        padding: 14px;
+      }
+      .main, .side {
+        min-height: 0;
+        border: 1px solid var(--line);
+        background: var(--panel);
+      }
+      .main {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        gap: 12px;
+        padding: 12px;
+      }
+      .topbar {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) auto auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+      .status {
+        color: var(--muted);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .video-wrap {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid #050607;
+        background: #050607;
+      }
+      video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+      }
+      .timeline-shell {
+        display: grid;
+        gap: 8px;
+      }
+      .timeline {
+        position: relative;
+        height: 74px;
+        border: 1px solid var(--line);
+        background: #111619;
+        overflow: hidden;
+      }
+      .range {
+        position: absolute;
+        top: 10px;
+        height: 20px;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+      .range.dialogue { background: rgba(100, 182, 255, .8); }
+      .range.silent { top: 38px; background: rgba(255, 120, 111, .8); }
+      .density {
+        position: absolute;
+        bottom: 0;
+        height: 8px;
+        background: var(--quiet);
+      }
+      .density.low { background: #53636b; }
+      .density.medium { background: #c4a14d; }
+      .density.high { background: #73d18a; }
+      .playhead {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #fff;
+        box-shadow: 0 0 0 1px #000;
+        pointer-events: none;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .swatch {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 5px;
+        border-radius: 2px;
+        vertical-align: -1px;
+      }
+      .side {
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .metric {
+        border: 1px solid var(--line);
+        background: #14191c;
+        padding: 9px;
+      }
+      .metric strong {
+        display: block;
+        color: var(--accent);
+        font-variant-numeric: tabular-nums;
+        font-size: 18px;
+      }
+      .metric span { color: var(--muted); font-size: 12px; }
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .tabs button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+      .list {
+        min-height: 0;
+        overflow: auto;
+        display: grid;
+        gap: 8px;
+        padding-right: 4px;
+      }
+      .item {
+        border: 1px solid var(--line);
+        background: #14191c;
+        padding: 10px;
+        display: grid;
+        gap: 5px;
+        cursor: pointer;
+      }
+      .item:hover, .item.active { border-color: var(--accent); }
+      .item-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        color: var(--text);
+        font-size: 14px;
+      }
+      .time { color: var(--accent); font-variant-numeric: tabular-nums; }
+      .meta { color: var(--muted); font-size: 12px; line-height: 1.45; }
+      .empty {
+        color: var(--muted);
+        border: 1px dashed var(--line);
+        padding: 14px;
+        line-height: 1.6;
+      }
+      @media (max-width: 980px) {
+        .app { height: auto; grid-template-columns: 1fr; }
+        .main { min-height: 680px; }
+        .side { min-height: 620px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <section class="main">
+        <div class="topbar">
+          <select id="episodeSelect"></select>
+          <button id="prevItem">上一段</button>
+          <button id="nextItem">下一段</button>
+          <span class="status" id="status">未加载</span>
+        </div>
+        <div class="video-wrap">
+          <video id="video" controls playsinline></video>
+        </div>
+        <div class="timeline-shell">
+          <div class="timeline" id="timeline"><div class="playhead" id="playhead"></div></div>
+          <div class="legend">
+            <span><i class="swatch" style="background: var(--blue)"></i>对白区间</span>
+            <span><i class="swatch" style="background: var(--red)"></i>无字幕区间</span>
+            <span><i class="swatch" style="background: var(--green)"></i>高密度窗口</span>
+            <span><i class="swatch" style="background: var(--accent)"></i>中密度窗口</span>
+          </div>
+        </div>
+      </section>
+      <aside class="side">
+        <div class="metrics" id="metrics"></div>
+        <div class="tabs">
+          <button class="active" data-tab="dialogue">对白</button>
+          <button data-tab="silent">无字幕</button>
+          <button data-tab="density">密度窗口</button>
+        </div>
+        <div class="list" id="rangeList"></div>
+      </aside>
+    </main>
+    <script src="/apps/subtitle-density-tool/subtitle_density_tool.js"></script>
+  </body>
+</html>
