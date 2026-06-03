@@ -116,6 +116,8 @@ interface FolderVideo {
   title: string;
 }
 
+const VIDEO_CHUNK_SIZE = 512 * 1024;
+
 type ActiveTab = "dashboard" | "content";
 
 interface AuthState {
@@ -240,7 +242,13 @@ async function readResponse(response: Response): Promise<string> {
   }
   try {
     const payload = (await response.json()) as { detail?: unknown };
-    return typeof payload.detail === "string" ? payload.detail : `请求失败 ${response.status}`;
+    if (typeof payload.detail === "string") {
+      return payload.detail;
+    }
+    if (payload.detail) {
+      return JSON.stringify(payload.detail);
+    }
+    return `请求失败 ${response.status}`;
   } catch {
     return `请求失败 ${response.status}`;
   }
@@ -248,6 +256,11 @@ async function readResponse(response: Response): Promise<string> {
 
 async function adminFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return fetch(input, { ...init, credentials: "same-origin" });
+}
+
+function createUploadId(): string {
+  const random = crypto.getRandomValues(new Uint32Array(4));
+  return Array.from(random, (value) => value.toString(16).padStart(8, "0")).join("");
 }
 
 async function setSeriesOnlineState(series: { series_id: string; series_name?: string | null; status: string }): Promise<string> {
@@ -558,8 +571,8 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
   const isDetailCurrent = detail?.series.series_id === selectedSeriesId;
   const displaySeries = isDetailCurrent ? detail.series : selectedSeries;
   const displayEpisodes = isDetailCurrent ? detail.episodes : [];
-  const selectedSeriesName = displaySeries?.series_name || seriesNameInput;
   const activeSeriesId = selectedSeriesId || seriesIdInput;
+  const selectedSeriesName = displaySeries?.series_name || seriesNameInput || activeSeriesId;
   const filteredSeriesList = seriesList.filter((series) => {
     const keyword = seriesSearch.trim().toLowerCase();
     if (!keyword) {
@@ -593,7 +606,9 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
     const payload = (await response.json()) as SeriesDetail;
     setDetail(payload);
     setSeriesIdInput(payload.series.series_id);
-    setSeriesNameInput(payload.series.series_name || "");
+    if (payload.series.series_name) {
+      setSeriesNameInput(payload.series.series_name);
+    }
   }, []);
 
   React.useEffect(() => {
@@ -644,15 +659,26 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
     try {
       for (let index = 0; index < folderVideos.length; index += 1) {
         const item = folderVideos[index];
-        setUploadProgress(`正在上传 ${index + 1}/${folderVideos.length}: ${item.relativePath}`);
-        const body = new FormData();
-        body.append("series_name", selectedSeriesName);
-        body.append("episode_no", String(item.episodeNo));
-        body.append("title", item.title);
-        body.append("video", item.file);
-        const response = await adminFetch(`/api/admin/series/${activeSeriesId}/episodes`, { method: "POST", body });
-        if (!response.ok) {
-          throw new Error(`${item.relativePath}: ${await readResponse(response)}`);
+        const uploadSeriesName = selectedSeriesName || seriesNameInput || activeSeriesId;
+        const uploadId = createUploadId();
+        const totalChunks = Math.max(1, Math.ceil(item.file.size / VIDEO_CHUNK_SIZE));
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+          const start = chunkIndex * VIDEO_CHUNK_SIZE;
+          const chunk = item.file.slice(start, Math.min(item.file.size, start + VIDEO_CHUNK_SIZE), "video/mp4");
+          setUploadProgress(`正在上传 ${index + 1}/${folderVideos.length}: ${item.relativePath} (${chunkIndex + 1}/${totalChunks})`);
+          const body = new FormData();
+          body.append("series_name", uploadSeriesName);
+          body.append("episode_no", String(item.episodeNo));
+          body.append("title", item.title);
+          body.append("upload_id", uploadId);
+          body.append("chunk_index", String(chunkIndex));
+          body.append("total_chunks", String(totalChunks));
+          body.append("total_size", String(item.file.size));
+          body.append("chunk", chunk, `${item.episodeLabel}.${String(chunkIndex).padStart(5, "0")}.part`);
+          const response = await adminFetch(`/api/admin/series/${activeSeriesId}/episodes/chunks`, { method: "POST", body });
+          if (!response.ok) {
+            throw new Error(`${item.relativePath}: ${await readResponse(response)}`);
+          }
         }
       }
       setMessage(`已上传 ${folderVideos.length} 个视频`);

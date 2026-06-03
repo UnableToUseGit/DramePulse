@@ -4,13 +4,13 @@ import { colors, radii, spacing } from "../theme";
 
 export function PlayerChrome({
   onToggleDebug,
-  onOpenStoryQa,
+  onOpenWatchAssistant,
   seriesName,
   title,
   episodeLabel
 }: {
   onToggleDebug: () => void;
-  onOpenStoryQa: () => void;
+  onOpenWatchAssistant: () => void;
   seriesName?: string;
   title: string;
   episodeLabel?: string;
@@ -29,7 +29,7 @@ export function PlayerChrome({
 
       <View style={styles.rail}>
         <RailIcon icon="star" count="199.4万" />
-        <RailIcon icon="chatbubble-ellipses" count="6626" onPress={onOpenStoryQa} />
+        <RailIcon icon="sparkles" count="助手" onPress={onOpenWatchAssistant} />
         <RailIcon icon="heart" count="30.8万" />
         <RailIcon icon="arrow-redo" count="5.3万" />
       </View>
@@ -80,7 +80,7 @@ function RailIcon({
   );
   if (onPress) {
     return (
-      <Pressable accessibilityRole="button" accessibilityLabel="剧情问答" style={styles.railItem} onPress={onPress}>
+      <Pressable accessibilityRole="button" accessibilityLabel="观看助手" style={styles.railItem} onPress={onPress}>
         {content}
       </Pressable>
     );

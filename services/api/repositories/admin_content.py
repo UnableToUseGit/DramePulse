@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile, status
 
@@ -22,6 +23,7 @@ VIDEO_CONTENT_TYPES = {"video/mp4", "application/mp4", "video/quicktime"}
 DANMAKU_CONTENT_TYPES = {"application/json", "text/json", "application/octet-stream", ""}
 DRAMA_OBJECT_KEY_PREFIX = "dramas/%"
 MANAGED_VIDEO_STATUSES = ("active", "deleted")
+CHUNK_UPLOAD_DIR = ".dramepulse_uploads"
 
 
 def _validate_series_id(series_id: str) -> str:
@@ -56,6 +58,22 @@ def _ensure_local_target(settings: Settings, object_key: str) -> Path:
     return path
 
 
+def _safe_upload_id(upload_id: str) -> str:
+    normalized = upload_id.strip()
+    if not re.fullmatch(r"[a-zA-Z0-9_-]{8,128}", normalized):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="upload_id is invalid")
+    return normalized
+
+
+def _chunk_upload_path(settings: Settings, upload_id: str) -> Path:
+    root = (settings.local_oss_root / CHUNK_UPLOAD_DIR).resolve()
+    path = (root / f"{upload_id}.part").resolve()
+    if not path.is_relative_to(root):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid upload id")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def _put_bytes(object_key: str, body: bytes, content_type: str) -> int:
     settings = get_settings()
     if settings.mode == "local":
@@ -69,11 +87,29 @@ def _put_bytes(object_key: str, body: bytes, content_type: str) -> int:
     return int(meta.headers.get("Content-Length", len(body)))
 
 
+def _put_file(object_key: str, path: Path, content_type: str) -> int:
+    settings = get_settings()
+    if settings.mode == "local":
+        target = _ensure_local_target(settings, object_key)
+        target.write_bytes(path.read_bytes())
+        return target.stat().st_size
+
+    bucket = get_bucket(settings)
+    with path.open("rb") as handle:
+        bucket.put_object(object_key, handle, headers={"Content-Type": content_type})
+    meta = bucket.head_object(object_key)
+    return int(meta.headers.get("Content-Length", path.stat().st_size))
+
+
 async def _read_upload(upload: UploadFile) -> bytes:
     body = await upload.read()
     if not body:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Uploaded file is empty")
     return body
+
+
+def new_upload_id() -> str:
+    return uuid4().hex
 
 
 async def create_series(series_id: str, series_name: str) -> dict[str, Any]:
@@ -492,6 +528,97 @@ async def upload_episode_video(
     object_key = f"dramas/{clean_series_id}/episodes/{episode_label}/video.mp4"
     size = _put_bytes(object_key, await _read_upload(video), "video/mp4")
     settings = get_settings()
+    _upsert_video(
+        (
+            video_id,
+            clean_series_id,
+            clean_series_name,
+            clean_title,
+            episode_no,
+            episode_label,
+            settings.oss_bucket if settings.mode != "local" else settings.local_oss_bucket,
+            object_key,
+            "video/mp4",
+            size,
+        )
+    )
+    return {
+        "video_id": video_id,
+        "series_id": clean_series_id,
+        "series_name": clean_series_name,
+        "episode_no": episode_no,
+        "episode_label": episode_label,
+        "title": clean_title,
+        "object_key": object_key,
+        "content_type": "video/mp4",
+        "size": size,
+    }
+
+
+async def upload_episode_video_chunk(
+    *,
+    series_id: str,
+    series_name: str,
+    episode_no: int,
+    title: str,
+    upload_id: str,
+    chunk_index: int,
+    total_chunks: int,
+    total_size: int,
+    chunk: UploadFile,
+) -> dict[str, Any]:
+    clean_series_id = _validate_series_id(series_id)
+    clean_series_name = series_name.strip()
+    clean_title = title.strip()
+    clean_upload_id = _safe_upload_id(upload_id)
+    if not clean_series_name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="series_name is required")
+    if not clean_title:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="title is required")
+    if total_chunks <= 0 or chunk_index < 0 or chunk_index >= total_chunks:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="chunk index is invalid")
+    if total_size <= 0:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="total_size must be positive")
+
+    body = await _read_upload(chunk)
+    settings = get_settings()
+    upload_path = _chunk_upload_path(settings, clean_upload_id)
+    current_size = upload_path.stat().st_size if upload_path.exists() else 0
+    if chunk_index == 0 and current_size > 0:
+        upload_path.write_bytes(b"")
+        current_size = 0
+    if current_size + len(body) > total_size:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="chunk data exceeds declared total_size")
+
+    with upload_path.open("ab") as handle:
+        handle.write(body)
+
+    received_size = upload_path.stat().st_size
+    is_complete = chunk_index == total_chunks - 1
+    if not is_complete:
+        return {
+            "video_id": f"{clean_series_id}_{_episode_label(episode_no)}",
+            "series_id": clean_series_id,
+            "series_name": clean_series_name,
+            "episode_no": episode_no,
+            "episode_label": _episode_label(episode_no),
+            "title": clean_title,
+            "object_key": "",
+            "content_type": "video/mp4",
+            "size": received_size,
+        }
+
+    if received_size != total_size:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="uploaded chunks do not match total_size")
+
+    episode_label = _episode_label(episode_no)
+    video_id = f"{clean_series_id}_{episode_label}"
+    object_key = f"dramas/{clean_series_id}/episodes/{episode_label}/video.mp4"
+    size = _put_file(object_key, upload_path, "video/mp4")
+    try:
+        upload_path.unlink()
+    except FileNotFoundError:
+        pass
     _upsert_video(
         (
             video_id,

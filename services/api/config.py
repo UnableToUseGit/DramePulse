@@ -62,6 +62,9 @@ class Settings:
     lightrag_embedding_api_base: str
     lightrag_embedding_api_key: str
     lightrag_embedding_send_dim: bool
+    watch_assistant_asr_backend: str
+    watch_assistant_asr_model: str
+    watch_assistant_asr_max_bytes: int
 
     @property
     def oss_endpoint_url(self) -> str:
@@ -116,6 +119,9 @@ def get_settings() -> Settings:
         lightrag_embedding_api_base=_getenv("LIGHTRAG_EMBEDDING_API_BASE", _getenv("OPENAI_API_BASE", "https://api.openai.com/v1")),
         lightrag_embedding_api_key=_getenv("LIGHTRAG_EMBEDDING_API_KEY", _getenv("OPENAI_API_KEY")),
         lightrag_embedding_send_dim=_getenv("LIGHTRAG_EMBEDDING_SEND_DIM", "false").lower() in {"1", "true", "yes"},
+        watch_assistant_asr_backend=_getenv("WATCH_ASSISTANT_ASR_BACKEND", "mock").lower(),
+        watch_assistant_asr_model=_getenv("WATCH_ASSISTANT_ASR_MODEL", "whisper-1"),
+        watch_assistant_asr_max_bytes=int(_getenv("WATCH_ASSISTANT_ASR_MAX_BYTES", str(2 * 1024 * 1024))),
     )
 
 

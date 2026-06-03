@@ -7,12 +7,17 @@
     "scheme": "dramepulse",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "DramePulse 需要使用麦克风把你的语音指令转成观看助手文本。"
+      }
     },
     "android": {
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "plugins": [
+      "expo-audio",
       "expo-video"
     ]
   }

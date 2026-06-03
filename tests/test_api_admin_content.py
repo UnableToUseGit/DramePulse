@@ -206,6 +206,63 @@ class AdminContentApiTest(unittest.TestCase):
         self.assertEqual(row[6], "dramas/tianxiadiyiwanku/episodes/ep01/video.mp4")
         self.assertEqual(row[7], len(b"video-bytes"))
 
+    def test_upload_episode_chunks_writes_video_and_upserts_videos_table(self) -> None:
+        first = self.client.post(
+            "/api/admin/series/tianxiadiyiwanku/episodes/chunks",
+            data={
+                "series_name": "天下第一纨绔",
+                "episode_no": "1",
+                "title": "天下第一纨绔 第1集",
+                "upload_id": "upload123",
+                "chunk_index": "0",
+                "total_chunks": "2",
+                "total_size": "11",
+            },
+            files={"chunk": ("ep01.00000.part", b"video-", "application/octet-stream")},
+        )
+        second = self.client.post(
+            "/api/admin/series/tianxiadiyiwanku/episodes/chunks",
+            data={
+                "series_name": "天下第一纨绔",
+                "episode_no": "1",
+                "title": "天下第一纨绔 第1集",
+                "upload_id": "upload123",
+                "chunk_index": "1",
+                "total_chunks": "2",
+                "total_size": "11",
+            },
+            files={"chunk": ("ep01.00001.part", b"bytes", "application/octet-stream")},
+        )
+
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        payload = second.json()
+        self.assertEqual(payload["video_id"], "tianxiadiyiwanku_ep01")
+        self.assertEqual(payload["object_key"], "dramas/tianxiadiyiwanku/episodes/ep01/video.mp4")
+        self.assertEqual(
+            (self.tmp_path / "dramas" / "tianxiadiyiwanku" / "episodes" / "ep01" / "video.mp4").read_bytes(),
+            b"video-bytes",
+        )
+        self.assertFalse((self.tmp_path / ".dramepulse_uploads" / "upload123.part").exists())
+
+        connection = sqlite3.connect(self.tmp_path / "dramepulse.sqlite")
+        try:
+            row = connection.execute(
+                """
+                SELECT video_id, oss_object_key, size
+                FROM videos
+                WHERE video_id = ?
+                """,
+                ("tianxiadiyiwanku_ep01",),
+            ).fetchone()
+        finally:
+            connection.close()
+
+        self.assertIsNotNone(row)
+        assert row is not None
+        self.assertEqual(row[1], "dramas/tianxiadiyiwanku/episodes/ep01/video.mp4")
+        self.assertEqual(row[2], len(b"video-bytes"))
+
     def test_rejects_non_video_episode_upload(self) -> None:
         response = self.client.post(
             "/api/admin/series/tianxiadiyiwanku/episodes",

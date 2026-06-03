@@ -497,7 +497,7 @@ def _ensure_lightrag(settings: Settings) -> None:
         _run_lightrag_async(_get_lightrag_async(settings))
 
 
-async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, Any]:
+async def _ask_lightrag_async(settings: Settings, question: str, current_episode: int) -> dict[str, Any]:
     from lightrag import QueryParam
 
     rag = await _get_lightrag_async(settings)
@@ -513,13 +513,19 @@ async def _ask_lightrag_async(settings: Settings, question: str) -> dict[str, An
             max_total_tokens=settings.lightrag_max_total_tokens,
             response_type=settings.lightrag_response_type,
             include_references=False,
+            current_chapter_id=int(current_episode),
         ),
     )
 
     return {"answer": _clean_lightrag_text(str(answer)), "sources": []}
 
 
-async def _ask_lightrag_stream_async(settings: Settings, question: str, output: queue.Queue[str | Exception | None]) -> None:
+async def _ask_lightrag_stream_async(
+    settings: Settings,
+    question: str,
+    current_episode: int,
+    output: queue.Queue[str | Exception | None],
+) -> None:
     from lightrag import QueryParam
 
     try:
@@ -537,6 +543,7 @@ async def _ask_lightrag_stream_async(settings: Settings, question: str, output: 
                 response_type=settings.lightrag_response_type,
                 include_references=False,
                 stream=True,
+                current_chapter_id=int(current_episode),
             ),
         )
         if hasattr(answer, "__aiter__"):
@@ -557,18 +564,18 @@ async def _ask_lightrag_stream_async(settings: Settings, question: str, output: 
         output.put(None)
 
 
-def _ask_lightrag(settings: Settings, question: str) -> dict[str, Any]:
+def _ask_lightrag(settings: Settings, question: str, current_episode: int) -> dict[str, Any]:
     _require_api_key(settings)
     _ensure_lightrag(settings)
-    return _run_lightrag_async(_ask_lightrag_async(settings, question))
+    return _run_lightrag_async(_ask_lightrag_async(settings, question, current_episode))
 
 
-def _ask_lightrag_stream(settings: Settings, question: str) -> Iterable[str]:
+def _ask_lightrag_stream(settings: Settings, question: str, current_episode: int) -> Iterable[str]:
     _require_api_key(settings)
     _ensure_lightrag(settings)
     output: queue.Queue[str | Exception | None] = queue.Queue()
     future = asyncio.run_coroutine_threadsafe(
-        _ask_lightrag_stream_async(settings, question, output),
+        _ask_lightrag_stream_async(settings, question, current_episode, output),
         _get_lightrag_loop(),
     )
     while True:
@@ -673,7 +680,7 @@ def ingest(input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
 def ask(question: str, series_id: str, current_episode: int, current_time: float) -> dict[str, Any]:
     settings = get_settings()
     if _uses_lightrag(settings):
-        return _ask_lightrag(settings, question)
+        return _ask_lightrag(settings, question, current_episode)
 
     _use_pysqlite3()
     from llama_index.core import Settings as LlamaSettings
@@ -741,7 +748,7 @@ def ask(question: str, series_id: str, current_episode: int, current_time: float
 def ask_stream(question: str, series_id: str, current_episode: int, current_time: float) -> Iterable[str]:
     settings = get_settings()
     if _uses_lightrag(settings):
-        return _ask_lightrag_stream(settings, question)
+        return _ask_lightrag_stream(settings, question, current_episode)
 
     answer = ask(question, series_id, current_episode, current_time)["answer"]
     return iter([str(answer)])

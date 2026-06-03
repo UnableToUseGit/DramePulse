@@ -19,6 +19,7 @@ from ..repositories.admin_content import (
     restore_series,
     upload_episode_danmaku,
     upload_episode_video,
+    upload_episode_video_chunk,
     upload_series_cover,
 )
 from ..repositories.admin_dashboard import get_admin_dashboard
@@ -115,6 +116,38 @@ async def upload_admin_episode(
             episode_no=episode_no,
             title=title,
             video=video,
+        )
+    )
+
+
+@router.post("/admin/series/{series_id}/episodes/chunks", response_model=AdminEpisodeUploadResponse)
+async def upload_admin_episode_chunk(
+    series_id: str,
+    request: Request,
+    _: None = Depends(require_admin),
+) -> AdminEpisodeUploadResponse:
+    form = await request.form()
+    chunk = form.get("chunk")
+    if not hasattr(chunk, "read"):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="chunk file is required")
+    try:
+        episode_no = int(str(form.get("episode_no", "")))
+        chunk_index = int(str(form.get("chunk_index", "")))
+        total_chunks = int(str(form.get("total_chunks", "")))
+        total_size = int(str(form.get("total_size", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="chunk metadata must be integers") from exc
+    return AdminEpisodeUploadResponse(
+        **await upload_episode_video_chunk(
+            series_id=series_id,
+            series_name=str(form.get("series_name", "")),
+            episode_no=episode_no,
+            title=str(form.get("title", "")),
+            upload_id=str(form.get("upload_id", "")),
+            chunk_index=chunk_index,
+            total_chunks=total_chunks,
+            total_size=total_size,
+            chunk=chunk,  # type: ignore[arg-type]
         )
     )
 

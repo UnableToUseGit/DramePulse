@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   NativeScrollEvent,
@@ -24,6 +24,7 @@ export function PlayerScreen() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const feedRef = useRef<FlatList<PlayerVideo>>(null);
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
 
@@ -83,6 +84,17 @@ export function PlayerScreen() {
     setSelectedPresentationType(type);
   }, []);
 
+  const handleRequestNextEpisode = useCallback(() => {
+    if (activeIndex >= videos.length - 1) {
+      return false;
+    }
+    const nextIndex = activeIndex + 1;
+    setActiveIndex(nextIndex);
+    setHasStartedFeed(true);
+    feedRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    return true;
+  }, [activeIndex, videos.length]);
+
   if (loadState === "loading") {
     return (
       <View style={[styles.root, styles.centerState]}>
@@ -116,6 +128,7 @@ export function PlayerScreen() {
     >
       {resolvedPageHeight > 0 ? (
         <FlatList
+          ref={feedRef}
           data={videos}
           keyExtractor={(item) => item.videoId}
           renderItem={({ item, index }) => (
@@ -126,6 +139,7 @@ export function PlayerScreen() {
               hasStartedFeed={hasStartedFeed}
               selectedPresentationType={selectedPresentationType}
               onChangePresentationType={handleChangePresentationType}
+              onRequestNextEpisode={handleRequestNextEpisode}
               onStartFeed={() => setHasStartedFeed(true)}
             />
           )}

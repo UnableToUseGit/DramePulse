@@ -4,7 +4,7 @@ import logging
 
 from fastapi import FastAPI
 
-from .routers import admin, danmaku, events, health, interactions, playback_events, story_qa, videos
+from .routers import admin, danmaku, events, health, interactions, playback_events, story_qa, videos, watch_assistant
 from .story_qa import service as story_qa_service
 
 
@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
     app.include_router(events.router, prefix="/api", tags=["events"])
     app.include_router(playback_events.router, prefix="/api", tags=["playback-events"])
     app.include_router(story_qa.router, prefix="/api", tags=["story-qa"])
+    app.include_router(watch_assistant.router, prefix="/api", tags=["watch-assistant"])
     return app
 
 

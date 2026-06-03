@@ -379,6 +379,98 @@ class StoryQaApiTest(unittest.TestCase):
         self.assertEqual(query_params[0]["max_relation_tokens"], 2400)
         self.assertEqual(query_params[0]["max_total_tokens"], 6000)
         self.assertEqual(query_params[0]["response_type"], "Single Paragraph")
+        self.assertEqual(query_params[0]["current_chapter_id"], 3)
+        self.assertEqual(query_params[1]["current_chapter_id"], 3)
+
+    def test_lightrag_stream_passes_current_episode_as_chapter_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_lightrag = types.ModuleType("lightrag")
+            fake_llm = types.ModuleType("lightrag.llm")
+            fake_openai = types.ModuleType("lightrag.llm.openai")
+            fake_utils = types.ModuleType("lightrag.utils")
+            query_params = []
+
+            class FakeQueryParam:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+                    query_params.append(kwargs)
+
+            class FakeEmbeddingFunc:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+            class FakeStream:
+                def __aiter__(self):
+                    self.items = iter(["answer ", "from stream"])
+                    return self
+
+                async def __anext__(self):
+                    try:
+                        return next(self.items)
+                    except StopIteration as exc:
+                        raise StopAsyncIteration from exc
+
+            class FakeLightRAG:
+                def __init__(self, **kwargs):
+                    self.kwargs = kwargs
+
+                async def initialize_storages(self):
+                    return None
+
+                async def aquery(self, question, param):
+                    return FakeStream()
+
+            async def fake_complete(*args, **kwargs):
+                return ""
+
+            async def fake_embed(*args, **kwargs):
+                return []
+
+            fake_lightrag.LightRAG = FakeLightRAG
+            fake_lightrag.QueryParam = FakeQueryParam
+            fake_openai.openai_complete_if_cache = fake_complete
+            fake_openai.openai_embed = fake_embed
+            fake_utils.EmbeddingFunc = FakeEmbeddingFunc
+
+            with patch.dict(
+                sys.modules,
+                {
+                    "lightrag": fake_lightrag,
+                    "lightrag.llm": fake_llm,
+                    "lightrag.llm.openai": fake_openai,
+                    "lightrag.utils": fake_utils,
+                },
+            ), patch.dict(
+                "os.environ",
+                {
+                    "STORY_QA_BACKEND": "lightrag",
+                    "LIGHTRAG_WORKING_DIR": tmpdir,
+                    "LIGHTRAG_QUERY_MODE": "hybrid",
+                    "LIGHTRAG_ENABLE_RERANK": "false",
+                    "LIGHTRAG_TOP_K": "6",
+                    "LIGHTRAG_CHUNK_TOP_K": "4",
+                    "LIGHTRAG_COSINE_THRESHOLD": "0.4",
+                    "LIGHTRAG_MAX_ENTITY_TOKENS": "1800",
+                    "LIGHTRAG_MAX_RELATION_TOKENS": "2400",
+                    "LIGHTRAG_MAX_TOTAL_TOKENS": "6000",
+                    "LIGHTRAG_RESPONSE_TYPE": "Single Paragraph",
+                    "OPENAI_API_KEY": "test-key",
+                },
+            ):
+                response = self.client.post(
+                    "/api/story-qa/ask-stream",
+                    json={
+                        "question": "who is he?",
+                        "series_id": "demo-drama",
+                        "current_episode": 1,
+                        "current_time": 12,
+                    },
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.text, "answer from stream")
+        self.assertEqual(query_params[0]["current_chapter_id"], 1)
+        self.assertTrue(query_params[0]["stream"])
 
     def test_lightrag_missing_working_dir_returns_400(self) -> None:
         missing_dir = str(Path(tempfile.gettempdir()) / "dramepulse-missing-lightrag-working-dir")

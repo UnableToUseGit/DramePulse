@@ -693,6 +693,16 @@ LightRAG 可作为 Story Q&A 的可选后端，通过 `STORY_QA_BACKEND=lightrag
 
 ---
 
+#### 3.2.6 观看助手语音输入
+
+观看助手语音输入属于体验层输入方式和业务层辅助接口的组合能力。用户在播放器内点击助手面板的麦克风按钮后，前端录制一段短语音并上传到 `POST /api/watch-assistant/transcribe`；后端只负责把音频转写成文本，前端再把转写文本提交给 `POST /api/watch-assistant/act`，复用已有意图解析、剧情问答和播放器控制逻辑。
+
+该能力不新增高光资产、不生成互动方案，也不改变 `User Event` 核心类型。由语音触发的播放控制事件继续通过 `/api/events` 上报，并在 `extra` 中标记 `input_mode: "voice"`、`transcript`、`asr_confidence` 和 `audio_duration_ms`。
+
+MVP 阶段语音录制限制为短指令，建议 10 秒以内。没有麦克风权限、转写失败或没有听清时，前端保留文本输入作为降级路径，视频播放不应被打断。
+
+---
+
 ### 3.3 数据层模块契约
 
 数据层负责系统运行过程中关键数据的持久化、查询与更新。

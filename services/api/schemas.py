@@ -389,3 +389,45 @@ class StoryQaCollectionsResponse(BaseModel):
     chroma_dir: str
     total_documents: int
     episodes: list[StoryQaEpisodeSummary]
+
+
+WatchAssistantActionType = Literal["answer", "seek", "next_episode", "pause", "resume", "noop"]
+
+
+class WatchAssistantRequest(BaseModel):
+    message: str = Field(min_length=1)
+    series_id: str = Field(min_length=1)
+    video_id: str = Field(min_length=1)
+    current_episode: int = Field(ge=1)
+    current_time: float = Field(ge=0)
+    duration: float = Field(ge=0)
+    available_tools: list[str] = Field(default_factory=list)
+
+
+class WatchAssistantAction(BaseModel):
+    type: WatchAssistantActionType
+    target_time: float | None = Field(default=None, ge=0)
+    relative_seconds: float | None = None
+    reason: str | None = None
+
+
+class WatchAssistantToolCall(BaseModel):
+    tool: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["ok", "error"] = "ok"
+    result: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class WatchAssistantResponse(BaseModel):
+    reply: str
+    actions: list[WatchAssistantAction] = Field(default_factory=list)
+    tool_calls: list[WatchAssistantToolCall] = Field(default_factory=list)
+    sources: list[StoryQaSource] = Field(default_factory=list)
+
+
+class WatchAssistantTranscriptionResponse(BaseModel):
+    text: str
+    confidence: float = Field(ge=0, le=1)
+    language: str = "zh"
+    duration_ms: int = Field(ge=0)

@@ -116,7 +116,7 @@ example_output/case1_ep01/
 apps/player-demo/
 ```
 
-它是一个 React Native + Expo App，包含竖屏短剧播放页、弹幕互动和播放中剧情问答入口。Demo 从后端读取视频列表、视频流和弹幕，在 iOS 和 Android 上可通过 Expo Go 扫码体验。
+它是一个 React Native + Expo App，包含竖屏短剧播放页、弹幕互动和播放中观看助手入口。Demo 从后端读取视频列表、视频流和弹幕，在 iOS 和 Android 上可通过 Expo Go 扫码体验。
 
 安装依赖并启动：
 
@@ -133,7 +133,9 @@ npm start
 EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 npm start
 ```
 
-播放页右侧评论按钮可打开“剧情问答”面板，前端调用 `POST /api/story-qa/ask`。如果后端设置 `STORY_QA_BACKEND=lightrag`，该接口会通过 LightRAG working directory 回答剧情问题。
+播放页右侧“助手”按钮可打开“观看助手”面板，前端调用 `POST /api/watch-assistant/act`。助手可以复用剧情 RAG 回答问题，也可以返回 `seek`、`next_episode`、`pause`、`resume` 等播放器动作，由前端执行并上报事件。如果后端设置 `STORY_QA_BACKEND=lightrag`，剧情问答工具会通过 LightRAG working directory 回答剧情问题。
+
+观看助手也支持语音输入。移动端使用 `expo-audio` 录音并上传到 `POST /api/watch-assistant/transcribe`，后端完成 ASR 转写后，前端会把转写文本继续提交给 `POST /api/watch-assistant/act`。语音输入只是助手输入方式升级，不替代高光识别、互动方案或用户事件契约。默认 `WATCH_ASSISTANT_ASR_BACKEND=mock` 便于本地调试；真实演示可设置 `WATCH_ASSISTANT_ASR_BACKEND=openai_compatible`、`OPENAI_API_KEY`、`OPENAI_API_BASE` 和 `WATCH_ASSISTANT_ASR_MODEL`。
 
 如果本机使用 Anaconda 自带的 Node 24，Expo CLI 可能在端口探测阶段报 `ERR_SOCKET_BAD_PORT`。建议在该目录使用 `.nvmrc` 指定的 Node 22 LTS 后再启动。
 
@@ -260,6 +262,7 @@ GET  /api/videos
 GET  /api/videos/{video_id}
 GET  /api/videos/{video_id}/stream
 POST /api/playback-events
+POST /api/watch-assistant/act
 ```
 
 ## GitHub 协作原则
@@ -301,7 +304,7 @@ CHROMA_COLLECTION=dramepulse_story_qa
 SIMILARITY_TOP_K=8
 ```
 
-To use the optional LightRAG backend, build the LightRAG knowledge graph offline and copy the whole working directory into `data/story_qa/.../lightrag`. Then set:
+To use the optional LightRAG backend, install the chapter-aware LightRAG package locally, build the knowledge graph offline with per-episode `chapter_ids`, and copy the whole working directory into `data/story_qa/.../lightrag`. Then set:
 
 ```env
 STORY_QA_BACKEND=lightrag
@@ -315,4 +318,35 @@ LIGHTRAG_EMBEDDING_API_KEY=
 LIGHTRAG_EMBEDDING_SEND_DIM=false
 ```
 
-The player Q&A panel uses the same `/api/story-qa/ask` endpoint. The current LightRAG demo index is built from prebuilt plot material and may not strictly enforce second-level playback progress spoiler filtering.
+The player Q&A panel uses the same `/api/story-qa/ask` endpoint. For LightRAG, DramePulse maps `current_episode` to `QueryParam.current_chapter_id`, so spoiler filtering is episode-level and depends on a working directory built with `chapter_id` metadata. `current_time` is not used by LightRAG filtering in this version.
+
+## Watch assistant
+
+`/api/watch-assistant/act` is a lightweight orchestration layer on top of Story Q&A. It accepts the viewer's current playback context and returns display text plus structured actions for the frontend to execute.
+
+Request shape:
+
+```json
+{
+  "message": "快进到高光",
+  "series_id": "demo",
+  "video_id": "demo_ep01",
+  "current_episode": 1,
+  "current_time": 20.0,
+  "duration": 90.0,
+  "available_tools": ["story_qa", "seek", "seek_relative", "next_episode", "pause", "resume"]
+}
+```
+
+Response shape:
+
+```json
+{
+  "reply": "已准备跳到 0:42。",
+  "actions": [{ "type": "seek", "target_time": 42.0, "reason": "按助手指令跳转" }],
+  "tool_calls": [{ "tool": "seek", "arguments": { "target": "highlight" }, "status": "ok", "result": { "target_time": 42.0 } }],
+  "sources": []
+}
+```
+
+The backend never controls the player directly. Playback actions are executed by `apps/player-demo`, and assistant-triggered playback behavior is reported through `/api/events` with `extra.source = "watch_assistant"`.
