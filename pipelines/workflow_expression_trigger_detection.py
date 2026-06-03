@@ -97,26 +97,36 @@ def build_visual_candidate_windows(
 ) -> list[dict[str, Any]]:
     if duration_sec <= 0 or window_sec <= 0 or min_window_sec <= 0:
         return []
-    ranges: list[tuple[float, float, str]] = []
+    sorted_segments = sorted(
+        (segment for segment in subtitle_segments if segment.end > segment.start),
+        key=lambda segment: (segment.start, segment.end),
+    )
+    segment_index = 0
+    windows: list[dict[str, Any]] = []
+    seen: set[tuple[float, float, str]] = set()
     start = 0.0
     while start < duration_sec:
         end = min(duration_sec, start + window_sec)
-        covered = sum(_overlap_seconds(start, end, segment.start, segment.end) for segment in subtitle_segments)
+        while segment_index < len(sorted_segments) and sorted_segments[segment_index].end <= start:
+            segment_index += 1
+        covered = 0.0
+        scan_index = segment_index
+        while scan_index < len(sorted_segments) and sorted_segments[scan_index].start < end:
+            segment = sorted_segments[scan_index]
+            covered += _overlap_seconds(start, end, segment.start, segment.end)
+            scan_index += 1
         coverage_ratio = covered / max(end - start, 0.001)
         if coverage_ratio <= 0.25 and end - start >= min_window_sec:
-            ranges.append((_round_time(start), _round_time(end), "low_dialogue_density"))
+            start_time = _round_time(start)
+            end_time = _round_time(end)
+            reason = "low_dialogue_density"
+            key = (start_time, end_time, reason)
+            if key not in seen:
+                seen.add(key)
+                windows.append({"start_time": start_time, "end_time": end_time, "reason": reason})
+                if len(windows) >= max_windows:
+                    break
         start = _round_time(end)
-
-    windows: list[dict[str, Any]] = []
-    seen: set[tuple[float, float, str]] = set()
-    for start_time, end_time, reason in sorted(ranges, key=lambda item: (item[0], item[1], item[2])):
-        key = (start_time, end_time, reason)
-        if key in seen:
-            continue
-        seen.add(key)
-        windows.append({"start_time": start_time, "end_time": end_time, "reason": reason})
-        if len(windows) >= max_windows:
-            break
     return windows
 
 

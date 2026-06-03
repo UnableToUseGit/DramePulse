@@ -246,6 +246,29 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             ],
         )
 
+    def test_build_visual_candidate_windows_does_not_rescan_all_subtitles_per_window(self) -> None:
+        from pipelines.utils import SubtitleSegment
+
+        subtitle_segments = [
+            SubtitleSegment(start=float(index * 2), end=float(index * 2 + 1), text=f"line {index}")
+            for index in range(300)
+        ]
+
+        with patch("pipelines.workflow_expression_trigger_detection._overlap_seconds") as overlap_seconds:
+            overlap_seconds.side_effect = lambda start_a, end_a, start_b, end_b: max(
+                0.0,
+                min(end_a, end_b) - max(start_a, start_b),
+            )
+            build_visual_candidate_windows(
+                subtitle_segments=subtitle_segments,
+                duration_sec=1000.0,
+                window_sec=10.0,
+                min_window_sec=4.0,
+                max_windows=4,
+            )
+
+        self.assertLess(overlap_seconds.call_count, 1000)
+
     def test_build_candidate_generation_frame_timestamps_densely_samples_visual_windows(self) -> None:
         timestamps = build_candidate_generation_frame_timestamps(
             duration_sec=40.0,
