@@ -195,3 +195,70 @@ def test_build_pipeline_passes_inner_voice_options(monkeypatch) -> None:
     assert captured["llm_max_tokens"] == 999
     assert callable(captured["progress_callback"])
 
+
+def test_print_inner_voice_progress_formats_window_events(capsys) -> None:
+    from scripts.run_inner_voice_danmaku_generation import print_inner_voice_progress
+
+    print_inner_voice_progress(
+        "window_processing_start",
+        {
+            "video_id": "beiwang_ep01",
+            "window_index": 3,
+            "window_count": 34,
+            "start_time": 42.0,
+            "end_time": 50.0,
+            "danmaku_count": 18,
+            "score": 21.5,
+        },
+    )
+    print_inner_voice_progress(
+        "actor_candidate_built",
+        {
+            "video_id": "beiwang_ep01",
+            "window_index": 3,
+            "window_count": 34,
+            "text": "男主这个眼神绝了",
+            "source_comment_count": 4,
+            "candidate_count": 1,
+        },
+    )
+    print_inner_voice_progress(
+        "llm_window_start",
+        {
+            "video_id": "beiwang_ep01",
+            "window_index": 3,
+            "window_count": 34,
+            "top_comment_count": 40,
+            "max_tokens": 1200,
+        },
+    )
+    print_inner_voice_progress(
+        "llm_window_done",
+        {
+            "video_id": "beiwang_ep01",
+            "window_index": 3,
+            "window_count": 34,
+            "llm_candidate_count": 1,
+            "filtered_candidate_count": 2,
+            "candidate_count": 3,
+            "elapsed_sec": 7.25,
+        },
+    )
+    print_inner_voice_progress(
+        "llm_window_failed",
+        {
+            "video_id": "beiwang_ep01",
+            "window_index": 4,
+            "window_count": 34,
+            "elapsed_sec": 12.0,
+            "error_type": "TimeoutError",
+            "error": "request timed out",
+        },
+    )
+
+    captured = capsys.readouterr()
+    assert "[beiwang_ep01] window_processing_start: 3/34 42.0s-50.0s danmaku=18 score=21.5" in captured.out
+    assert "[beiwang_ep01] actor_candidate_built: 3/34 text=男主这个眼神绝了 sources=4 candidates=1" in captured.out
+    assert "[beiwang_ep01] llm_window_start: 3/34 top_comments=40 max_tokens=1200" in captured.out
+    assert "[beiwang_ep01] llm_window_done: 3/34 llm_candidates=1 filtered=2 candidates=3 elapsed=7.25s" in captured.out
+    assert "[beiwang_ep01] llm_window_failed: 4/34 elapsed=12.0s error=TimeoutError: request timed out" in captured.out

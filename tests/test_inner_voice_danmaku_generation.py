@@ -226,9 +226,56 @@ class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
             ],
         )
 
-        self.assertEqual(
-            [event for event, _payload in events],
-            ["prepared", "windows_built", "candidates_built", "completed"],
-        )
+        event_names = [event for event, _payload in events]
+        self.assertEqual(event_names[0], "prepared")
+        self.assertIn("windows_built", event_names)
+        self.assertIn("window_processing_start", event_names)
+        self.assertIn("actor_candidate_built", event_names)
+        self.assertIn("candidates_built", event_names)
+        self.assertEqual(event_names[-1], "completed")
         self.assertEqual(events[0][1]["source_danmaku_count"], 2)
         self.assertEqual(events[-1][1]["selected_cue_count"], 1)
+
+    def test_pipeline_reports_window_level_llm_progress(self) -> None:
+        fake_client = FakeLlmClient(
+            {
+                "clusters": [
+                    {
+                        "intentType": "plot_reaction",
+                        "representativeText": "她终于怼回去了",
+                        "sourceCommentIds": ["dm_1", "dm_2"],
+                        "confidence": 0.88,
+                        "reason": "多条弹幕都在表达女主反击。",
+                    }
+                ]
+            }
+        )
+        events: list[tuple[str, dict[str, object]]] = []
+        pipeline = InnerVoiceDanmakuPipeline(
+            llm_client=fake_client,
+            enable_llm_semantic=True,
+            progress_callback=lambda event, payload: events.append((event, payload)),
+            min_window_danmaku_count=2,
+            min_unique_text_count=2,
+            min_window_score=2.0,
+        )
+
+        pipeline.run(
+            video_id="demo_ep01",
+            series_id="demo",
+            episode_id="ep01",
+            danmaku_items=[
+                {"danmaku_id": "dm_1", "time_sec": 20.0, "text": "女主终于怼回去了啊", "digg_count": 6},
+                {"danmaku_id": "dm_2", "time_sec": 21.0, "text": "她终于怼他了", "digg_count": 2},
+            ],
+        )
+
+        event_names = [event for event, _payload in events]
+        self.assertIn("window_processing_start", event_names)
+        self.assertIn("llm_window_start", event_names)
+        self.assertIn("llm_window_done", event_names)
+        self.assertEqual(events[event_names.index("window_processing_start")][1]["window_index"], 1)
+        self.assertEqual(events[event_names.index("window_processing_start")][1]["window_count"], 1)
+        self.assertEqual(events[event_names.index("llm_window_start")][1]["top_comment_count"], 2)
+        self.assertEqual(events[event_names.index("llm_window_done")][1]["llm_candidate_count"], 1)
+        self.assertEqual(events[event_names.index("llm_window_done")][1]["filtered_candidate_count"], 0)

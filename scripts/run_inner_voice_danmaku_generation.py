@@ -40,6 +40,51 @@ def print_inner_voice_progress(event: str, payload: dict[str, Any]) -> None:
     if event == "windows_built":
         print(f"[{video_id}] windows_built: windows={payload.get('candidate_window_count', 0)}")
         return
+    if event == "window_processing_start":
+        print(
+            f"[{video_id}] window_processing_start: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"{_format_optional_number(payload.get('start_time'), suffix='s')}-"
+            f"{_format_optional_number(payload.get('end_time'), suffix='s')} "
+            f"danmaku={payload.get('danmaku_count', 0)} "
+            f"score={_format_optional_number(payload.get('score'))}"
+        )
+        return
+    if event == "actor_candidate_built":
+        print(
+            f"[{video_id}] actor_candidate_built: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"text={payload.get('text')} "
+            f"sources={payload.get('source_comment_count', 0)} "
+            f"candidates={payload.get('candidate_count', 0)}"
+        )
+        return
+    if event == "llm_window_start":
+        print(
+            f"[{video_id}] llm_window_start: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"top_comments={payload.get('top_comment_count', 0)} "
+            f"max_tokens={payload.get('max_tokens')}"
+        )
+        return
+    if event == "llm_window_done":
+        print(
+            f"[{video_id}] llm_window_done: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"llm_candidates={payload.get('llm_candidate_count', 0)} "
+            f"filtered={payload.get('filtered_candidate_count', 0)} "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')}"
+        )
+        return
+    if event == "llm_window_failed":
+        print(
+            f"[{video_id}] llm_window_failed: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')} "
+            f"error={payload.get('error_type')}: {payload.get('error')}"
+        )
+        return
     if event == "candidates_built":
         print(
             f"[{video_id}] candidates_built: "

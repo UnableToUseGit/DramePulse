@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import json
 import re
 from pathlib import Path
+import time
 from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
@@ -460,33 +461,99 @@ class InnerVoiceDanmakuPipeline:
         filtered_candidates: list[dict[str, Any]] = []
         self.last_llm_calls = []
         subtitle_context_by_window = subtitle_context_by_window or {}
-        for window in windows:
+        for window_index, window in enumerate(windows, start=1):
+            self._emit_progress(
+                "window_processing_start",
+                {
+                    "video_id": video_id,
+                    "window_id": window.window_id,
+                    "window_index": window_index,
+                    "window_count": len(windows),
+                    "start_time": window.start_time,
+                    "end_time": window.end_time,
+                    "danmaku_count": len(window.items),
+                    "score": window.score,
+                },
+            )
             actor_candidate = _build_actor_charm_candidate(window)
             if actor_candidate is not None:
                 candidates.append(actor_candidate)
+                self._emit_progress(
+                    "actor_candidate_built",
+                    {
+                        "video_id": video_id,
+                        "window_id": window.window_id,
+                        "window_index": window_index,
+                        "window_count": len(windows),
+                        "text": actor_candidate["representativeText"],
+                        "source_comment_count": len(actor_candidate["sourceCommentIds"]),
+                        "candidate_count": len(candidates),
+                    },
+                )
             if self.enable_llm_semantic and self.llm_client is not None:
+                top_comments = _top_window_comments(window)
                 prompt_window = {
                     "windowId": window.window_id,
                     "startTime": window.start_time,
                     "endTime": window.end_time,
-                    "topComments": _top_window_comments(window),
+                    "topComments": top_comments,
                 }
-                raw_result = self.llm_client.generate_json_multimodal(
-                    system_prompt=_build_system_prompt(),
-                    user_prompt=build_inner_voice_prompt(
-                        video_id=video_id,
-                        window=prompt_window,
-                        subtitle_context=subtitle_context_by_window.get(window.window_id, ""),
-                    ),
-                    image_paths=[],
-                    frame_timestamps_seconds=[],
-                    max_tokens=self.llm_max_tokens,
+                self._emit_progress(
+                    "llm_window_start",
+                    {
+                        "video_id": video_id,
+                        "window_id": window.window_id,
+                        "window_index": window_index,
+                        "window_count": len(windows),
+                        "top_comment_count": len(top_comments),
+                        "max_tokens": self.llm_max_tokens,
+                    },
                 )
+                llm_started_at = time.perf_counter()
+                try:
+                    raw_result = self.llm_client.generate_json_multimodal(
+                        system_prompt=_build_system_prompt(),
+                        user_prompt=build_inner_voice_prompt(
+                            video_id=video_id,
+                            window=prompt_window,
+                            subtitle_context=subtitle_context_by_window.get(window.window_id, ""),
+                        ),
+                        image_paths=[],
+                        frame_timestamps_seconds=[],
+                        max_tokens=self.llm_max_tokens,
+                    )
+                except Exception as exc:
+                    self._emit_progress(
+                        "llm_window_failed",
+                        {
+                            "video_id": video_id,
+                            "window_id": window.window_id,
+                            "window_index": window_index,
+                            "window_count": len(windows),
+                            "elapsed_sec": round(time.perf_counter() - llm_started_at, 3),
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        },
+                    )
+                    raise
                 diagnostics = getattr(self.llm_client, "last_call_diagnostics", {})
                 self.last_llm_calls.append(dict(diagnostics) if isinstance(diagnostics, dict) else {})
                 llm_candidates, llm_filtered = _parse_llm_clusters(raw_result=raw_result, window=window)
                 candidates.extend(llm_candidates)
                 filtered_candidates.extend(llm_filtered)
+                self._emit_progress(
+                    "llm_window_done",
+                    {
+                        "video_id": video_id,
+                        "window_id": window.window_id,
+                        "window_index": window_index,
+                        "window_count": len(windows),
+                        "elapsed_sec": round(time.perf_counter() - llm_started_at, 3),
+                        "llm_candidate_count": len(llm_candidates),
+                        "filtered_candidate_count": len(llm_filtered),
+                        "candidate_count": len(candidates),
+                    },
+                )
 
         self._emit_progress(
             "candidates_built",
