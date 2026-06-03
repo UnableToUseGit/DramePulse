@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import tempfile
-from typing import Any
+from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
 from pipelines.expression_trigger_detection import (
@@ -34,6 +34,9 @@ class WorkflowExpressionTriggerResult:
     expression_triggers: list[dict[str, Any]]
     resonance_cues: list[dict[str, Any]]
     llm_calls: dict[str, dict[str, Any]]
+
+
+ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
 def _metadata_block(metadata: dict[str, Any] | None) -> str:
@@ -90,7 +93,7 @@ def build_visual_candidate_windows(
     duration_sec: float,
     window_sec: float = 10.0,
     min_window_sec: float = 4.0,
-    max_windows: int = 12,
+    max_windows: int = 4,
 ) -> list[dict[str, Any]]:
     if duration_sec <= 0 or window_sec <= 0 or min_window_sec <= 0:
         return []
@@ -103,14 +106,6 @@ def build_visual_candidate_windows(
         if coverage_ratio <= 0.25 and end - start >= min_window_sec:
             ranges.append((_round_time(start), _round_time(end), "low_dialogue_density"))
         start = _round_time(end)
-
-    cursor = 0.0
-    for segment in sorted(subtitle_segments, key=lambda item: (item.start, item.end)):
-        if segment.start - cursor >= min_window_sec:
-            ranges.append((_round_time(cursor), _round_time(segment.start), "silent_range"))
-        cursor = max(cursor, segment.end)
-    if duration_sec - cursor >= min_window_sec:
-        ranges.append((_round_time(cursor), _round_time(duration_sec), "silent_range"))
 
     windows: list[dict[str, Any]] = []
     seen: set[tuple[float, float, str]] = set()
@@ -329,7 +324,7 @@ def _build_candidate_generation_prompt(
             "",
             "## VISUAL_CANDIDATE_WINDOWS",
             _format_visual_candidate_windows(visual_candidate_windows or []),
-            "These windows are low-dialogue or silent regions. They are not automatically highlights, but you must inspect frames around them for visual-only payoff such as combat reversal, hidden strength reveal, physical gag, kiss, hug, crying, or reaction shot.",
+            "These windows are fixed low-dialogue-density regions. They are not automatically highlights, but you must inspect frames around them for visual-only payoff such as combat reversal, hidden strength reveal, physical gag, kiss, hug, crying, or reaction shot.",
             "",
             "## OUTPUT",
             "Return JSON only. Do not wrap it in markdown.",
@@ -668,6 +663,7 @@ class WorkflowExpressionTriggerPipeline:
         sample_interval_sec: float = 10.0,
         max_frames: int | None = None,
         frame_max_height: int = 512,
+        visual_candidate_window_sec: float = 10.0,
         visual_window_sample_interval_sec: float = 1.0,
         visual_window_max_frames: int | None = 80,
         filter_frame_interval_sec: float = 2.0,
@@ -679,11 +675,13 @@ class WorkflowExpressionTriggerPipeline:
         final_max_triggers: int | None = 4,
         candidate_max_output_tokens: int = 2400,
         filter_max_output_tokens: int = 2400,
+        progress_callback: ProgressCallback | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.sample_interval_sec = sample_interval_sec
         self.max_frames = max_frames
         self.frame_max_height = frame_max_height
+        self.visual_candidate_window_sec = visual_candidate_window_sec
         self.visual_window_sample_interval_sec = visual_window_sample_interval_sec
         self.visual_window_max_frames = visual_window_max_frames
         self.filter_frame_interval_sec = filter_frame_interval_sec
@@ -695,8 +693,14 @@ class WorkflowExpressionTriggerPipeline:
         self.final_max_triggers = final_max_triggers
         self.candidate_max_output_tokens = candidate_max_output_tokens
         self.filter_max_output_tokens = filter_max_output_tokens
+        self.progress_callback = progress_callback
         self.last_llm_call: dict[str, Any] = {}
         self.last_result: WorkflowExpressionTriggerResult | None = None
+
+    def _emit_progress(self, event: str, payload: dict[str, Any]) -> None:
+        if self.progress_callback is None:
+            return
+        self.progress_callback(event, payload)
 
     def _snapshot_llm_call(self) -> dict[str, Any]:
         diagnostics = getattr(self.llm_client, "last_call_diagnostics", {})
@@ -717,6 +721,7 @@ class WorkflowExpressionTriggerPipeline:
         visual_candidate_windows = build_visual_candidate_windows(
             subtitle_segments=subtitle_segments,
             duration_sec=duration_sec,
+            window_sec=self.visual_candidate_window_sec,
         )
         timestamps = build_candidate_generation_frame_timestamps(
             duration_sec=duration_sec,
@@ -725,6 +730,22 @@ class WorkflowExpressionTriggerPipeline:
             visual_candidate_windows=visual_candidate_windows,
             visual_window_sample_interval_sec=self.visual_window_sample_interval_sec,
             visual_window_max_frames=self.visual_window_max_frames,
+        )
+        self._emit_progress(
+            "prepared",
+            {
+                "video_id": video_id,
+                "duration_sec": _round_time(duration_sec),
+                "subtitle_segment_count": len(subtitle_segments),
+                "visual_window_count": len(visual_candidate_windows),
+                "visual_candidate_windows": visual_candidate_windows,
+                "candidate_frame_count": len(timestamps),
+                "sample_interval_sec": self.sample_interval_sec,
+                "max_frames": self.max_frames,
+                "visual_candidate_window_sec": self.visual_candidate_window_sec,
+                "visual_window_sample_interval_sec": self.visual_window_sample_interval_sec,
+                "visual_window_max_frames": self.visual_window_max_frames,
+            },
         )
         subtitles_timeline = format_expression_subtitle_timeline_seconds(subtitle_segments)
         candidate_llm_call: dict[str, Any] = {}
@@ -741,9 +762,40 @@ class WorkflowExpressionTriggerPipeline:
                     max_height=self.frame_max_height,
                 )
                 image_paths = sorted(output_dir.glob("*.png")) if extraction.frame_count > 0 else []
-            except Exception:
+                self._emit_progress(
+                    "candidate_frames_extracted",
+                    {
+                        "video_id": video_id,
+                        "requested_frame_count": len(timestamps),
+                        "extracted_frame_count": extraction.frame_count,
+                        "image_count": len(image_paths),
+                        "frame_max_height": self.frame_max_height,
+                    },
+                )
+            except Exception as exc:
                 image_paths = []
+                self._emit_progress(
+                    "candidate_frames_extracted",
+                    {
+                        "video_id": video_id,
+                        "requested_frame_count": len(timestamps),
+                        "extracted_frame_count": 0,
+                        "image_count": 0,
+                        "frame_max_height": self.frame_max_height,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                    },
+                )
 
+            self._emit_progress(
+                "candidate_generation_start",
+                {
+                    "video_id": video_id,
+                    "frame_count": len(timestamps),
+                    "image_count": len(image_paths),
+                    "max_tokens": self.candidate_max_output_tokens,
+                },
+            )
             try:
                 raw_candidates = self.llm_client.generate_json_multimodal(
                     system_prompt=_build_system_prompt(),
@@ -761,8 +813,24 @@ class WorkflowExpressionTriggerPipeline:
                 )
             finally:
                 candidate_llm_call = self._snapshot_llm_call()
+                self.last_llm_call = {
+                    "candidate_generation": candidate_llm_call,
+                    "candidate_filtering": filter_llm_call,
+                }
 
             candidates = parse_expression_trigger_candidates(raw_candidates, video_id=video_id, duration_sec=duration_sec)
+            self._emit_progress(
+                "candidate_generation_done",
+                {
+                    "video_id": video_id,
+                    "candidate_count": len(candidates),
+                    "llm_status": candidate_llm_call.get("status"),
+                    "elapsed_sec": candidate_llm_call.get("elapsed_sec"),
+                    "total_tokens": (candidate_llm_call.get("usage") or {}).get("total_tokens")
+                    if isinstance(candidate_llm_call.get("usage"), dict)
+                    else None,
+                },
+            )
             if candidates:
                 filter_timestamps = build_filter_frame_timestamps(
                     candidates=candidates,
@@ -780,9 +848,41 @@ class WorkflowExpressionTriggerPipeline:
                         max_height=self.frame_max_height,
                     )
                     filter_image_paths = sorted(filter_output_dir.glob("*.png")) if filter_extraction.frame_count > 0 else []
-                except Exception:
+                    self._emit_progress(
+                        "filter_frames_extracted",
+                        {
+                            "video_id": video_id,
+                            "filter_frame_count": len(filter_timestamps),
+                            "extracted_frame_count": filter_extraction.frame_count,
+                            "image_count": len(filter_image_paths),
+                            "frame_max_height": self.frame_max_height,
+                        },
+                    )
+                except Exception as exc:
                     filter_image_paths = []
+                    self._emit_progress(
+                        "filter_frames_extracted",
+                        {
+                            "video_id": video_id,
+                            "filter_frame_count": len(filter_timestamps),
+                            "extracted_frame_count": 0,
+                            "image_count": 0,
+                            "frame_max_height": self.frame_max_height,
+                            "error_type": type(exc).__name__,
+                            "error": str(exc),
+                        },
+                    )
 
+                self._emit_progress(
+                    "candidate_filtering_start",
+                    {
+                        "video_id": video_id,
+                        "candidate_count": len(candidates),
+                        "frame_count": len(filter_timestamps),
+                        "image_count": len(filter_image_paths),
+                        "max_tokens": self.filter_max_output_tokens,
+                    },
+                )
                 try:
                     raw_triggers = self.llm_client.generate_json_multimodal(
                         system_prompt=_build_system_prompt(),
@@ -800,6 +900,10 @@ class WorkflowExpressionTriggerPipeline:
                     )
                 finally:
                     filter_llm_call = self._snapshot_llm_call()
+                    self.last_llm_call = {
+                        "candidate_generation": candidate_llm_call,
+                        "candidate_filtering": filter_llm_call,
+                    }
                 candidate_decisions = parse_candidate_decisions(raw_triggers, candidates=candidates)
                 parsed_triggers = filter_triggers_within_duration(
                     parse_expression_triggers(raw_triggers, video_id=video_id),
@@ -811,6 +915,20 @@ class WorkflowExpressionTriggerPipeline:
                     min_intensity=self.final_min_intensity,
                     min_confidence=self.final_min_confidence,
                     max_triggers=self.final_max_triggers,
+                )
+                self._emit_progress(
+                    "candidate_filtering_done",
+                    {
+                        "video_id": video_id,
+                        "candidate_decision_count": len(candidate_decisions),
+                        "parsed_trigger_count": len(parsed_triggers),
+                        "trigger_count": len(triggers),
+                        "llm_status": filter_llm_call.get("status"),
+                        "elapsed_sec": filter_llm_call.get("elapsed_sec"),
+                        "total_tokens": (filter_llm_call.get("usage") or {}).get("total_tokens")
+                        if isinstance(filter_llm_call.get("usage"), dict)
+                        else None,
+                    },
                 )
             else:
                 triggers = []
@@ -826,6 +944,16 @@ class WorkflowExpressionTriggerPipeline:
             expression_triggers=sorted(triggers, key=lambda trigger: (float(trigger["start_time"]), str(trigger["trigger_id"]))),
             resonance_cues=build_resonance_cues(triggers, duration_sec=duration_sec),
             llm_calls=self.last_llm_call,
+        )
+        self._emit_progress(
+            "completed",
+            {
+                "video_id": video_id,
+                "candidate_count": len(result.expression_candidates),
+                "candidate_decision_count": len(result.candidate_decisions),
+                "trigger_count": len(result.expression_triggers),
+                "resonance_cue_count": len(result.resonance_cues),
+            },
         )
         self.last_result = result
         return result

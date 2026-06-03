@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from pipelines.client import LlmResponseError
 from pipelines.workflow_expression_trigger_detection import (
     WorkflowExpressionTriggerPipeline,
     _build_candidate_generation_prompt,
@@ -222,7 +223,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertEqual([trigger["trigger_id"] for trigger in consolidated], ["t2", "t4"])
 
-    def test_build_visual_candidate_windows_uses_low_density_and_silent_tail(self) -> None:
+    def test_build_visual_candidate_windows_uses_only_fixed_low_density_windows(self) -> None:
         from pipelines.utils import SubtitleSegment
 
         windows = build_visual_candidate_windows(
@@ -236,8 +237,14 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             max_windows=6,
         )
 
-        self.assertIn({"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"}, windows)
-        self.assertIn({"start_time": 22.0, "end_time": 40.0, "reason": "silent_range"}, windows)
+        self.assertEqual(
+            windows,
+            [
+                {"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"},
+                {"start_time": 20.0, "end_time": 30.0, "reason": "low_dialogue_density"},
+                {"start_time": 30.0, "end_time": 40.0, "reason": "low_dialogue_density"},
+            ],
+        )
 
     def test_build_candidate_generation_frame_timestamps_densely_samples_visual_windows(self) -> None:
         timestamps = build_candidate_generation_frame_timestamps(
@@ -246,7 +253,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             max_frames=None,
             visual_candidate_windows=[
                 {"start_time": 9.5, "end_time": 13.5, "reason": "low_dialogue_density"},
-                {"start_time": 30.0, "end_time": 34.0, "reason": "silent_range"},
+                {"start_time": 30.0, "end_time": 34.0, "reason": "low_dialogue_density"},
             ],
             visual_window_sample_interval_sec=1.0,
             visual_window_max_frames=None,
@@ -409,7 +416,11 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 "pipelines.workflow_expression_trigger_detection.extract_frames_at_timestamps",
                 side_effect=fake_extract_frames,
             ):
-                pipeline = WorkflowExpressionTriggerPipeline(llm_client=fake_client)
+                progress_events: list[tuple[str, dict[str, object]]] = []
+                pipeline = WorkflowExpressionTriggerPipeline(
+                    llm_client=fake_client,
+                    progress_callback=lambda event, payload: progress_events.append((event, payload)),
+                )
                 result = pipeline.run(
                     video_id="demo_ep01",
                     video_file_path=video_path,
@@ -419,7 +430,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertEqual(
             extraction_calls[0]["timestamps_seconds"],
-            [0.0, 1.0, 2.0, 3.0, 4.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
+            [0.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
         )
         self.assertEqual(extraction_calls[0]["max_height"], 512)
         self.assertEqual(extraction_calls[1]["timestamps_seconds"], [3.0, 5.0, 7.0, 9.0, 11.0, 13.0])
@@ -427,7 +438,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(len(fake_client.calls), 2)
         self.assertEqual(
             fake_client.calls[0]["frame_timestamps_seconds"],
-            [0.0, 1.0, 2.0, 3.0, 4.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
+            [0.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
         )
         self.assertEqual(fake_client.calls[1]["frame_timestamps_seconds"], [3.0, 5.0, 7.0, 9.0, 11.0, 13.0])
         self.assertGreater(len(fake_client.calls[1]["image_paths"]), 0)
@@ -444,6 +455,70 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(result.resonance_cues[0]["ui_trigger_time"], 8.5)
         self.assertEqual(result.llm_calls["candidate_generation"]["usage"]["total_tokens"], 11)
         self.assertEqual(result.llm_calls["candidate_filtering"]["usage"]["total_tokens"], 12)
+        self.assertEqual([event for event, _payload in progress_events], [
+            "prepared",
+            "candidate_frames_extracted",
+            "candidate_generation_start",
+            "candidate_generation_done",
+            "filter_frames_extracted",
+            "candidate_filtering_start",
+            "candidate_filtering_done",
+            "completed",
+        ])
+        self.assertEqual(progress_events[0][1]["visual_window_count"], 1)
+        self.assertEqual(progress_events[0][1]["candidate_frame_count"], 12)
+        self.assertEqual(
+            progress_events[0][1]["visual_candidate_windows"],
+            [
+                {"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"},
+            ],
+        )
+        self.assertEqual(progress_events[1][1]["extracted_frame_count"], 2)
+        self.assertEqual(progress_events[3][1]["candidate_count"], 1)
+        self.assertEqual(progress_events[4][1]["filter_frame_count"], 6)
+        self.assertEqual(progress_events[-1][1]["trigger_count"], 1)
+        self.assertEqual(progress_events[-1][1]["resonance_cue_count"], 1)
+
+    def test_workflow_preserves_candidate_generation_diagnostics_when_llm_fails(self) -> None:
+        class FakeClient:
+            last_call_diagnostics = {
+                "status": "failed",
+                "provider": "volc_ark",
+                "model": "doubao-test",
+                "error_type": "LlmResponseError",
+                "error": "LLM response has unexpected shape: str",
+                "response_type": "str",
+                "raw_response_text": "raw ark response",
+            }
+
+            def generate_json_multimodal(self, **kwargs: object) -> dict[str, object]:
+                raise LlmResponseError("LLM response has unexpected shape: str", raw_response_text="raw ark response")
+
+        class FakeExtraction:
+            frame_count = 0
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            subtitle_path = tmp_path / "subtitle.srt"
+            video_path.write_bytes(b"fake-video")
+            subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
+            pipeline = WorkflowExpressionTriggerPipeline(llm_client=FakeClient())
+
+            with patch("pipelines.workflow_expression_trigger_detection.probe_video_duration_seconds", return_value=10.0), patch(
+                "pipelines.workflow_expression_trigger_detection.extract_frames_at_timestamps",
+                return_value=FakeExtraction(),
+            ), self.assertRaises(LlmResponseError):
+                pipeline.run(
+                    video_id="demo_ep01",
+                    video_file_path=video_path,
+                    subtitle_file_path=subtitle_path,
+                )
+
+        self.assertEqual(pipeline.last_llm_call["candidate_generation"]["status"], "failed")
+        self.assertEqual(pipeline.last_llm_call["candidate_generation"]["response_type"], "str")
+        self.assertEqual(pipeline.last_llm_call["candidate_generation"]["raw_response_text"], "raw ark response")
+        self.assertEqual(pipeline.last_llm_call["candidate_filtering"], {})
 
 
 if __name__ == "__main__":

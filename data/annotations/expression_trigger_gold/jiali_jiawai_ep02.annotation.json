@@ -1,0 +1,38 @@
+{
+  "video_id": "jiali_jiawai_ep02",
+  "video_path": "/api/episodes/jiali_jiawai_ep02/video",
+  "subtitle_path": "/api/episodes/jiali_jiawai_ep02/subtitle",
+  "source_json_path": "/api/episodes/jiali_jiawai_ep02/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_jiali_jiawai_ep02_001",
+      "cue_time": 67.023,
+      "primary_expression": "爽到了",
+      "reason": "女主的嫂子在餐桌上难为她的儿子，女主来了之后直接把餐桌掀了"
+    },
+    {
+      "annotation_id": "gold_jiali_jiawai_ep02_002",
+      "cue_time": 85.117,
+      "primary_expression": "爽到了",
+      "reason": "女主掀桌后，带着自己买的家具潇洒走人，还留言嘲讽，爽"
+    },
+    {
+      "annotation_id": "gold_jiali_jiawai_ep02_003",
+      "cue_time": 137.208,
+      "primary_expression": "看哭了",
+      "reason": "妈妈和儿子骑车走人，儿子很暖心的说自己就要跟着妈妈，住桥洞也没事，母亲则说我是不会让你住桥洞的，母子情深"
+    },
+    {
+      "annotation_id": "gold_jiali_jiawai_ep02_004",
+      "cue_time": 208.624,
+      "primary_expression": "震惊",
+      "reason": "男主0帧起手，自我介绍完直接对女主说“我想跟你结婚”，令人震惊。"
+    },
+    {
+      "annotation_id": "gold_jiali_jiawai_ep02_005",
+      "cue_time": 256.058,
+      "primary_expression": "磕到了",
+      "reason": "男主很直白的和女主说自己也是离异的，自己带这个孩子，自己是副主任，自己不嫖不赌不抽烟不喝酒，而且长得也蛮帅的，对女主一见钟情，女主先骂他神经病，之后转念一想自己带着孩子离家出走无处可去，这个男的挺帅的而且工作哈，就答应他了，“那就结婚”。BGM暧昧，温暖"
+    }
+  ]
+}

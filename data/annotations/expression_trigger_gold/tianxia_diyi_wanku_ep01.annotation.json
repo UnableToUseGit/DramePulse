@@ -6,15 +6,15 @@
   "annotations": [
     {
       "annotation_id": "gold_tianxia_diyi_wanku_ep01_001",
-      "cue_time": 77.63,
+      "cue_time": 77.179,
       "primary_expression": "笑死",
-      "reason": "太监这个角色，娘娘腔的说话，然后依靠在旁边的保镖肩膀上，很具有笑点"
+      "reason": "太监的这个角色说话很好笑，说完之后还靠在保镖肩膀上，很好笑。"
     },
     {
       "annotation_id": "gold_tianxia_diyi_wanku_ep01_002",
-      "cue_time": 303.926,
-      "primary_expression": "爽到了",
-      "reason": "本来看起来纨绔的男主，竟然功力高深，两下子就达到了歹徒，让人感觉很帅"
+      "cue_time": 301.697,
+      "primary_expression": "笑死",
+      "reason": "刚才非常嚣张跋扈的匪徒被神秘高手秒杀，然后镜头给到神秘高手，结果是纨绔嚣张的男主"
     }
   ]
 }

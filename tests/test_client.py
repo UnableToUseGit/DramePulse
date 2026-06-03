@@ -148,6 +148,43 @@ class VolcArkLlmClientTest(unittest.TestCase):
         self.assertEqual(diagnostics["raw_response_text"], "不是 JSON")
         self.assertEqual(diagnostics["usage"]["total_tokens"], 18)
 
+    def test_generate_json_multimodal_preserves_unexpected_raw_ark_response_shape(self) -> None:
+        class FakeRawCompletions:
+            def create(self, **kwargs: object) -> str:
+                return "raw ark response"
+
+        class FakeRawChat:
+            completions = FakeRawCompletions()
+
+        class FakeRawArk:
+            def __init__(self, **kwargs: object) -> None:
+                self.chat = FakeRawChat()
+
+        with patch("pipelines.client.volc_ark.Ark", FakeRawArk):
+            client = VolcArkLlmClient(
+                api_key="test-key",
+                base_url="https://ark.example.com/api/v3",
+                model_name="doubao-test",
+                timeout_sec=12,
+            )
+
+            with self.assertRaises(LlmResponseError) as raised:
+                client.generate_json_multimodal(
+                    system_prompt="system",
+                    user_prompt="user",
+                    image_paths=[],
+                    frame_timestamps_seconds=[],
+                    max_tokens=123,
+                )
+
+        self.assertEqual(str(raised.exception), "LLM response has unexpected shape: str")
+        self.assertEqual(raised.exception.raw_response_text, "raw ark response")
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["status"], "failed")
+        self.assertEqual(diagnostics["error_type"], "LlmResponseError")
+        self.assertEqual(diagnostics["response_type"], "str")
+        self.assertEqual(diagnostics["raw_response_text"], "raw ark response")
+
     def test_constructor_prefers_generic_env_values(self) -> None:
         with patch("pipelines.client.volc_ark.Ark", _FakeArk), patch.dict(
             "os.environ",

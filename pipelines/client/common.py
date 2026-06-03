@@ -90,6 +90,37 @@ def usage_to_dict(usage: Any) -> dict[str, Any]:
     return result
 
 
+def response_to_raw_text(response: Any) -> str:
+    if response is None:
+        return ""
+    if isinstance(response, str):
+        return response
+    if isinstance(response, bytes):
+        return response.decode("utf-8", errors="replace")
+    try:
+        return json.dumps(response, ensure_ascii=False, default=str)
+    except TypeError:
+        return str(response)
+
+
+def response_to_message_content(response: Any) -> Any:
+    choices = get_attr_or_key(response, "choices")
+    if not isinstance(choices, list) or not choices:
+        raise LlmResponseError(
+            f"LLM response has unexpected shape: {type(response).__name__}",
+            raw_response_text=response_to_raw_text(response),
+        )
+    first_choice = choices[0]
+    message = get_attr_or_key(first_choice, "message")
+    content = get_attr_or_key(message, "content")
+    if content is None:
+        raise LlmResponseError(
+            "LLM response message content is empty or missing",
+            raw_response_text=response_to_raw_text(response),
+        )
+    return content
+
+
 def build_multimodal_user_content(
     *,
     user_prompt: str,
@@ -142,7 +173,7 @@ def run_json_chat_completion(
 
     try:
         response = create_completion()
-        parsed = parse_json_content(response.choices[0].message.content)
+        parsed = parse_json_content(response_to_message_content(response))
     except Exception as exc:
         diagnostics = dict(base_diagnostics)
         diagnostics.update(
@@ -151,6 +182,7 @@ def run_json_chat_completion(
                 "elapsed_sec": round(time.perf_counter() - started_at, 3),
                 "error_type": type(exc).__name__,
                 "error": str(exc),
+                "response_type": type(response).__name__ if response is not None else None,
                 "usage": usage_to_dict(get_attr_or_key(response, "usage")) if response is not None else {},
                 "request_id": get_attr_or_key(response, "id") if response is not None else None,
             }

@@ -216,6 +216,7 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
         sample_interval_sec=10.0,
         max_frames=30,
         frame_max_height=512,
+        visual_candidate_window_sec=20.0,
         visual_window_sample_interval_sec=0.5,
         visual_window_max_frames=60,
         filter_frame_interval_sec=2.0,
@@ -231,6 +232,8 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
 
     assert isinstance(pipeline, FakePipeline)
     assert captured["llm_client"] == "fake-client"
+    assert callable(captured["progress_callback"])
+    assert captured["visual_candidate_window_sec"] == 20.0
     assert captured["visual_window_sample_interval_sec"] == 0.5
     assert captured["visual_window_max_frames"] == 60
     assert captured["filter_frame_interval_sec"] == 2.0
@@ -240,3 +243,45 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
     assert captured["final_min_intensity"] == 0.61
     assert captured["final_min_confidence"] == 0.73
     assert captured["final_max_triggers"] == 5
+
+
+def test_print_workflow_progress_formats_key_events(capsys) -> None:
+    from scripts.run_workflow_expression_trigger_detection_batch import print_workflow_progress
+
+    print_workflow_progress(
+        "prepared",
+        {
+            "video_id": "beiwang_ep01",
+            "duration_sec": 610.2,
+            "subtitle_segment_count": 318,
+            "visual_window_count": 12,
+            "visual_candidate_windows": [
+                {"start_time": 0.0, "end_time": 10.0, "reason": "low_dialogue_density"},
+                {"start_time": 40.0, "end_time": 50.0, "reason": "low_dialogue_density"},
+            ],
+            "candidate_frame_count": 142,
+            "sample_interval_sec": 10.0,
+            "visual_candidate_window_sec": 20.0,
+            "visual_window_sample_interval_sec": 1.0,
+        },
+    )
+    print_workflow_progress(
+        "candidate_generation_done",
+        {
+            "video_id": "beiwang_ep01",
+            "candidate_count": 6,
+            "elapsed_sec": 28.4,
+            "total_tokens": 1820,
+        },
+    )
+
+    captured = capsys.readouterr()
+    assert "[beiwang_ep01] prepared:" in captured.out
+    assert "visual_windows=12" in captured.out
+    assert "candidate_frames=142" in captured.out
+    assert "visual_window_sec=20.0s" in captured.out
+    assert "[beiwang_ep01] visual_window[01]: 0.000-10.000 reason=low_dialogue_density" in captured.out
+    assert "[beiwang_ep01] visual_window[02]: 40.000-50.000 reason=low_dialogue_density" in captured.out
+    assert "[beiwang_ep01] candidate_generation_done:" in captured.out
+    assert "candidates=6" in captured.out
+    assert "elapsed=28.4s" in captured.out

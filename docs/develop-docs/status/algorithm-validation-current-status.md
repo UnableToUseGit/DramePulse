@@ -94,6 +94,7 @@ python scripts/run_workflow_expression_trigger_detection_batch.py \
   --series-id beiwang nanian_dongzhi tianxia_diyi_wanku \
   --episode-id ep01 ep02 \
   --sample-interval-sec 10 \
+  --visual-candidate-window-sec 10 \
   --visual-window-sample-interval-sec 1 \
   --visual-window-max-frames 80 \
   --frame-max-height 512 \
@@ -112,7 +113,7 @@ python scripts/run_workflow_expression_trigger_detection_batch.py \
 1. 候选生成
    - 输入：全量字幕 + 全局抽帧；
    - 抽帧：默认每 10 秒 1 帧；
-   - 视觉补召回：对低台词密度和静默窗口额外密集采帧，默认每 1 秒 1 帧，最多 80 帧；
+   - 视觉补召回：按固定窗口检测低台词密度区间，默认窗口长度 10 秒；对低台词密度窗口额外密集采帧，默认每 1 秒 1 帧，最多 80 帧；
    - 图片高度：`frame_max_height=512`；
    - 目标：高召回，尽量覆盖可能的情绪点；
    - 输出：`expression_candidates`。
@@ -475,7 +476,7 @@ candidate generation -> filter decision -> post-processing -> final output
 ```
 
 5. 候选生成阶段新增低字幕密度视觉窗口和密集采帧：
-   - 基于字幕覆盖率和静默区间发现 `visual_candidate_windows`；
+   - 基于固定时间窗口内的字幕覆盖率发现 `visual_candidate_windows`；
    - 对这些窗口额外按 `visual_window_sample_interval_sec` 密集采帧；
    - 全局 overview 帧会先排除 `visual_candidate_windows` 内的时间点，再和视觉密集帧合并去重后输入候选生成模型；
    - `max_frames` 控制视觉窗口外的全局剧情 overview 帧，`visual_window_max_frames` 单独控制视觉补召回帧预算；

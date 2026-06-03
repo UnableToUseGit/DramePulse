@@ -24,12 +24,108 @@ from scripts.run_expression_trigger_detection_batch import (
 DEFAULT_OUTPUT_ROOT = Path("output/workflow_expression_trigger")
 
 
+def _format_optional_number(value: Any, *, suffix: str = "") -> str:
+    if value is None:
+        return "n/a"
+    return f"{value}{suffix}"
+
+
+def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
+    video_id = str(payload.get("video_id") or "unknown")
+    if event == "prepared":
+        print(
+            f"[{video_id}] prepared: "
+            f"duration={_format_optional_number(payload.get('duration_sec'), suffix='s')} "
+            f"subtitles={payload.get('subtitle_segment_count', 0)} "
+            f"visual_windows={payload.get('visual_window_count', 0)} "
+            f"candidate_frames={payload.get('candidate_frame_count', 0)} "
+            f"sample_interval={payload.get('sample_interval_sec')}s "
+            f"visual_window_sec={payload.get('visual_candidate_window_sec')}s "
+            f"visual_interval={payload.get('visual_window_sample_interval_sec')}s"
+        )
+        visual_windows = payload.get("visual_candidate_windows")
+        if isinstance(visual_windows, list):
+            for index, window in enumerate(visual_windows, start=1):
+                if not isinstance(window, dict):
+                    continue
+                try:
+                    start_time = float(window["start_time"])
+                    end_time = float(window["end_time"])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                reason = str(window.get("reason") or "")
+                print(f"[{video_id}] visual_window[{index:02d}]: {start_time:.3f}-{end_time:.3f} reason={reason}")
+        return
+    if event == "candidate_frames_extracted":
+        print(
+            f"[{video_id}] candidate_frames_extracted: "
+            f"requested={payload.get('requested_frame_count', 0)} "
+            f"extracted={payload.get('extracted_frame_count', 0)} "
+            f"images={payload.get('image_count', 0)}"
+        )
+        return
+    if event == "candidate_generation_start":
+        print(
+            f"[{video_id}] candidate_generation_start: "
+            f"frames={payload.get('frame_count', 0)} "
+            f"images={payload.get('image_count', 0)} "
+            f"max_tokens={payload.get('max_tokens')}"
+        )
+        return
+    if event == "candidate_generation_done":
+        print(
+            f"[{video_id}] candidate_generation_done: "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')} "
+            f"tokens={_format_optional_number(payload.get('total_tokens'))}"
+        )
+        return
+    if event == "filter_frames_extracted":
+        print(
+            f"[{video_id}] filter_frames_extracted: "
+            f"requested={payload.get('filter_frame_count', 0)} "
+            f"extracted={payload.get('extracted_frame_count', 0)} "
+            f"images={payload.get('image_count', 0)}"
+        )
+        return
+    if event == "candidate_filtering_start":
+        print(
+            f"[{video_id}] candidate_filtering_start: "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"frames={payload.get('frame_count', 0)} "
+            f"images={payload.get('image_count', 0)} "
+            f"max_tokens={payload.get('max_tokens')}"
+        )
+        return
+    if event == "candidate_filtering_done":
+        print(
+            f"[{video_id}] candidate_filtering_done: "
+            f"decisions={payload.get('candidate_decision_count', 0)} "
+            f"parsed_triggers={payload.get('parsed_trigger_count', 0)} "
+            f"triggers={payload.get('trigger_count', 0)} "
+            f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')} "
+            f"tokens={_format_optional_number(payload.get('total_tokens'))}"
+        )
+        return
+    if event == "completed":
+        print(
+            f"[{video_id}] completed: "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"decisions={payload.get('candidate_decision_count', 0)} "
+            f"triggers={payload.get('trigger_count', 0)} "
+            f"resonance_cues={payload.get('resonance_cue_count', 0)}"
+        )
+        return
+    print(f"[{video_id}] {event}: {json.dumps(payload, ensure_ascii=False, sort_keys=True)}")
+
+
 def build_pipeline(
     *,
     env_path: Path,
     sample_interval_sec: float,
     max_frames: int | None,
     frame_max_height: int,
+    visual_candidate_window_sec: float,
     visual_window_sample_interval_sec: float,
     visual_window_max_frames: int | None,
     filter_frame_interval_sec: float,
@@ -49,6 +145,7 @@ def build_pipeline(
         sample_interval_sec=sample_interval_sec,
         max_frames=max_frames,
         frame_max_height=frame_max_height,
+        visual_candidate_window_sec=visual_candidate_window_sec,
         visual_window_sample_interval_sec=visual_window_sample_interval_sec,
         visual_window_max_frames=visual_window_max_frames,
         filter_frame_interval_sec=filter_frame_interval_sec,
@@ -60,6 +157,7 @@ def build_pipeline(
         final_max_triggers=final_max_triggers,
         candidate_max_output_tokens=candidate_max_output_tokens,
         filter_max_output_tokens=filter_max_output_tokens,
+        progress_callback=print_workflow_progress,
     )
 
 
@@ -122,6 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-interval-sec", type=float, default=10.0)
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--frame-max-height", type=int, default=512)
+    parser.add_argument("--visual-candidate-window-sec", type=float, default=10.0)
     parser.add_argument("--visual-window-sample-interval-sec", type=float, default=1.0)
     parser.add_argument("--visual-window-max-frames", type=int, default=80)
     parser.add_argument("--filter-frame-interval-sec", type=float, default=2.0)
@@ -153,6 +252,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         sample_interval_sec=args.sample_interval_sec,
         max_frames=args.max_frames,
         frame_max_height=args.frame_max_height,
+        visual_candidate_window_sec=args.visual_candidate_window_sec,
         visual_window_sample_interval_sec=args.visual_window_sample_interval_sec,
         visual_window_max_frames=args.visual_window_max_frames,
         filter_frame_interval_sec=args.filter_frame_interval_sec,
