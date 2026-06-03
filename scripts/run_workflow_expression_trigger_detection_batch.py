@@ -30,6 +30,8 @@ def build_pipeline(
     sample_interval_sec: float,
     max_frames: int | None,
     frame_max_height: int,
+    visual_window_sample_interval_sec: float,
+    visual_window_max_frames: int | None,
     filter_frame_interval_sec: float,
     filter_candidate_context_sec: float,
     filter_max_frames: int | None,
@@ -47,6 +49,8 @@ def build_pipeline(
         sample_interval_sec=sample_interval_sec,
         max_frames=max_frames,
         frame_max_height=frame_max_height,
+        visual_window_sample_interval_sec=visual_window_sample_interval_sec,
+        visual_window_max_frames=visual_window_max_frames,
         filter_frame_interval_sec=filter_frame_interval_sec,
         filter_candidate_context_sec=filter_candidate_context_sec,
         filter_max_frames=filter_max_frames,
@@ -66,6 +70,7 @@ def write_workflow_episode_output(
     expression_candidates: list[dict[str, Any]],
     candidate_decisions: list[dict[str, Any]],
     expression_triggers: list[dict[str, Any]],
+    resonance_cues: list[dict[str, Any]],
     llm_call: dict[str, Any] | None = None,
 ) -> Path:
     output_dir = output_root / episode.video_id
@@ -81,6 +86,7 @@ def write_workflow_episode_output(
         "expression_candidates": expression_candidates,
         "candidate_decisions": candidate_decisions,
         "expression_triggers": expression_triggers,
+        "resonance_cues": resonance_cues,
         "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
     }
     output_path = output_dir / "highlight_recognition.json"
@@ -116,6 +122,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-interval-sec", type=float, default=10.0)
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--frame-max-height", type=int, default=512)
+    parser.add_argument("--visual-window-sample-interval-sec", type=float, default=1.0)
+    parser.add_argument("--visual-window-max-frames", type=int, default=80)
     parser.add_argument("--filter-frame-interval-sec", type=float, default=2.0)
     parser.add_argument("--filter-candidate-context-sec", type=float, default=2.0)
     parser.add_argument("--filter-max-frames", type=int, default=100)
@@ -145,6 +153,8 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         sample_interval_sec=args.sample_interval_sec,
         max_frames=args.max_frames,
         frame_max_height=args.frame_max_height,
+        visual_window_sample_interval_sec=args.visual_window_sample_interval_sec,
+        visual_window_max_frames=args.visual_window_max_frames,
         filter_frame_interval_sec=args.filter_frame_interval_sec,
         filter_candidate_context_sec=args.filter_candidate_context_sec,
         filter_max_frames=args.filter_max_frames,
@@ -183,6 +193,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
                 expression_candidates=result.expression_candidates,
                 candidate_decisions=result.candidate_decisions,
                 expression_triggers=result.expression_triggers,
+                resonance_cues=result.resonance_cues,
                 llm_call=llm_call,
             )
         except Exception as exc:  # noqa: BLE001 - batch jobs should continue and report all episode failures.

@@ -87,6 +87,36 @@ def test_evaluate_episode_matches_nearest_trigger_with_expression_agreement() ->
     assert result["false_positives"][0]["trigger_id"] == "et_demo_ep01_003"
 
 
+def test_evaluate_episode_matches_payoff_time_inside_gold_window() -> None:
+    from scripts.evaluate_expression_trigger_annotations import evaluate_episode
+
+    gold = [
+        {
+            "annotation_id": "gold_demo_ep01_001",
+            "payoff_time": 222.9,
+            "payoff_window": {"start_time": 212.0, "end_time": 225.0},
+            "primary_expression": "泪点",
+            "reason": "母亲转悲为喜。",
+        }
+    ]
+    predictions = [
+        {"trigger_id": "et_demo_ep01_001", "payoff_time": 213.0, "primary_expression": "泪点"},
+        {"trigger_id": "et_demo_ep01_002", "payoff_time": 260.0, "primary_expression": "笑点"},
+    ]
+
+    result = evaluate_episode(
+        video_id="demo_ep01",
+        gold_annotations=gold,
+        predictions=predictions,
+        tolerance_sec=3.0,
+    )
+
+    assert result["matched_count"] == 1
+    assert result["matches"][0]["time_delta_sec"] == 9.9
+    assert result["matches"][0]["matched_by"] == "payoff_window"
+    assert result["false_positive_count"] == 1
+
+
 def test_main_reads_annotation_directory_and_writes_report(tmp_path: Path) -> None:
     from scripts.evaluate_expression_trigger_annotations import main
 

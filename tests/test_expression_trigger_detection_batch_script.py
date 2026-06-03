@@ -377,7 +377,6 @@ def test_build_pipeline_can_disable_danmaku_enhancement() -> None:
         pipeline = build_pipeline(
             env_path=Path(".env"),
             sample_interval_sec=1.0,
-            frames_per_interval=1,
             max_frames=3,
             enable_danmaku_enhancement=False,
         )

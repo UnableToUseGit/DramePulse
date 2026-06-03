@@ -12,14 +12,22 @@ from pipelines.utils import SubtitleSegment, build_sample_timestamps, format_sub
 
 
 class BuildSampleTimestampsTest(unittest.TestCase):
-    def test_build_sample_timestamps_supports_multiple_frames_per_interval(self) -> None:
+    def test_build_sample_timestamps_uses_sample_interval_as_frame_gap(self) -> None:
         timestamps = build_sample_timestamps(
             duration_sec=3.0,
             sample_interval_sec=1.0,
-            frames_per_interval=2,
         )
 
-        self.assertEqual(timestamps, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5])
+        self.assertEqual(timestamps, [0.0, 1.0, 2.0])
+
+    def test_build_sample_timestamps_resamples_evenly_when_over_max_frames(self) -> None:
+        timestamps = build_sample_timestamps(
+            duration_sec=10.0,
+            sample_interval_sec=1.0,
+            max_frames=3,
+        )
+
+        self.assertEqual(timestamps, [0.0, 5.0, 9.999])
 
 
 class SubtitleTimelineTest(unittest.TestCase):
@@ -134,7 +142,6 @@ class PipelineSmokeTest(unittest.TestCase):
             pipeline = HighlightRecognitionPipeline(
                 llm_client=FakeClient(),
                 sample_interval_sec=1.0,
-                frames_per_interval=1,
             )
             result = pipeline.run(
                 video_id="v_001",

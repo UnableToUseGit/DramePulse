@@ -64,7 +64,7 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
                         "video_id": video_id,
                         "start_time": 5.0,
                         "end_time": 12.0,
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
                         "summary": "女主反击。",
                         "candidate_reason": "可能是压抑后的反击。",
                         "evidence_sources": ["subtitle", "frame"],
@@ -74,7 +74,10 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
                     {
                         "candidate_id": f"cand_{video_id}_001",
                         "decision": "keep",
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
+                        "role_in_arc": "payoff",
+                        "payoff_time": 8.0,
+                        "payoff_reason": "反击已经落地。",
                         "decision_reason": "这是清晰反击点。",
                     }
                 ],
@@ -84,9 +87,12 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
                         "video_id": video_id,
                         "start_time": 6.0,
                         "end_time": 9.0,
-                        "cue_time": 8.0,
+                        "payoff_time": 8.0,
                         "source_type": "plot",
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
+                        "candidate_id": f"cand_{video_id}_001",
+                        "decision": "keep",
+                        "role_in_arc": "payoff",
                         "interaction_mode": "single_tap",
                         "intensity": 0.8,
                         "confidence": 0.9,
@@ -95,6 +101,22 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
                         "turning_point": "女主当前反击。",
                         "expression_release": "压抑释放形成爽感。",
                         "reason": "适合表达爽感。",
+                    }
+                ],
+                resonance_cues=[
+                    {
+                        "cue_id": f"res_{video_id}_001",
+                        "video_id": video_id,
+                        "source_trigger_id": f"et_{video_id}_001",
+                        "ui_trigger_time": 8.5,
+                        "duration_sec": 6.0,
+                        "emotion_type": "爽点",
+                        "label": "爽到了",
+                        "icon": "flame",
+                        "feedback_text": "你也爽到了",
+                        "base_count": 72800,
+                        "count_text": "7.3万",
+                        "priority": 1,
                     }
                 ],
                 llm_calls=self.last_llm_call,
@@ -120,8 +142,11 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
     assert payload["video_id"] == "series_a_ep01"
     assert payload["expression_candidates"][0]["candidate_id"] == "cand_series_a_ep01_001"
     assert payload["candidate_decisions"][0]["decision"] == "keep"
-    assert payload["expression_triggers"][0]["primary_expression"] == "爽到了"
-    assert payload["highlight_assets"][0]["emotion"] == "爽到了"
+    assert payload["expression_triggers"][0]["primary_expression"] == "爽点"
+    assert payload["expression_triggers"][0]["candidate_id"] == "cand_series_a_ep01_001"
+    assert payload["resonance_cues"][0]["emotion_type"] == "爽点"
+    assert payload["resonance_cues"][0]["ui_trigger_time"] == 8.5
+    assert payload["highlight_assets"][0]["emotion"] == "爽点"
     assert payload["llm_call"]["candidate_generation"]["usage"]["total_tokens"] == 10
     assert payload["llm_call"]["candidate_filtering"]["usage"]["total_tokens"] == 20
     assert fake_pipeline.call["video_file_path"] == data_root / "series_a" / "ep01" / "video.mp4"
@@ -145,7 +170,13 @@ def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
 
         def run(self, **kwargs: object) -> WorkflowExpressionTriggerResult:
             self.video_ids.append(str(kwargs["video_id"]))
-            return WorkflowExpressionTriggerResult(expression_candidates=[], candidate_decisions=[], expression_triggers=[], llm_calls={})
+            return WorkflowExpressionTriggerResult(
+                expression_candidates=[],
+                candidate_decisions=[],
+                expression_triggers=[],
+                resonance_cues=[],
+                llm_calls={},
+            )
 
     fake_pipeline = FakePipeline()
 
@@ -185,6 +216,8 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
         sample_interval_sec=10.0,
         max_frames=30,
         frame_max_height=512,
+        visual_window_sample_interval_sec=0.5,
+        visual_window_max_frames=60,
         filter_frame_interval_sec=2.0,
         filter_candidate_context_sec=3.0,
         filter_max_frames=80,
@@ -198,6 +231,8 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
 
     assert isinstance(pipeline, FakePipeline)
     assert captured["llm_client"] == "fake-client"
+    assert captured["visual_window_sample_interval_sec"] == 0.5
+    assert captured["visual_window_max_frames"] == 60
     assert captured["filter_frame_interval_sec"] == 2.0
     assert captured["filter_candidate_context_sec"] == 3.0
     assert captured["filter_max_frames"] == 80

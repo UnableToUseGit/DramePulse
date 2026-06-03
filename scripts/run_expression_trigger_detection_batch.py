@@ -208,7 +208,6 @@ def build_pipeline(
     *,
     env_path: Path,
     sample_interval_sec: float,
-    frames_per_interval: int,
     max_frames: int | None,
     enable_danmaku_enhancement: bool,
 ):
@@ -217,7 +216,6 @@ def build_pipeline(
     return ExpressionTriggerPipeline(
         llm_client=build_llm_client(env_path=env_path),
         sample_interval_sec=sample_interval_sec,
-        frames_per_interval=frames_per_interval,
         max_frames=max_frames,
         enable_danmaku_enhancement=enable_danmaku_enhancement,
     )
@@ -339,7 +337,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Only use multimodal LLM cold-start detection and skip rule-based danmaku supplemental triggers.",
     )
     parser.add_argument("--sample-interval-sec", type=float, default=1.0)
-    parser.add_argument("--frames-per-interval", type=int, default=1)
     parser.add_argument("--max-frames", type=int)
     return parser
 
@@ -359,7 +356,6 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
     active_pipeline = pipeline or build_pipeline(
         env_path=args.env_file,
         sample_interval_sec=args.sample_interval_sec,
-        frames_per_interval=args.frames_per_interval,
         max_frames=args.max_frames,
         enable_danmaku_enhancement=not args.disable_danmaku_enhancement,
     )

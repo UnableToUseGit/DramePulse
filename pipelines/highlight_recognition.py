@@ -123,13 +123,11 @@ class HighlightRecognitionPipeline:
         *,
         llm_client: LlmClientProtocol,
         sample_interval_sec: float = 1.0,
-        frames_per_interval: int = 1,
         max_frames: int | None = None,
         max_output_tokens: int = 1800,
     ) -> None:
         self.llm_client = llm_client
         self.sample_interval_sec = sample_interval_sec
-        self.frames_per_interval = frames_per_interval
         self.max_frames = max_frames
         self.max_output_tokens = max_output_tokens
 
@@ -146,7 +144,6 @@ class HighlightRecognitionPipeline:
         pipeline = ExpressionTriggerPipeline(
             llm_client=self.llm_client,
             sample_interval_sec=self.sample_interval_sec,
-            frames_per_interval=self.frames_per_interval,
             max_frames=self.max_frames,
             max_output_tokens=max(self.max_output_tokens, 2400),
         )
@@ -174,7 +171,6 @@ class HighlightRecognitionPipeline:
         timestamps = build_sample_timestamps(
             duration_sec=duration_sec,
             sample_interval_sec=self.sample_interval_sec,
-            frames_per_interval=self.frames_per_interval,
             max_frames=self.max_frames,
         )
         subtitles_timeline = format_subtitle_timeline(subtitle_segments)

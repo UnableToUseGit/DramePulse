@@ -9,7 +9,10 @@ from pipelines.workflow_expression_trigger_detection import (
     WorkflowExpressionTriggerPipeline,
     _build_candidate_generation_prompt,
     _build_candidate_filter_prompt,
+    build_candidate_generation_frame_timestamps,
+    build_resonance_cues,
     build_filter_frame_timestamps,
+    build_visual_candidate_windows,
     consolidate_expression_triggers,
     parse_expression_trigger_candidates,
 )
@@ -23,6 +26,9 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
             subtitles_timeline="[5.000-8.000] 你终于输了",
             metadata={"title": "第 1 集"},
             frame_timestamps_seconds=[0.0, 10.0, 20.0],
+            visual_candidate_windows=[
+                {"start_time": 90.0, "end_time": 110.0, "reason": "low_dialogue_density"},
+            ],
         )
 
         self.assertIn("## TASK", prompt)
@@ -34,10 +40,12 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertNotIn("second model", prompt)
         self.assertNotIn("请从短剧正片", prompt)
         self.assertNotIn("本阶段", prompt)
-        self.assertIn("### 爽到了", prompt)
-        self.assertIn("### 磕到了", prompt)
-        self.assertIn("### 看哭了", prompt)
-        self.assertIn("### 笑死", prompt)
+        self.assertIn("### 爽点", prompt)
+        self.assertIn("### 甜点", prompt)
+        self.assertIn("### 泪点", prompt)
+        self.assertIn("### 笑点", prompt)
+        self.assertIn("## VISUAL_CANDIDATE_WINDOWS", prompt)
+        self.assertIn('"reason":"low_dialogue_density"', prompt)
         self.assertIn('"expression_candidates"', prompt)
         self.assertIn('"setup"', prompt)
         self.assertIn('"turning_point"', prompt)
@@ -55,7 +63,7 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
                     "candidate_id": "cand_demo_ep01_001",
                     "start_time": 5.0,
                     "end_time": 12.0,
-                    "primary_expression": "爽到了",
+                    "primary_expression": "爽点",
                     "summary": "女主反击。",
                     "candidate_reason": "可能是压抑后的反击。",
                 }
@@ -67,6 +75,8 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("viewer-reaction moment", prompt)
         self.assertIn("candidate_decisions", prompt)
         self.assertIn("decision_reason", prompt)
+        self.assertIn("role_in_arc", prompt)
+        self.assertIn("payoff_time", prompt)
         self.assertNotIn("Expression Trigger", prompt)
         self.assertNotIn("filtering stage", prompt)
         self.assertNotIn("real emotional release points", prompt)
@@ -109,7 +119,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                     {
                         "start_time": 5.0,
                         "end_time": 12.0,
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
                         "summary": "女主反击。",
                         "setup": "女主此前被压制。",
                         "turning_point": "女主开始反击。",
@@ -126,7 +136,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                     {
                         "start_time": 30.0,
                         "end_time": 29.0,
-                        "primary_expression": "笑死",
+                        "primary_expression": "笑点",
                     },
                 ]
             },
@@ -136,7 +146,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertEqual(len(candidates), 1)
         self.assertEqual(candidates[0]["candidate_id"], "cand_demo_ep01_001")
-        self.assertEqual(candidates[0]["primary_expression"], "爽到了")
+        self.assertEqual(candidates[0]["primary_expression"], "爽点")
         self.assertEqual(candidates[0]["setup"], "女主此前被压制。")
         self.assertEqual(candidates[0]["turning_point"], "女主开始反击。")
         self.assertEqual(candidates[0]["expression_release"], "压抑后的反击可能让观众感到解气。")
@@ -148,7 +158,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                     {
                         "start_time": 5.0,
                         "end_time": 12.0,
-                        "primary_expression": "笑死",
+                        "primary_expression": "笑点",
                         "summary": "角色说错话。",
                         "candidate_reason": "可能形成笑点。",
                     }
@@ -169,7 +179,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 "start_time": 140.0,
                 "end_time": 180.0,
                 "cue_time": 170.0,
-                "primary_expression": "看哭了",
+                "primary_expression": "泪点",
                 "intensity": 0.66,
                 "confidence": 0.78,
             },
@@ -178,7 +188,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 "start_time": 195.0,
                 "end_time": 243.0,
                 "cue_time": 215.0,
-                "primary_expression": "看哭了",
+                "primary_expression": "泪点",
                 "intensity": 0.84,
                 "confidence": 0.9,
             },
@@ -187,7 +197,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 "start_time": 255.0,
                 "end_time": 267.0,
                 "cue_time": 262.0,
-                "primary_expression": "看哭了",
+                "primary_expression": "泪点",
                 "intensity": 0.58,
                 "confidence": 0.7,
             },
@@ -196,7 +206,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 "start_time": 275.0,
                 "end_time": 295.0,
                 "cue_time": 277.0,
-                "primary_expression": "笑死",
+                "primary_expression": "笑点",
                 "intensity": 0.86,
                 "confidence": 0.92,
             },
@@ -212,7 +222,91 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertEqual([trigger["trigger_id"] for trigger in consolidated], ["t2", "t4"])
 
-    def test_workflow_generates_candidates_with_10_second_frames_then_filters_to_triggers(self) -> None:
+    def test_build_visual_candidate_windows_uses_low_density_and_silent_tail(self) -> None:
+        from pipelines.utils import SubtitleSegment
+
+        windows = build_visual_candidate_windows(
+            subtitle_segments=[
+                SubtitleSegment(start=0.0, end=5.0, text="密集台词"),
+                SubtitleSegment(start=20.0, end=22.0, text="一句话"),
+            ],
+            duration_sec=40.0,
+            window_sec=10.0,
+            min_window_sec=4.0,
+            max_windows=6,
+        )
+
+        self.assertIn({"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"}, windows)
+        self.assertIn({"start_time": 22.0, "end_time": 40.0, "reason": "silent_range"}, windows)
+
+    def test_build_candidate_generation_frame_timestamps_densely_samples_visual_windows(self) -> None:
+        timestamps = build_candidate_generation_frame_timestamps(
+            duration_sec=40.0,
+            sample_interval_sec=10.0,
+            max_frames=None,
+            visual_candidate_windows=[
+                {"start_time": 9.5, "end_time": 13.5, "reason": "low_dialogue_density"},
+                {"start_time": 30.0, "end_time": 34.0, "reason": "silent_range"},
+            ],
+            visual_window_sample_interval_sec=1.0,
+            visual_window_max_frames=None,
+        )
+
+        self.assertEqual(timestamps, [0.0, 9.5, 10.5, 11.5, 12.5, 20.0, 30.0, 31.0, 32.0, 33.0])
+
+    def test_build_candidate_generation_frame_timestamps_resamples_global_frames_after_excluding_visual_windows(self) -> None:
+        timestamps = build_candidate_generation_frame_timestamps(
+            duration_sec=100.0,
+            sample_interval_sec=10.0,
+            max_frames=3,
+            visual_candidate_windows=[
+                {"start_time": 40.0, "end_time": 60.0, "reason": "low_dialogue_density"},
+            ],
+            visual_window_sample_interval_sec=10.0,
+            visual_window_max_frames=None,
+        )
+
+        self.assertEqual(timestamps, [0.0, 40.0, 50.0, 60.0, 90.0])
+
+    def test_build_resonance_cues_maps_payoff_to_frontend_fields(self) -> None:
+        cues = build_resonance_cues(
+            [
+                {
+                    "trigger_id": "et_demo_ep01_001",
+                    "video_id": "demo_ep01",
+                    "payoff_time": 40.0,
+                    "start_time": 35.0,
+                    "end_time": 43.0,
+                    "primary_expression": "泪点",
+                    "intensity": 0.8,
+                    "confidence": 0.9,
+                    "summary": "母亲转悲为喜。",
+                },
+                {
+                    "trigger_id": "et_demo_ep01_002",
+                    "video_id": "demo_ep01",
+                    "payoff_time": 80.0,
+                    "start_time": 78.0,
+                    "end_time": 82.0,
+                    "primary_expression": "笑点",
+                    "intensity": 0.7,
+                    "confidence": 0.8,
+                    "summary": "包袱落点。",
+                },
+            ],
+            duration_sec=100.0,
+        )
+
+        self.assertEqual(cues[0]["cue_id"], "res_demo_ep01_001")
+        self.assertEqual(cues[0]["source_trigger_id"], "et_demo_ep01_001")
+        self.assertEqual(cues[0]["emotion_type"], "泪点")
+        self.assertEqual(cues[0]["label"], "泪目了")
+        self.assertEqual(cues[0]["ui_trigger_time"], 41.5)
+        self.assertEqual(cues[0]["duration_sec"], 6.0)
+        self.assertEqual(cues[1]["emotion_type"], "笑点")
+        self.assertEqual(cues[1]["ui_trigger_time"], 80.2)
+
+    def test_workflow_generates_candidates_with_dense_visual_window_frames_then_filters_to_triggers(self) -> None:
         class FakeClient:
             def __init__(self) -> None:
                 self.calls: list[dict[str, object]] = []
@@ -243,7 +337,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                             {
                                 "start_time": 5.0,
                                 "end_time": 12.0,
-                                "primary_expression": "爽到了",
+                                "primary_expression": "爽点",
                                 "summary": "女主反击。",
                                 "setup": "女主此前被压制。",
                                 "turning_point": "女主开始反击。",
@@ -258,7 +352,10 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                         {
                             "candidate_id": "cand_demo_ep01_001",
                             "decision": "keep",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
+                            "role_in_arc": "payoff",
+                            "payoff_time": 8.0,
+                            "payoff_reason": "反击已经落地。",
                             "decision_reason": "这是清晰反击点。",
                         }
                     ],
@@ -266,9 +363,12 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                         {
                             "start_time": 6.0,
                             "end_time": 9.0,
-                            "cue_time": 8.0,
+                            "payoff_time": 8.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
+                            "candidate_id": "cand_demo_ep01_001",
+                            "decision": "keep",
+                            "role_in_arc": "payoff",
                             "intensity": 0.8,
                             "confidence": 0.9,
                             "summary": "女主反击成功。",
@@ -317,12 +417,18 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                     metadata={"title": "Demo"},
                 )
 
-        self.assertEqual(extraction_calls[0]["timestamps_seconds"], [0.0, 10.0, 20.0])
+        self.assertEqual(
+            extraction_calls[0]["timestamps_seconds"],
+            [0.0, 1.0, 2.0, 3.0, 4.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
+        )
         self.assertEqual(extraction_calls[0]["max_height"], 512)
         self.assertEqual(extraction_calls[1]["timestamps_seconds"], [3.0, 5.0, 7.0, 9.0, 11.0, 13.0])
         self.assertEqual(extraction_calls[1]["max_height"], 512)
         self.assertEqual(len(fake_client.calls), 2)
-        self.assertEqual(fake_client.calls[0]["frame_timestamps_seconds"], [0.0, 10.0, 20.0])
+        self.assertEqual(
+            fake_client.calls[0]["frame_timestamps_seconds"],
+            [0.0, 1.0, 2.0, 3.0, 4.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0],
+        )
         self.assertEqual(fake_client.calls[1]["frame_timestamps_seconds"], [3.0, 5.0, 7.0, 9.0, 11.0, 13.0])
         self.assertGreater(len(fake_client.calls[1]["image_paths"]), 0)
         self.assertIn("Find candidate story intervals in a short-drama episode where viewers may naturally want to react immediately.", str(fake_client.calls[0]["user_prompt"]))
@@ -331,7 +437,11 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(len(result.expression_candidates), 1)
         self.assertEqual(result.candidate_decisions[0]["decision"], "keep")
         self.assertEqual(result.expression_candidates[0]["setup"], "女主此前被压制。")
-        self.assertEqual(result.expression_triggers[0]["primary_expression"], "爽到了")
+        self.assertEqual(result.expression_triggers[0]["primary_expression"], "爽点")
+        self.assertEqual(result.expression_triggers[0]["candidate_id"], "cand_demo_ep01_001")
+        self.assertEqual(result.expression_triggers[0]["payoff_time"], 8.0)
+        self.assertEqual(result.resonance_cues[0]["emotion_type"], "爽点")
+        self.assertEqual(result.resonance_cues[0]["ui_trigger_time"], 8.5)
         self.assertEqual(result.llm_calls["candidate_generation"]["usage"]["total_tokens"], 11)
         self.assertEqual(result.llm_calls["candidate_filtering"]["usage"]["total_tokens"], 12)
 

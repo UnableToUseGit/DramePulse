@@ -33,10 +33,10 @@ class TextExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("1. First decide whether the subtitle moment is an emotional release point.", prompt)
         self.assertIn("2. Verify the release structure: prior subtitle setup -> current line/action implication -> expression release.", prompt)
         self.assertIn("5. Choose `cue_time` after the viewer understands the release from the subtitle line.", prompt)
-        self.assertIn("### 爽到了", prompt)
-        self.assertIn("### 磕到了", prompt)
-        self.assertIn("### 看哭了", prompt)
-        self.assertIn("### 笑死", prompt)
+        self.assertIn("### 爽点", prompt)
+        self.assertIn("### 甜点", prompt)
+        self.assertIn("### 泪点", prompt)
+        self.assertIn("### 笑点", prompt)
         self.assertNotIn("### 震惊", prompt)
         self.assertNotIn("### 燃起来了", prompt)
         self.assertNotIn("FRAME_TIMESTAMPS_SECONDS", prompt)
@@ -79,7 +79,7 @@ class TextExpressionTriggerPipelineTest(unittest.TestCase):
                             "start_time": 5.0,
                             "end_time": 8.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
                             "intensity": 0.9,
                             "confidence": 0.85,
                             "summary": "女主反击。",
@@ -104,7 +104,7 @@ class TextExpressionTriggerPipelineTest(unittest.TestCase):
             )
 
         self.assertEqual(len(triggers), 1)
-        self.assertEqual(triggers[0]["primary_expression"], "爽到了")
+        self.assertEqual(triggers[0]["primary_expression"], "爽点")
         self.assertEqual(client.image_paths, [])
         self.assertEqual(client.frame_timestamps_seconds, [])
         self.assertEqual(client.max_tokens, 1234)
@@ -126,7 +126,7 @@ class TextExpressionTriggerPipelineTest(unittest.TestCase):
                             "end_time": 455.25,
                             "cue_time": 443.0,
                             "source_type": "plot",
-                            "primary_expression": "笑死",
+                            "primary_expression": "笑点",
                             "intensity": 0.8,
                             "confidence": 0.8,
                             "summary": "模型把 04:35 误写成 435 秒。",
@@ -137,7 +137,7 @@ class TextExpressionTriggerPipelineTest(unittest.TestCase):
                             "end_time": 8.0,
                             "cue_time": 7.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
                             "intensity": 0.8,
                             "confidence": 0.8,
                             "summary": "女主反击。",

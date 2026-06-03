@@ -93,7 +93,6 @@ def build_sample_timestamps(
     *,
     duration_sec: float,
     sample_interval_sec: float,
-    frames_per_interval: int,
     start_sec: float = 0.0,
     max_frames: int | None = None,
 ) -> list[float]:
@@ -101,23 +100,22 @@ def build_sample_timestamps(
         return []
     if sample_interval_sec <= 0:
         raise ValueError("sample_interval_sec must be positive")
-    if frames_per_interval <= 0:
-        raise ValueError("frames_per_interval must be positive")
     if start_sec < 0:
         raise ValueError("start_sec must be non-negative")
 
-    step = sample_interval_sec / float(frames_per_interval)
     timestamps: list[float] = []
     current = start_sec
     while current < duration_sec:
-        for index in range(frames_per_interval):
-            ts = round(current + index * step, 3)
-            if ts >= duration_sec:
-                continue
-            timestamps.append(ts)
-            if max_frames is not None and len(timestamps) >= max_frames:
-                return timestamps
+        timestamps.append(round(current, 3))
         current = round(current + sample_interval_sec, 3)
+    if max_frames is not None and len(timestamps) > max_frames:
+        if max_frames <= 0:
+            raise ValueError("max_frames must be positive")
+        if max_frames == 1:
+            return [round(start_sec, 3)]
+        end_sec = max(start_sec, duration_sec - 0.001)
+        step = (end_sec - start_sec) / float(max_frames - 1)
+        return [round(start_sec + index * step, 3) for index in range(max_frames)]
     return timestamps
 
 

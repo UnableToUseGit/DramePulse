@@ -25,7 +25,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "end_time": 42.0,
                         "cue_time": 40.0,
                         "source_type": "plot",
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
                         "interaction_mode": "single_tap",
                         "intensity": 0.88,
                         "confidence": 0.82,
@@ -44,7 +44,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         trigger = triggers[0]
         self.assertEqual(trigger["trigger_id"], "et_demo_ep01_001")
         self.assertEqual(trigger["source_type"], "plot")
-        self.assertEqual(trigger["primary_expression"], "爽到了")
+        self.assertEqual(trigger["primary_expression"], "爽点")
         self.assertEqual(trigger["interaction_mode"], "single_tap")
         self.assertEqual(trigger["setup"], "女主先前被当众质疑和压制。")
         self.assertEqual(trigger["turning_point"], "女主抓住证据完成反击。")
@@ -60,7 +60,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "end_time": 42.0,
                         "cue_time": 40.0,
                         "source_type": "plot",
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
                         "intensity": 0.88,
                         "confidence": 0.82,
                         "summary": "女主当众反击。",
@@ -86,7 +86,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "end_time": 42.0,
                         "cue_time": 40.0,
                         "source_type": "plot",
-                        "primary_expression": "爽到了",
+                        "primary_expression": "爽点",
                         "intensity": 0.88,
                         "confidence": 0.82,
                     }
@@ -153,7 +153,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "start_time": 18.0,
                         "end_time": 22.0,
                         "source_type": "plot",
-                        "primary_expression": "看哭了",
+                        "primary_expression": "泪点",
                         "intensity": 0.7,
                         "confidence": 0.8,
                         "summary": "女主终于和亲人重逢。",
@@ -168,7 +168,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         )
 
         self.assertEqual(len(triggers), 1)
-        self.assertEqual(triggers[0]["primary_expression"], "看哭了")
+        self.assertEqual(triggers[0]["primary_expression"], "泪点")
 
     def test_parse_expression_triggers_rejects_retired_plot_expression(self) -> None:
         triggers = parse_expression_triggers(
@@ -214,7 +214,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "end_time": 28.0,
                         "cue_time": 26.2,
                         "source_type": "plot",
-                        "primary_expression": "笑死",
+                        "primary_expression": "笑点",
                         "intensity": 0.78,
                         "confidence": 0.84,
                         "summary": "男主踹门失败后摔倒，还尴尬地向老板拜年。",
@@ -229,7 +229,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         )
 
         self.assertEqual(len(triggers), 1)
-        self.assertEqual(triggers[0]["primary_expression"], "笑死")
+        self.assertEqual(triggers[0]["primary_expression"], "笑点")
 
     def test_expression_trigger_maps_to_highlight_asset_contract_fields(self) -> None:
         trigger = parse_expression_triggers(
@@ -239,7 +239,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
                         "start_time": 10.0,
                         "end_time": 12.0,
                         "source_type": "plot",
-                        "primary_expression": "磕到了",
+                        "primary_expression": "甜点",
                         "interaction_mode": "single_tap",
                         "intensity": 0.7,
                         "confidence": 0.8,
@@ -259,7 +259,7 @@ class ParseExpressionTriggersTest(unittest.TestCase):
         self.assertEqual(asset["highlight_id"], "h_demo_ep01_001")
         self.assertEqual(asset["video_id"], "demo_ep01")
         self.assertEqual(asset["highlight_type"], "plot")
-        self.assertEqual(asset["emotion"], "磕到了")
+        self.assertEqual(asset["emotion"], "甜点")
         self.assertEqual(asset["highlight_score"], 0.8)
         self.assertNotIn("interaction_mode", asset)
 
@@ -279,7 +279,7 @@ class DanmakuEnhancementTest(unittest.TestCase):
 
         self.assertEqual(len(triggers), 1)
         self.assertEqual(triggers[0]["source_type"], "performance")
-        self.assertEqual(triggers[0]["primary_expression"], "笑死")
+        self.assertEqual(triggers[0]["primary_expression"], "笑点")
         self.assertEqual(triggers[0]["interaction_mode"], "single_tap")
 
     def test_detect_danmaku_expression_triggers_detects_character_appeal_peak(self) -> None:
@@ -346,13 +346,13 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("2. Verify the release structure: prior setup -> current turning point -> expression release.", prompt)
         self.assertIn("3. Match exactly one `primary_expression` from `## PRIMARY_EXPRESSIONS`.", prompt)
         self.assertIn("5. Choose `cue_time` after the viewer understands the release.", prompt)
-        self.assertIn("### 爽到了", prompt)
+        self.assertIn("### 爽点", prompt)
         self.assertIn("Definition: 主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。", prompt)
         self.assertIn("Reject: simple danger relief, being helped by someone else, being recognized, receiving an opportunity, or a generic positive turn.", prompt)
-        self.assertIn("### 磕到了", prompt)
-        self.assertIn("### 看哭了", prompt)
+        self.assertIn("### 甜点", prompt)
+        self.assertIn("### 泪点", prompt)
         self.assertIn("Reject: mere hardship, pity, bullying, debt pressure, or ordinary sadness without emotional payoff.", prompt)
-        self.assertIn("### 笑死", prompt)
+        self.assertIn("### 笑点", prompt)
         self.assertIn("Definition: 台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。", prompt)
         self.assertIn("Required: a visible or subtitle-supported comedic beat such as punchline, physical gag, awkward reversal, absurd reaction, misunderstanding, or comic timing.", prompt)
         self.assertIn("Reject: ordinary light tone, generic cuteness, actor charm, or comments that are only funny because of external fandom context.", prompt)
@@ -374,7 +374,7 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn('"setup":""', prompt)
         self.assertIn("Never output a bare string value after `summary`; the next key must be `setup`.", prompt)
         self.assertIn("- `summary`, `setup`, `turning_point`, `expression_release`, and `reason` are strings. Use an empty string only if the evidence is unclear.", prompt)
-        self.assertIn('{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}', prompt)
+        self.assertIn('{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽点","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}', prompt)
         self.assertNotIn("interaction_mode", prompt)
         self.assertIn("[METADATA]", prompt)
         self.assertIn("- title: 第 1 集", prompt)
@@ -423,7 +423,7 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
                             "start_time": 5.0,
                             "end_time": 8.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
                             "interaction_mode": "single_tap",
                             "intensity": 0.9,
                             "confidence": 0.85,
@@ -474,7 +474,7 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
                             "end_time": 455.25,
                             "cue_time": 443.0,
                             "source_type": "plot",
-                            "primary_expression": "笑死",
+                            "primary_expression": "笑点",
                             "intensity": 0.8,
                             "confidence": 0.8,
                             "summary": "模型把 04:35 误写成 435 秒。",
@@ -485,7 +485,7 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
                             "end_time": 8.0,
                             "cue_time": 7.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
                             "intensity": 0.8,
                             "confidence": 0.8,
                             "summary": "女主反击。",
@@ -529,7 +529,7 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
                             "start_time": 5.0,
                             "end_time": 8.0,
                             "source_type": "plot",
-                            "primary_expression": "爽到了",
+                            "primary_expression": "爽点",
                             "interaction_mode": "single_tap",
                             "intensity": 0.9,
                             "confidence": 0.85,

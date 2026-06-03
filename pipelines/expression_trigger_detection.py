@@ -18,12 +18,20 @@ from pipelines.utils import (
 SUPPORTED_SOURCE_TYPES = {"plot", "performance", "character_appeal", "finale_judgment"}
 SUPPORTED_INTERACTION_MODES = {"single_tap", "hold_burst", "repeat_tap", "stance_poll", "finale_rating"}
 PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
-    ("爽到了", "主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。"),
-    ("磕到了", "角色之间在暧昧、克制、误会、保护或双向在意的铺垫之后，关系出现明确升温、确认或亲密推进。"),
-    ("看哭了", "亲情、爱情、牺牲、重逢、告别、无私守护或善意在充分铺垫后兑现，带来感动、悲伤或泪目。"),
-    ("笑死", "台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。"),
+    ("爽点", "主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。"),
+    ("甜点", "角色之间在暧昧、克制、误会、保护或双向在意的铺垫之后，关系出现明确升温、确认或亲密推进。"),
+    ("泪点", "亲情、爱情、牺牲、重逢、告别、无私守护或善意在充分铺垫后兑现，带来感动、悲伤或泪目。"),
+    ("笑点", "台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。"),
 )
-SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS}
+LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES = {
+    "爽到了": "爽点",
+    "磕到了": "甜点",
+    "看哭了": "泪点",
+    "笑死": "笑点",
+}
+SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {
+    label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS
+} | set(LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES)
 
 PERFORMANCE_KEYWORDS = ("笑死", "哈哈", "绷不住", "离谱", "抓马", "尬", "急了", "演技")
 CHARACTER_APPEAL_KEYWORDS = ("好帅", "太帅", "太美", "漂亮", "老婆", "老公", "可爱", "眼神", "姐姐")
@@ -44,6 +52,11 @@ def _round_time(value: float) -> float:
 
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
+
+
+def normalize_plot_primary_expression(value: Any) -> str:
+    expression = _clean_text(value)
+    return LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES.get(expression, expression)
 
 
 def _iter_raw_items(raw: Any) -> tuple[list[Any], bool]:
@@ -99,7 +112,7 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
         if not interaction_mode:
             continue
 
-        primary_expression = _clean_text(item.get("primary_expression") or item.get("emotion"))
+        primary_expression = normalize_plot_primary_expression(item.get("primary_expression") or item.get("emotion"))
         summary = "" if item.get("summary") is None else _clean_text(item.get("summary"))
         reason = "" if item.get("reason") is None else _clean_text(item.get("reason"))
         setup = "" if item.get("setup") is None else _clean_text(item.get("setup"))
@@ -110,14 +123,20 @@ def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]
         if source_type == "plot" and primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
             continue
 
-        cue_time = float(item.get("cue_time", start_time + (end_time - start_time) / 2.0))
-        cue_time = min(max(start_time, cue_time), end_time)
+        payoff_time = float(item.get("payoff_time", item.get("cue_time", start_time + (end_time - start_time) / 2.0)))
+        payoff_time = min(max(start_time, payoff_time), end_time)
         trigger = {
             "trigger_id": f"et_{video_id}_{len(triggers) + 1:03d}",
             "video_id": video_id,
+            "candidate_id": _clean_text(item.get("candidate_id") or ""),
+            "decision": _clean_text(item.get("decision") or ""),
+            "role_in_arc": _clean_text(item.get("role_in_arc") or ""),
             "start_time": _round_time(start_time),
             "end_time": _round_time(end_time),
-            "cue_time": _round_time(cue_time),
+            "story_interval_start": _round_time(start_time),
+            "story_interval_end": _round_time(end_time),
+            "payoff_time": _round_time(payoff_time),
+            "cue_time": _round_time(payoff_time),
             "source_type": source_type,
             "primary_expression": primary_expression,
             "interaction_mode": interaction_mode,
@@ -186,7 +205,7 @@ def _classify_danmaku_expression(texts: list[str]) -> tuple[str, str] | None:
         return None
     if appeal_hits > performance_hits:
         return "character_appeal", "太帅了"
-    return "performance", "笑死"
+    return "performance", "笑点"
 
 
 def detect_danmaku_expression_triggers(
@@ -400,23 +419,23 @@ def _build_user_prompt(
             "- Skip moments that only create anger, pity, worry, support, or curiosity without an immediate release point.",
             "",
             "## PRIMARY_EXPRESSIONS",
-            "### 爽到了",
-            f"Definition: {expression_definitions['爽到了']}",
+            "### 爽点",
+            f"Definition: {expression_definitions['爽点']}",
             "Required: the protagonist or justice side actively regains power, wins, exposes, punishes, or face-slaps at this moment.",
             "Reject: simple danger relief, being helped by someone else, being recognized, receiving an opportunity, or a generic positive turn.",
             "",
-            "### 磕到了",
-            f"Definition: {expression_definitions['磕到了']}",
+            "### 甜点",
+            f"Definition: {expression_definitions['甜点']}",
             "Required: prior relationship tension, ambiguity, restraint, misunderstanding, protection, or mutual care before clear relationship advancement.",
             "Reject: ordinary help, politeness, teamwork, or protection without relationship advancement.",
             "",
-            "### 看哭了",
-            f"Definition: {expression_definitions['看哭了']}",
+            "### 泪点",
+            f"Definition: {expression_definitions['泪点']}",
             "Required: emotional payoff such as sacrifice, reunion, farewell, selfless protection, forgiveness, or family/love breakthrough.",
             "Reject: mere hardship, pity, bullying, debt pressure, or ordinary sadness without emotional payoff.",
             "",
-            "### 笑死",
-            f"Definition: {expression_definitions['笑死']}",
+            "### 笑点",
+            f"Definition: {expression_definitions['笑点']}",
             "Required: a visible or subtitle-supported comedic beat such as punchline, physical gag, awkward reversal, absurd reaction, misunderstanding, or comic timing.",
             "Reject: ordinary light tone, generic cuteness, actor charm, or comments that are only funny because of external fandom context.",
             "",
@@ -444,11 +463,11 @@ def _build_user_prompt(
             "The top-level object must contain exactly one key: `expression_triggers`.",
             "Each trigger object must contain exactly these keys: `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.",
             "Use this exact object template for every trigger, in this exact key order:",
-            '{"start_time":0.0,"end_time":0.0,"cue_time":0.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.0,"confidence":0.0,"summary":"","setup":"","turning_point":"","expression_release":"","reason":""}',
+            '{"start_time":0.0,"end_time":0.0,"cue_time":0.0,"source_type":"plot","primary_expression":"爽点","intensity":0.0,"confidence":0.0,"summary":"","setup":"","turning_point":"","expression_release":"","reason":""}',
             "Never output a bare string value after `summary`; the next key must be `setup`.",
             "Never omit a key. If a text field is uncertain, keep the key and set its value to an empty string.",
             "Output shape:",
-            '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}',
+            '{"expression_triggers":[{"start_time":38.0,"end_time":42.0,"cue_time":40.0,"source_type":"plot","primary_expression":"爽点","intensity":0.86,"confidence":0.82,"summary":"女主当众反击成功。","setup":"女主此前被反派压制和羞辱。","turning_point":"女主抓住证据当众反击反派。","expression_release":"前面的压抑在反击时释放，观众自然想表达解气。","reason":"该点不是单纯冲突，而是压抑后的打脸释放点。"}]}',
             "Field constraints:",
             "- `start_time`, `end_time`, and `cue_time` are numbers in seconds.",
             "- `start_time` must be >= 0.0.",
@@ -473,14 +492,12 @@ class ExpressionTriggerPipeline:
         *,
         llm_client: LlmClientProtocol,
         sample_interval_sec: float = 1.0,
-        frames_per_interval: int = 1,
         max_frames: int | None = None,
         max_output_tokens: int = 2400,
         enable_danmaku_enhancement: bool = True,
     ) -> None:
         self.llm_client = llm_client
         self.sample_interval_sec = sample_interval_sec
-        self.frames_per_interval = frames_per_interval
         self.max_frames = max_frames
         self.max_output_tokens = max_output_tokens
         self.enable_danmaku_enhancement = enable_danmaku_enhancement
@@ -512,7 +529,6 @@ class ExpressionTriggerPipeline:
         timestamps = build_sample_timestamps(
             duration_sec=duration_sec,
             sample_interval_sec=self.sample_interval_sec,
-            frames_per_interval=self.frames_per_interval,
             max_frames=self.max_frames,
         )
         subtitles_timeline = format_expression_subtitle_timeline_seconds(subtitle_segments)

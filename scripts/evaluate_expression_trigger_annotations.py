@@ -10,6 +10,8 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from pipelines.expression_trigger_detection import normalize_plot_primary_expression
+
 
 DEFAULT_ANNOTATION_DIR = Path("data/annotations/expression_trigger_gold")
 DEFAULT_ALGORITHM_OUTPUT_ROOT = Path("output/expression_trigger")
@@ -35,6 +37,30 @@ def _round_time(value: float) -> float:
     return round(float(value), 3)
 
 
+def _time_value(item: dict[str, Any]) -> float | None:
+    for key in ("payoff_time", "cue_time"):
+        try:
+            value = float(item[key])
+        except (KeyError, TypeError, ValueError):
+            continue
+        return value
+    return None
+
+
+def _payoff_window(item: dict[str, Any]) -> dict[str, float] | None:
+    window = item.get("payoff_window")
+    if not isinstance(window, dict):
+        return None
+    try:
+        start_time = float(window["start_time"])
+        end_time = float(window["end_time"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if start_time < 0 or end_time < start_time:
+        return None
+    return {"start_time": _round_time(start_time), "end_time": _round_time(end_time)}
+
+
 def _valid_gold_annotations(payload: Any) -> tuple[str, list[dict[str, Any]]]:
     if not isinstance(payload, dict):
         return "", []
@@ -46,17 +72,19 @@ def _valid_gold_annotations(payload: Any) -> tuple[str, list[dict[str, Any]]]:
     for index, item in enumerate(annotations, start=1):
         if not isinstance(item, dict):
             continue
-        try:
-            cue_time = float(item["cue_time"])
-        except (KeyError, TypeError, ValueError):
+        payoff_time = _time_value(item)
+        if payoff_time is None:
             continue
-        primary_expression = str(item.get("primary_expression") or "").strip()
-        if cue_time < 0 or not primary_expression:
+        primary_expression = normalize_plot_primary_expression(item.get("primary_expression"))
+        if payoff_time < 0 or not primary_expression:
             continue
+        payoff_window = _payoff_window(item)
         normalized.append(
             {
                 "annotation_id": str(item.get("annotation_id") or f"gold_{video_id}_{index:03d}"),
-                "cue_time": _round_time(cue_time),
+                "payoff_time": _round_time(payoff_time),
+                "cue_time": _round_time(payoff_time),
+                "payoff_window": payoff_window,
                 "primary_expression": primary_expression,
                 "reason": str(item.get("reason") or "").strip(),
             }
@@ -74,17 +102,17 @@ def _valid_predictions(payload: Any) -> list[dict[str, Any]]:
     for index, item in enumerate(raw_triggers, start=1):
         if not isinstance(item, dict):
             continue
-        try:
-            cue_time = float(item["cue_time"])
-        except (KeyError, TypeError, ValueError):
+        payoff_time = _time_value(item)
+        if payoff_time is None:
             continue
-        primary_expression = str(item.get("primary_expression") or item.get("emotion") or "").strip()
-        if cue_time < 0 or not primary_expression:
+        primary_expression = normalize_plot_primary_expression(item.get("primary_expression") or item.get("emotion"))
+        if payoff_time < 0 or not primary_expression:
             continue
         predictions.append(
             {
                 "trigger_id": str(item.get("trigger_id") or f"pred_{index:03d}"),
-                "cue_time": _round_time(cue_time),
+                "payoff_time": _round_time(payoff_time),
+                "cue_time": _round_time(payoff_time),
                 "primary_expression": primary_expression,
                 "source_type": str(item.get("source_type") or ""),
                 "summary": str(item.get("summary") or ""),
@@ -110,14 +138,31 @@ def evaluate_episode(
     for annotation in gold_annotations:
         best_index: int | None = None
         best_delta: float | None = None
+        best_matched_by = ""
         for prediction_index in unmatched_prediction_indexes:
             prediction = predictions[prediction_index]
-            delta = abs(float(prediction["cue_time"]) - float(annotation["cue_time"]))
-            if delta > tolerance_sec:
+            prediction_time = float(prediction.get("payoff_time", prediction.get("cue_time")))
+            annotation_time = float(annotation.get("payoff_time", annotation.get("cue_time")))
+            delta = abs(prediction_time - annotation_time)
+            matched_by = "tolerance"
+            window = annotation.get("payoff_window")
+            if isinstance(window, dict):
+                try:
+                    start_time = float(window["start_time"])
+                    end_time = float(window["end_time"])
+                except (KeyError, TypeError, ValueError):
+                    start_time = 0.0
+                    end_time = -1.0
+                if start_time <= prediction_time <= end_time:
+                    matched_by = "payoff_window"
+                elif delta > tolerance_sec:
+                    continue
+            elif delta > tolerance_sec:
                 continue
             if best_delta is None or delta < best_delta:
                 best_delta = delta
                 best_index = prediction_index
+                best_matched_by = matched_by
         if best_index is None or best_delta is None:
             missed.append(annotation)
             continue
@@ -130,6 +175,7 @@ def evaluate_episode(
                 "annotation": annotation,
                 "prediction": prediction,
                 "time_delta_sec": _round_time(best_delta),
+                "matched_by": best_matched_by,
                 "expression_match": expression_match,
             }
         )
