@@ -269,6 +269,33 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
 
         self.assertLess(overlap_seconds.call_count, 1000)
 
+    def test_build_visual_candidate_windows_terminates_when_duration_has_sub_millisecond_tail(self) -> None:
+        from pipelines.utils import SubtitleSegment
+
+        subtitle_segments = [
+            SubtitleSegment(start=0.0, end=196.245011, text="full coverage"),
+        ]
+
+        overlap_call_count = 0
+
+        def overlap_seconds(start_a: float, end_a: float, start_b: float, end_b: float) -> float:
+            nonlocal overlap_call_count
+            overlap_call_count += 1
+            if overlap_call_count > 100:
+                raise AssertionError("build_visual_candidate_windows did not terminate")
+            return max(0.0, min(end_a, end_b) - max(start_a, start_b))
+
+        with patch("pipelines.workflow_expression_trigger_detection._overlap_seconds", side_effect=overlap_seconds):
+            windows = build_visual_candidate_windows(
+                subtitle_segments=subtitle_segments,
+                duration_sec=196.245011,
+                window_sec=15.0,
+                min_window_sec=4.0,
+                max_windows=4,
+            )
+
+        self.assertEqual(windows, [])
+
     def test_build_candidate_generation_frame_timestamps_densely_samples_visual_windows(self) -> None:
         timestamps = build_candidate_generation_frame_timestamps(
             duration_sec=40.0,

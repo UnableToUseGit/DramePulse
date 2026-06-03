@@ -127,7 +127,9 @@ def build_visual_candidate_windows(
                 windows.append({"start_time": start_time, "end_time": end_time, "reason": reason})
                 if len(windows) >= max_windows:
                     break
-        start = _round_time(end)
+        if end >= duration_sec:
+            break
+        start = end
     return windows
 
 
