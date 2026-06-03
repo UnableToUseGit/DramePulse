@@ -28,6 +28,7 @@ from pipelines.utils import (
 @dataclass(frozen=True)
 class WorkflowExpressionTriggerResult:
     expression_candidates: list[dict[str, Any]]
+    candidate_decisions: list[dict[str, Any]]
     expression_triggers: list[dict[str, Any]]
     llm_calls: dict[str, dict[str, Any]]
 
@@ -190,6 +191,7 @@ def _build_candidate_filter_prompt(
             "Review the provided candidate story intervals and keep only the moments where viewers would actually want to react immediately.",
             "Use the candidate list and the full subtitle timeline to judge whether each candidate contains a real viewer-reaction moment.",
             "Do not create new moments outside the provided candidates.",
+            "The candidate list is intentionally high-recall. Be selective and reject weak, duplicated, setup-only, or aftermath-only candidates.",
             "",
             "## INPUT",
             f"VIDEO_ID: {video_id}",
@@ -208,6 +210,7 @@ def _build_candidate_filter_prompt(
             "- Keep a candidate only if the story beat would plausibly make viewers react with one of the four allowed reactions.",
             "- Reject candidates that are only setup, exposition, hardship, danger relief, approval, recruitment, opportunity, generic support, curiosity, or ordinary plot progression.",
             "- A kept moment should have a clear release structure: setup -> turning point -> viewer reaction payoff.",
+            "- If multiple nearby candidates belong to the same continuous emotional arc, keep only the strongest payoff moment.",
             "- If kept, refine `start_time`, `end_time`, and `cue_time` to the short viewer-reaction window inside the candidate interval.",
             "- `cue_time` should be the best moment to surface an interaction after the reaction payoff becomes understandable; do not place it before the payoff lands.",
             "- If rejected, omit it from `expression_triggers`.",
@@ -218,12 +221,16 @@ def _build_candidate_filter_prompt(
             "",
             "## OUTPUT",
             "Return JSON only. Do not wrap it in markdown.",
-            "The top-level object must contain exactly one key: `expression_triggers`.",
-            "For rejected candidates, output nothing.",
+            "The top-level object must contain exactly these keys: `candidate_decisions`, `expression_triggers`.",
+            "`candidate_decisions` must contain one object for every input candidate, including rejected candidates.",
+            "Each candidate decision object must contain exactly these keys: `candidate_id`, `decision`, `primary_expression`, `decision_reason`.",
+            "`decision` must be exactly `keep` or `reject`.",
+            "Rejected candidates must appear in `candidate_decisions`, but must not appear in `expression_triggers`.",
+            "Candidate decision example:",
+            '{"candidate_id":"cand_demo_ep01_001","decision":"reject","primary_expression":"看哭了","decision_reason":"This is emotional setup, not the payoff moment."}',
             "For kept candidates, each object must contain exactly these keys: `candidate_id`, `decision`, `start_time`, `end_time`, `cue_time`, `source_type`, `primary_expression`, `intensity`, `confidence`, `summary`, `setup`, `turning_point`, `expression_release`, `reason`.",
             "Use this exact object template for every kept trigger, in this exact key order:",
             '{"candidate_id":"","decision":"keep","start_time":0.0,"end_time":0.0,"cue_time":0.0,"source_type":"plot","primary_expression":"爽到了","intensity":0.0,"confidence":0.0,"summary":"","setup":"","turning_point":"","expression_release":"","reason":""}',
-            'A rejected example is represented by omitting that candidate from `expression_triggers`; do not output `"decision":"reject"` objects.',
             "Field constraints:",
             "- `source_type` must be `plot`.",
             "- `end_time` must be <= VIDEO_DURATION_SECONDS.",
@@ -291,6 +298,117 @@ def parse_expression_trigger_candidates(
     return candidates
 
 
+def parse_candidate_decisions(raw: Any, *, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    candidate_by_id = {str(candidate.get("candidate_id")): candidate for candidate in candidates}
+    raw_decisions = raw.get("candidate_decisions") if isinstance(raw, dict) else None
+    decisions: list[dict[str, Any]] = []
+    if isinstance(raw_decisions, list):
+        for item in raw_decisions:
+            if not isinstance(item, dict):
+                continue
+            candidate_id = _clean_text(item.get("candidate_id"))
+            if candidate_id not in candidate_by_id:
+                continue
+            decision = _clean_text(item.get("decision")).lower()
+            if decision not in {"keep", "reject"}:
+                continue
+            fallback_expression = _clean_text(candidate_by_id[candidate_id].get("primary_expression"))
+            primary_expression = _clean_text(item.get("primary_expression")) or fallback_expression
+            if primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
+                primary_expression = fallback_expression
+            decisions.append(
+                {
+                    "candidate_id": candidate_id,
+                    "decision": decision,
+                    "primary_expression": primary_expression,
+                    "decision_reason": _clean_text(item.get("decision_reason") or ""),
+                }
+            )
+    seen_ids = {decision["candidate_id"] for decision in decisions}
+    for candidate in candidates:
+        candidate_id = str(candidate.get("candidate_id"))
+        if candidate_id in seen_ids:
+            continue
+        decisions.append(
+            {
+                "candidate_id": candidate_id,
+                "decision": "keep",
+                "primary_expression": _clean_text(candidate.get("primary_expression")),
+                "decision_reason": "",
+            }
+        )
+    return decisions
+
+
+def _trigger_quality_score(trigger: dict[str, Any]) -> float:
+    try:
+        intensity = float(trigger.get("intensity", 0.0))
+    except (TypeError, ValueError):
+        intensity = 0.0
+    try:
+        confidence = float(trigger.get("confidence", 0.0))
+    except (TypeError, ValueError):
+        confidence = 0.0
+    return intensity * confidence
+
+
+def _trigger_start_time(trigger: dict[str, Any]) -> float:
+    try:
+        return float(trigger["start_time"])
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def _trigger_end_time(trigger: dict[str, Any]) -> float:
+    try:
+        return float(trigger["end_time"])
+    except (KeyError, TypeError, ValueError):
+        return _trigger_start_time(trigger)
+
+
+def consolidate_expression_triggers(
+    triggers: list[dict[str, Any]],
+    *,
+    same_expression_gap_sec: float = 30.0,
+    min_intensity: float = 0.6,
+    min_confidence: float = 0.72,
+    max_triggers: int | None = 4,
+) -> list[dict[str, Any]]:
+    if not triggers:
+        return []
+
+    filtered: list[dict[str, Any]] = []
+    for trigger in triggers:
+        try:
+            intensity = float(trigger.get("intensity", 0.0))
+            confidence = float(trigger.get("confidence", 0.0))
+        except (TypeError, ValueError):
+            continue
+        if len(triggers) > 1 and (intensity < min_intensity or confidence < min_confidence):
+            continue
+        filtered.append(trigger)
+    if not filtered:
+        filtered = sorted(triggers, key=_trigger_quality_score, reverse=True)[:1]
+
+    kept: list[dict[str, Any]] = []
+    for trigger in sorted(filtered, key=lambda item: (_trigger_start_time(item), _trigger_end_time(item))):
+        if not kept:
+            kept.append(trigger)
+            continue
+        previous = kept[-1]
+        same_expression = previous.get("primary_expression") == trigger.get("primary_expression")
+        nearby = _trigger_start_time(trigger) - _trigger_end_time(previous) <= same_expression_gap_sec
+        if same_expression and nearby:
+            if _trigger_quality_score(trigger) > _trigger_quality_score(previous):
+                kept[-1] = trigger
+            continue
+        kept.append(trigger)
+
+    if max_triggers is not None and len(kept) > max_triggers:
+        kept = sorted(kept, key=_trigger_quality_score, reverse=True)[:max_triggers]
+    return sorted(kept, key=lambda item: (_trigger_start_time(item), str(item.get("trigger_id", ""))))
+
+
 class WorkflowExpressionTriggerPipeline:
     def __init__(
         self,
@@ -302,6 +420,10 @@ class WorkflowExpressionTriggerPipeline:
         filter_frame_interval_sec: float = 2.0,
         filter_candidate_context_sec: float = 2.0,
         filter_max_frames: int | None = 100,
+        final_same_expression_gap_sec: float = 30.0,
+        final_min_intensity: float = 0.6,
+        final_min_confidence: float = 0.72,
+        final_max_triggers: int | None = 4,
         candidate_max_output_tokens: int = 2400,
         filter_max_output_tokens: int = 2400,
     ) -> None:
@@ -312,6 +434,10 @@ class WorkflowExpressionTriggerPipeline:
         self.filter_frame_interval_sec = filter_frame_interval_sec
         self.filter_candidate_context_sec = filter_candidate_context_sec
         self.filter_max_frames = filter_max_frames
+        self.final_same_expression_gap_sec = final_same_expression_gap_sec
+        self.final_min_intensity = final_min_intensity
+        self.final_min_confidence = final_min_confidence
+        self.final_max_triggers = final_max_triggers
         self.candidate_max_output_tokens = candidate_max_output_tokens
         self.filter_max_output_tokens = filter_max_output_tokens
         self.last_llm_call: dict[str, Any] = {}
@@ -342,6 +468,7 @@ class WorkflowExpressionTriggerPipeline:
         subtitles_timeline = format_expression_subtitle_timeline_seconds(subtitle_segments)
         candidate_llm_call: dict[str, Any] = {}
         filter_llm_call: dict[str, Any] = {}
+        candidate_decisions: list[dict[str, Any]] = []
 
         with tempfile.TemporaryDirectory(prefix=f"workflow_expression_{video_id}_") as temp_dir:
             output_dir = Path(temp_dir) / "frames"
@@ -411,12 +538,21 @@ class WorkflowExpressionTriggerPipeline:
                     )
                 finally:
                     filter_llm_call = self._snapshot_llm_call()
-                triggers = filter_triggers_within_duration(
+                candidate_decisions = parse_candidate_decisions(raw_triggers, candidates=candidates)
+                parsed_triggers = filter_triggers_within_duration(
                     parse_expression_triggers(raw_triggers, video_id=video_id),
                     duration_sec=duration_sec,
                 )
+                triggers = consolidate_expression_triggers(
+                    parsed_triggers,
+                    same_expression_gap_sec=self.final_same_expression_gap_sec,
+                    min_intensity=self.final_min_intensity,
+                    min_confidence=self.final_min_confidence,
+                    max_triggers=self.final_max_triggers,
+                )
             else:
                 triggers = []
+                candidate_decisions = []
 
         self.last_llm_call = {
             "candidate_generation": candidate_llm_call,
@@ -424,6 +560,7 @@ class WorkflowExpressionTriggerPipeline:
         }
         result = WorkflowExpressionTriggerResult(
             expression_candidates=candidates,
+            candidate_decisions=candidate_decisions,
             expression_triggers=sorted(triggers, key=lambda trigger: (float(trigger["start_time"]), str(trigger["trigger_id"]))),
             llm_calls=self.last_llm_call,
         )

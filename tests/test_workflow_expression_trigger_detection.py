@@ -10,6 +10,7 @@ from pipelines.workflow_expression_trigger_detection import (
     _build_candidate_generation_prompt,
     _build_candidate_filter_prompt,
     build_filter_frame_timestamps,
+    consolidate_expression_triggers,
     parse_expression_trigger_candidates,
 )
 
@@ -64,10 +65,13 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("Review the provided candidate story intervals and keep only the moments where viewers would actually want to react immediately.", prompt)
         self.assertIn("Do not create new moments outside the provided candidates.", prompt)
         self.assertIn("viewer-reaction moment", prompt)
+        self.assertIn("candidate_decisions", prompt)
+        self.assertIn("decision_reason", prompt)
         self.assertNotIn("Expression Trigger", prompt)
         self.assertNotIn("filtering stage", prompt)
         self.assertNotIn("real emotional release points", prompt)
         self.assertIn('"decision":"keep"', prompt)
+        self.assertIn('"decision":"reject"', prompt)
         self.assertIn("cand_demo_ep01_001", prompt)
         self.assertIn("expression_triggers", prompt)
 
@@ -158,6 +162,56 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(candidates[0]["turning_point"], "")
         self.assertEqual(candidates[0]["expression_release"], "")
 
+    def test_consolidate_expression_triggers_removes_weak_and_nearby_same_expression_duplicates(self) -> None:
+        triggers = [
+            {
+                "trigger_id": "t1",
+                "start_time": 140.0,
+                "end_time": 180.0,
+                "cue_time": 170.0,
+                "primary_expression": "看哭了",
+                "intensity": 0.66,
+                "confidence": 0.78,
+            },
+            {
+                "trigger_id": "t2",
+                "start_time": 195.0,
+                "end_time": 243.0,
+                "cue_time": 215.0,
+                "primary_expression": "看哭了",
+                "intensity": 0.84,
+                "confidence": 0.9,
+            },
+            {
+                "trigger_id": "t3",
+                "start_time": 255.0,
+                "end_time": 267.0,
+                "cue_time": 262.0,
+                "primary_expression": "看哭了",
+                "intensity": 0.58,
+                "confidence": 0.7,
+            },
+            {
+                "trigger_id": "t4",
+                "start_time": 275.0,
+                "end_time": 295.0,
+                "cue_time": 277.0,
+                "primary_expression": "笑死",
+                "intensity": 0.86,
+                "confidence": 0.92,
+            },
+        ]
+
+        consolidated = consolidate_expression_triggers(
+            triggers,
+            same_expression_gap_sec=30.0,
+            min_intensity=0.6,
+            min_confidence=0.72,
+            max_triggers=None,
+        )
+
+        self.assertEqual([trigger["trigger_id"] for trigger in consolidated], ["t2", "t4"])
+
     def test_workflow_generates_candidates_with_10_second_frames_then_filters_to_triggers(self) -> None:
         class FakeClient:
             def __init__(self) -> None:
@@ -200,6 +254,14 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                         ]
                     }
                 return {
+                    "candidate_decisions": [
+                        {
+                            "candidate_id": "cand_demo_ep01_001",
+                            "decision": "keep",
+                            "primary_expression": "爽到了",
+                            "decision_reason": "这是清晰反击点。",
+                        }
+                    ],
                     "expression_triggers": [
                         {
                             "start_time": 6.0,
@@ -267,6 +329,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertIn("Review the provided candidate story intervals and keep only the moments where viewers would actually want to react immediately.", str(fake_client.calls[1]["user_prompt"]))
         self.assertIn("女主此前被压制。", str(fake_client.calls[1]["user_prompt"]))
         self.assertEqual(len(result.expression_candidates), 1)
+        self.assertEqual(result.candidate_decisions[0]["decision"], "keep")
         self.assertEqual(result.expression_candidates[0]["setup"], "女主此前被压制。")
         self.assertEqual(result.expression_triggers[0]["primary_expression"], "爽到了")
         self.assertEqual(result.llm_calls["candidate_generation"]["usage"]["total_tokens"], 11)

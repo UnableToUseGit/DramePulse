@@ -70,6 +70,14 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
                         "evidence_sources": ["subtitle", "frame"],
                     }
                 ],
+                candidate_decisions=[
+                    {
+                        "candidate_id": f"cand_{video_id}_001",
+                        "decision": "keep",
+                        "primary_expression": "爽到了",
+                        "decision_reason": "这是清晰反击点。",
+                    }
+                ],
                 expression_triggers=[
                     {
                         "trigger_id": f"et_{video_id}_001",
@@ -111,6 +119,7 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
     assert result == 0
     assert payload["video_id"] == "series_a_ep01"
     assert payload["expression_candidates"][0]["candidate_id"] == "cand_series_a_ep01_001"
+    assert payload["candidate_decisions"][0]["decision"] == "keep"
     assert payload["expression_triggers"][0]["primary_expression"] == "爽到了"
     assert payload["highlight_assets"][0]["emotion"] == "爽到了"
     assert payload["llm_call"]["candidate_generation"]["usage"]["total_tokens"] == 10
@@ -136,7 +145,7 @@ def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
 
         def run(self, **kwargs: object) -> WorkflowExpressionTriggerResult:
             self.video_ids.append(str(kwargs["video_id"]))
-            return WorkflowExpressionTriggerResult(expression_candidates=[], expression_triggers=[], llm_calls={})
+            return WorkflowExpressionTriggerResult(expression_candidates=[], candidate_decisions=[], expression_triggers=[], llm_calls={})
 
     fake_pipeline = FakePipeline()
 
@@ -179,6 +188,10 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
         filter_frame_interval_sec=2.0,
         filter_candidate_context_sec=3.0,
         filter_max_frames=80,
+        final_same_expression_gap_sec=25.0,
+        final_min_intensity=0.61,
+        final_min_confidence=0.73,
+        final_max_triggers=5,
         candidate_max_output_tokens=111,
         filter_max_output_tokens=222,
     )
@@ -188,3 +201,7 @@ def test_build_pipeline_passes_filter_sampling_options(monkeypatch) -> None:
     assert captured["filter_frame_interval_sec"] == 2.0
     assert captured["filter_candidate_context_sec"] == 3.0
     assert captured["filter_max_frames"] == 80
+    assert captured["final_same_expression_gap_sec"] == 25.0
+    assert captured["final_min_intensity"] == 0.61
+    assert captured["final_min_confidence"] == 0.73
+    assert captured["final_max_triggers"] == 5

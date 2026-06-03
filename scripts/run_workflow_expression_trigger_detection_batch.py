@@ -33,6 +33,10 @@ def build_pipeline(
     filter_frame_interval_sec: float,
     filter_candidate_context_sec: float,
     filter_max_frames: int | None,
+    final_same_expression_gap_sec: float,
+    final_min_intensity: float,
+    final_min_confidence: float,
+    final_max_triggers: int | None,
     candidate_max_output_tokens: int,
     filter_max_output_tokens: int,
 ):
@@ -46,6 +50,10 @@ def build_pipeline(
         filter_frame_interval_sec=filter_frame_interval_sec,
         filter_candidate_context_sec=filter_candidate_context_sec,
         filter_max_frames=filter_max_frames,
+        final_same_expression_gap_sec=final_same_expression_gap_sec,
+        final_min_intensity=final_min_intensity,
+        final_min_confidence=final_min_confidence,
+        final_max_triggers=final_max_triggers,
         candidate_max_output_tokens=candidate_max_output_tokens,
         filter_max_output_tokens=filter_max_output_tokens,
     )
@@ -56,6 +64,7 @@ def write_workflow_episode_output(
     episode: Any,
     output_root: Path,
     expression_candidates: list[dict[str, Any]],
+    candidate_decisions: list[dict[str, Any]],
     expression_triggers: list[dict[str, Any]],
     llm_call: dict[str, Any] | None = None,
 ) -> Path:
@@ -70,6 +79,7 @@ def write_workflow_episode_output(
         "pipeline_type": "workflow_expression_trigger",
         "llm_call": llm_call or {},
         "expression_candidates": expression_candidates,
+        "candidate_decisions": candidate_decisions,
         "expression_triggers": expression_triggers,
         "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
     }
@@ -109,6 +119,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--filter-frame-interval-sec", type=float, default=2.0)
     parser.add_argument("--filter-candidate-context-sec", type=float, default=2.0)
     parser.add_argument("--filter-max-frames", type=int, default=100)
+    parser.add_argument("--final-same-expression-gap-sec", type=float, default=30.0)
+    parser.add_argument("--final-min-intensity", type=float, default=0.6)
+    parser.add_argument("--final-min-confidence", type=float, default=0.72)
+    parser.add_argument("--final-max-triggers", type=int, default=4)
     parser.add_argument("--candidate-max-output-tokens", type=int, default=2400)
     parser.add_argument("--filter-max-output-tokens", type=int, default=2400)
     return parser
@@ -134,6 +148,10 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         filter_frame_interval_sec=args.filter_frame_interval_sec,
         filter_candidate_context_sec=args.filter_candidate_context_sec,
         filter_max_frames=args.filter_max_frames,
+        final_same_expression_gap_sec=args.final_same_expression_gap_sec,
+        final_min_intensity=args.final_min_intensity,
+        final_min_confidence=args.final_min_confidence,
+        final_max_triggers=args.final_max_triggers,
         candidate_max_output_tokens=args.candidate_max_output_tokens,
         filter_max_output_tokens=args.filter_max_output_tokens,
     )
@@ -163,6 +181,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
                 episode=episode,
                 output_root=args.output_root,
                 expression_candidates=result.expression_candidates,
+                candidate_decisions=result.candidate_decisions,
                 expression_triggers=result.expression_triggers,
                 llm_call=llm_call,
             )
