@@ -138,9 +138,12 @@ def _normalize_danmaku_items(items: list[dict[str, Any]]) -> list[InnerVoiceDanm
 
 
 def _window_score(items: list[InnerVoiceDanmakuItem]) -> float:
-    unique_text_count = len({item.text for item in items})
+    text_counts = Counter(item.text for item in items)
+    unique_text_count = len(text_counts)
+    repeat_text_count = max(text_counts.values(), default=0)
+    repeat_score = max(0, repeat_text_count - 1) * 0.75
     like_score = min(sum(item.digg_count for item in items), 30) * 0.1
-    return _round_time(len(items) + unique_text_count + like_score)
+    return _round_time(len(items) + repeat_score + unique_text_count * 0.25 + like_score)
 
 
 def _build_candidate_windows(
@@ -169,11 +172,9 @@ def _build_candidate_windows(
         while scan_index < len(items) and items[scan_index].time_sec < end_time:
             window_items.append(items[scan_index])
             scan_index += 1
-        unique_text_count = len({item.text for item in window_items})
         score = _window_score(window_items)
         if (
             len(window_items) >= min_window_danmaku_count
-            and unique_text_count >= min_unique_text_count
             and score >= min_window_score
         ):
             raw_windows.append(
@@ -257,18 +258,31 @@ def _actor_charm_score(item: InnerVoiceDanmakuItem) -> float:
 
 
 def _build_actor_charm_candidate(window: CandidateWindow) -> dict[str, Any] | None:
-    scored = [(item, _actor_charm_score(item)) for item in window.items]
-    scored = [(item, score) for item, score in scored if score > 0]
-    if not scored:
+    groups: dict[str, list[InnerVoiceDanmakuItem]] = {}
+    for item in window.items:
+        score = _actor_charm_score(item)
+        if score <= 0:
+            continue
+        groups.setdefault(item.text, []).append(item)
+    if not groups:
         return None
-    item, score = max(scored, key=lambda value: (value[1], value[0].digg_count, -value[0].time_sec))
+
+    def group_score(group: list[InnerVoiceDanmakuItem]) -> float:
+        representative = max(group, key=lambda item: (_actor_charm_score(item), item.digg_count, -item.time_sec))
+        repeat_bonus = max(0, len(group) - 1) * 0.75
+        like_bonus = min(sum(item.digg_count for item in group), 20) * 0.2
+        return _actor_charm_score(representative) + repeat_bonus + like_bonus
+
+    selected_items = max(groups.values(), key=lambda group: (group_score(group), len(group), -min(item.time_sec for item in group)))
+    item = max(selected_items, key=lambda value: (_actor_charm_score(value), value.digg_count, -value.time_sec))
+    score = group_score(selected_items)
     return {
         "intentType": "actor_charm",
         "representativeText": item.text,
-        "sourceCommentIds": [item.comment_id],
+        "sourceCommentIds": [source_item.comment_id for source_item in sorted(selected_items, key=lambda value: value.time_sec)],
         "confidence": min(0.99, 0.6 + score / 20.0),
         "reason": "规则命中角色魅力表达。",
-        "triggerTime": item.time_sec,
+        "triggerTime": min(source_item.time_sec for source_item in selected_items),
         "windowId": window.window_id,
         "score": _round_time(window.score + score),
     }
@@ -532,6 +546,8 @@ class InnerVoiceDanmakuPipeline:
                         "endTime": window.end_time,
                         "score": window.score,
                         "danmakuCount": len(window.items),
+                        "uniqueTextCount": len({item.text for item in window.items}),
+                        "repeatTextCount": max(Counter(item.text for item in window.items).values(), default=0),
                         "topComments": _top_window_comments(window, limit=8),
                     }
                     for window in windows
@@ -590,4 +606,3 @@ def generate_inner_voice_danmaku(
         episode_id=episode_id,
         danmaku_items=danmaku_items,
     )
-

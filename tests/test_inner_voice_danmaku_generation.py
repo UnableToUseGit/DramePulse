@@ -73,6 +73,33 @@ class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
         self.assertEqual(result["debug"]["cues"][0]["intentType"], "actor_charm")
         self.assertIn("dm_1", result["debug"]["cues"][0]["sourceCommentIds"])
 
+    def test_repeated_high_semantic_text_is_not_rejected_by_unique_text_count(self) -> None:
+        result = generate_inner_voice_danmaku(
+            video_id="demo_ep01",
+            series_id="demo",
+            episode_id="ep01",
+            danmaku_items=[
+                {"danmaku_id": "dm_1", "time_sec": 10.0, "text": "男主这个眼神绝了", "digg_count": 1},
+                {"danmaku_id": "dm_2", "time_sec": 11.0, "text": "男主这个眼神绝了", "digg_count": 1},
+                {"danmaku_id": "dm_3", "time_sec": 12.0, "text": "男主这个眼神绝了", "digg_count": 1},
+                {"danmaku_id": "dm_4", "time_sec": 13.0, "text": "男主这个眼神绝了", "digg_count": 1},
+            ],
+            llm_client=None,
+            enable_llm_semantic=False,
+            window_sec=8.0,
+            step_sec=2.0,
+            min_window_danmaku_count=4,
+            min_unique_text_count=3,
+            min_window_score=4.0,
+            max_cues_per_episode=4,
+        )
+
+        self.assertEqual(len(result["cues"]), 1)
+        self.assertEqual(result["cues"][0]["text"], "男主这个眼神绝了")
+        self.assertEqual(result["debug"]["windows"][0]["uniqueTextCount"], 1)
+        self.assertEqual(result["debug"]["windows"][0]["repeatTextCount"], 4)
+        self.assertEqual(result["debug"]["cues"][0]["sourceCommentIds"], ["dm_1", "dm_2", "dm_3", "dm_4"])
+
     def test_uses_llm_for_plot_reaction_and_meme_inside_candidate_windows(self) -> None:
         fake_client = FakeLlmClient(
             {
@@ -205,4 +232,3 @@ class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
         )
         self.assertEqual(events[0][1]["source_danmaku_count"], 2)
         self.assertEqual(events[-1][1]["selected_cue_count"], 1)
-
