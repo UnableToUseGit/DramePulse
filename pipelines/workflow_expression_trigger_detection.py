@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 import tempfile
+import time
 from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
@@ -726,12 +727,49 @@ class WorkflowExpressionTriggerPipeline:
     ) -> WorkflowExpressionTriggerResult:
         subtitle_segments = load_subtitle_segments(subtitle_file_path)
         subtitle_duration = max((segment.end for segment in subtitle_segments), default=0.0)
+        self._emit_progress(
+            "preprocess_subtitles_loaded",
+            {
+                "video_id": video_id,
+                "subtitle_segment_count": len(subtitle_segments),
+                "subtitle_duration_sec": _round_time(subtitle_duration),
+                "subtitle_file_path": str(subtitle_file_path),
+            },
+        )
         video_duration = probe_video_duration_seconds(video_file_path)
         duration_sec = max(subtitle_duration, video_duration or 0.0)
+        self._emit_progress(
+            "preprocess_duration_probed",
+            {
+                "video_id": video_id,
+                "subtitle_duration_sec": _round_time(subtitle_duration),
+                "video_duration_sec": _round_time(video_duration) if video_duration is not None else None,
+                "duration_sec": _round_time(duration_sec),
+                "video_file_path": str(video_file_path),
+            },
+        )
+        self._emit_progress(
+            "preprocess_visual_windows_start",
+            {
+                "video_id": video_id,
+                "duration_sec": _round_time(duration_sec),
+                "subtitle_segment_count": len(subtitle_segments),
+                "visual_candidate_window_sec": self.visual_candidate_window_sec,
+            },
+        )
+        visual_window_started_at = time.perf_counter()
         visual_candidate_windows = build_visual_candidate_windows(
             subtitle_segments=subtitle_segments,
             duration_sec=duration_sec,
             window_sec=self.visual_candidate_window_sec,
+        )
+        self._emit_progress(
+            "preprocess_visual_windows_done",
+            {
+                "video_id": video_id,
+                "visual_window_count": len(visual_candidate_windows),
+                "elapsed_sec": round(time.perf_counter() - visual_window_started_at, 3),
+            },
         )
         timestamps = build_candidate_generation_frame_timestamps(
             duration_sec=duration_sec,
@@ -740,6 +778,17 @@ class WorkflowExpressionTriggerPipeline:
             visual_candidate_windows=visual_candidate_windows,
             visual_window_sample_interval_sec=self.visual_window_sample_interval_sec,
             visual_window_max_frames=self.visual_window_max_frames,
+        )
+        self._emit_progress(
+            "preprocess_candidate_frames_built",
+            {
+                "video_id": video_id,
+                "candidate_frame_count": len(timestamps),
+                "sample_interval_sec": self.sample_interval_sec,
+                "max_frames": self.max_frames,
+                "visual_window_sample_interval_sec": self.visual_window_sample_interval_sec,
+                "visual_window_max_frames": self.visual_window_max_frames,
+            },
         )
         self._emit_progress(
             "prepared",

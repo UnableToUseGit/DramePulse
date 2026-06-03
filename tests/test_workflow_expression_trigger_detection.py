@@ -479,6 +479,11 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(result.llm_calls["candidate_generation"]["usage"]["total_tokens"], 11)
         self.assertEqual(result.llm_calls["candidate_filtering"]["usage"]["total_tokens"], 12)
         self.assertEqual([event for event, _payload in progress_events], [
+            "preprocess_subtitles_loaded",
+            "preprocess_duration_probed",
+            "preprocess_visual_windows_start",
+            "preprocess_visual_windows_done",
+            "preprocess_candidate_frames_built",
             "prepared",
             "candidate_frames_extracted",
             "candidate_generation_start",
@@ -488,17 +493,22 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             "candidate_filtering_done",
             "completed",
         ])
-        self.assertEqual(progress_events[0][1]["visual_window_count"], 1)
-        self.assertEqual(progress_events[0][1]["candidate_frame_count"], 12)
+        self.assertEqual(progress_events[0][1]["subtitle_segment_count"], 2)
+        self.assertEqual(progress_events[1][1]["duration_sec"], 21.0)
+        self.assertEqual(progress_events[2][1]["visual_candidate_window_sec"], 10.0)
+        self.assertEqual(progress_events[3][1]["visual_window_count"], 1)
+        self.assertEqual(progress_events[4][1]["candidate_frame_count"], 12)
+        self.assertEqual(progress_events[5][1]["visual_window_count"], 1)
+        self.assertEqual(progress_events[5][1]["candidate_frame_count"], 12)
         self.assertEqual(
-            progress_events[0][1]["visual_candidate_windows"],
+            progress_events[5][1]["visual_candidate_windows"],
             [
                 {"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"},
             ],
         )
-        self.assertEqual(progress_events[1][1]["extracted_frame_count"], 2)
-        self.assertEqual(progress_events[3][1]["candidate_count"], 1)
-        self.assertEqual(progress_events[4][1]["filter_frame_count"], 6)
+        self.assertEqual(progress_events[6][1]["extracted_frame_count"], 2)
+        self.assertEqual(progress_events[8][1]["candidate_count"], 1)
+        self.assertEqual(progress_events[9][1]["filter_frame_count"], 6)
         self.assertEqual(progress_events[-1][1]["trigger_count"], 1)
         self.assertEqual(progress_events[-1][1]["resonance_cue_count"], 1)
 

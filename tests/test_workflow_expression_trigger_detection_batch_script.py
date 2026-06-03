@@ -249,6 +249,49 @@ def test_print_workflow_progress_formats_key_events(capsys) -> None:
     from scripts.run_workflow_expression_trigger_detection_batch import print_workflow_progress
 
     print_workflow_progress(
+        "preprocess_subtitles_loaded",
+        {
+            "video_id": "beiwang_ep01",
+            "subtitle_segment_count": 318,
+            "subtitle_duration_sec": 610.2,
+        },
+    )
+    print_workflow_progress(
+        "preprocess_duration_probed",
+        {
+            "video_id": "beiwang_ep01",
+            "subtitle_duration_sec": 610.2,
+            "video_duration_sec": 612.4,
+            "duration_sec": 612.4,
+        },
+    )
+    print_workflow_progress(
+        "preprocess_visual_windows_start",
+        {
+            "video_id": "beiwang_ep01",
+            "duration_sec": 612.4,
+            "subtitle_segment_count": 318,
+            "visual_candidate_window_sec": 20.0,
+        },
+    )
+    print_workflow_progress(
+        "preprocess_visual_windows_done",
+        {
+            "video_id": "beiwang_ep01",
+            "visual_window_count": 12,
+            "elapsed_sec": 0.03,
+        },
+    )
+    print_workflow_progress(
+        "preprocess_candidate_frames_built",
+        {
+            "video_id": "beiwang_ep01",
+            "candidate_frame_count": 142,
+            "sample_interval_sec": 10.0,
+            "visual_window_sample_interval_sec": 1.0,
+        },
+    )
+    print_workflow_progress(
         "prepared",
         {
             "video_id": "beiwang_ep01",
@@ -276,6 +319,17 @@ def test_print_workflow_progress_formats_key_events(capsys) -> None:
     )
 
     captured = capsys.readouterr()
+    assert "[beiwang_ep01] preprocess_subtitles_loaded:" in captured.out
+    assert "subtitles=318" in captured.out
+    assert "subtitle_duration=610.2s" in captured.out
+    assert "[beiwang_ep01] preprocess_duration_probed:" in captured.out
+    assert "video_duration=612.4s" in captured.out
+    assert "duration=612.4s" in captured.out
+    assert "[beiwang_ep01] preprocess_visual_windows_start:" in captured.out
+    assert "visual_window_sec=20.0s" in captured.out
+    assert "[beiwang_ep01] preprocess_visual_windows_done:" in captured.out
+    assert "elapsed=0.03s" in captured.out
+    assert "[beiwang_ep01] preprocess_candidate_frames_built:" in captured.out
     assert "[beiwang_ep01] prepared:" in captured.out
     assert "visual_windows=12" in captured.out
     assert "candidate_frames=142" in captured.out

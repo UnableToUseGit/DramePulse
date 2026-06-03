@@ -32,6 +32,44 @@ def _format_optional_number(value: Any, *, suffix: str = "") -> str:
 
 def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
     video_id = str(payload.get("video_id") or "unknown")
+    if event == "preprocess_subtitles_loaded":
+        print(
+            f"[{video_id}] preprocess_subtitles_loaded: "
+            f"subtitles={payload.get('subtitle_segment_count', 0)} "
+            f"subtitle_duration={_format_optional_number(payload.get('subtitle_duration_sec'), suffix='s')}"
+        )
+        return
+    if event == "preprocess_duration_probed":
+        print(
+            f"[{video_id}] preprocess_duration_probed: "
+            f"subtitle_duration={_format_optional_number(payload.get('subtitle_duration_sec'), suffix='s')} "
+            f"video_duration={_format_optional_number(payload.get('video_duration_sec'), suffix='s')} "
+            f"duration={_format_optional_number(payload.get('duration_sec'), suffix='s')}"
+        )
+        return
+    if event == "preprocess_visual_windows_start":
+        print(
+            f"[{video_id}] preprocess_visual_windows_start: "
+            f"duration={_format_optional_number(payload.get('duration_sec'), suffix='s')} "
+            f"subtitles={payload.get('subtitle_segment_count', 0)} "
+            f"visual_window_sec={payload.get('visual_candidate_window_sec')}s"
+        )
+        return
+    if event == "preprocess_visual_windows_done":
+        print(
+            f"[{video_id}] preprocess_visual_windows_done: "
+            f"visual_windows={payload.get('visual_window_count', 0)} "
+            f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')}"
+        )
+        return
+    if event == "preprocess_candidate_frames_built":
+        print(
+            f"[{video_id}] preprocess_candidate_frames_built: "
+            f"candidate_frames={payload.get('candidate_frame_count', 0)} "
+            f"sample_interval={payload.get('sample_interval_sec')}s "
+            f"visual_interval={payload.get('visual_window_sample_interval_sec')}s"
+        )
+        return
     if event == "prepared":
         print(
             f"[{video_id}] prepared: "
