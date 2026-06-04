@@ -8,15 +8,15 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.run_expression_trigger_detection_batch import (
+from pipelines.client.factory import build_llm_client
+from scripts.algorithm.common import (
     DEFAULT_DATA_ROOT,
     discover_episodes,
     extract_video_metadata,
     load_source_payload,
-    build_llm_client,
-    write_episode_output,
     write_failure_diagnostics,
 )
+from scripts.run_expression_trigger_detection_batch import write_episode_output
 
 
 DEFAULT_OUTPUT_ROOT = Path("output/text_expression_trigger")

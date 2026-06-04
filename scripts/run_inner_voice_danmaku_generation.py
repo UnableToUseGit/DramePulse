@@ -9,14 +9,14 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
-from scripts.run_expression_trigger_detection_batch import (
+from pipelines.client.factory import build_llm_client
+from scripts.algorithm.common import (
     DEFAULT_DATA_ROOT,
-    build_llm_client,
     discover_episodes,
     extract_danmaku_items,
     load_source_payload,
 )
+from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
 
 
 DEFAULT_OUTPUT_ROOT = Path("output/inner_voice_danmaku")

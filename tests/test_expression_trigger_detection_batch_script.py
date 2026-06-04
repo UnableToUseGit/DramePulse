@@ -79,6 +79,28 @@ def test_new_mllm_baseline_batch_script_exports_main() -> None:
     assert callable(main)
 
 
+def test_algorithm_common_exports_dataset_and_output_helpers() -> None:
+    from scripts.algorithm.common import (
+        DEFAULT_DATA_ROOT,
+        EpisodeInput,
+        discover_episodes,
+        extract_danmaku_items,
+        extract_video_metadata,
+        load_source_payload,
+        now_iso,
+        write_failure_diagnostics,
+    )
+
+    assert DEFAULT_DATA_ROOT.name == "DataForAlgorithm"
+    assert EpisodeInput.__name__ == "EpisodeInput"
+    assert callable(discover_episodes)
+    assert callable(extract_danmaku_items)
+    assert callable(extract_video_metadata)
+    assert callable(load_source_payload)
+    assert callable(now_iso)
+    assert callable(write_failure_diagnostics)
+
+
 def test_new_mllm_baseline_batch_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
         [sys.executable, "scripts/run_expression_trigger_mllm_baseline_batch.py", "--help"],
