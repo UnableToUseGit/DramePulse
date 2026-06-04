@@ -1,10 +1,11 @@
 import { useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
-import type { SurfaceType, VideoPlayer, VideoViewProps } from "expo-video";
-import { memo, useEffect, useRef } from "react";
+import type { BufferOptions, SurfaceType, VideoPlayer, VideoViewProps } from "expo-video";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
 import { getVideoPlaybackCommand, type VideoPlaybackCommand } from "../domain/videoPlayback";
+import { buildVideoStageSource } from "../domain/videoSource";
 import { colors, radii, spacing } from "../theme";
 
 export interface SeekRequest {
@@ -63,6 +64,8 @@ export const VideoStage = memo(function VideoStage({
   onPlayToEnd,
   onSeekHandled,
   playbackRate,
+  bufferOptions,
+  enableCaching = false,
   streamUrl,
   showStartEntry = true
 }: {
@@ -77,6 +80,8 @@ export const VideoStage = memo(function VideoStage({
   onPlayToEnd: () => void;
   onSeekHandled: () => void;
   playbackRate: number;
+  bufferOptions?: BufferOptions;
+  enableCaching?: boolean;
   streamUrl: string | number;
   showStartEntry?: boolean;
 }) {
@@ -93,11 +98,18 @@ export const VideoStage = memo(function VideoStage({
       details
     });
   };
-  const player = useVideoPlayer(streamUrl, (instance) => {
+  const videoSource = useMemo(
+    () => buildVideoStageSource({ enableCaching, streamUrl }),
+    [enableCaching, streamUrl]
+  );
+  const player = useVideoPlayer(videoSource, (instance) => {
     instance.loop = false;
     instance.muted = !isStarted || !isPlaying;
     instance.timeUpdateEventInterval = 0.5;
     instance.playbackRate = playbackRate;
+    if (bufferOptions) {
+      instance.bufferOptions = bufferOptions;
+    }
     if (initialPlaybackTime > 0) {
       instance.currentTime = initialPlaybackTime;
     }
@@ -155,7 +167,11 @@ export const VideoStage = memo(function VideoStage({
 
   useEventListener(player, "playToEnd", onPlayToEnd);
   useEventListener(player, "sourceLoad", ({ duration }) => {
-    recordObservation("source_load", { duration });
+    recordObservation("source_load", {
+      bufferedPosition: player.bufferedPosition,
+      cacheEnabled: enableCaching,
+      duration
+    });
     if (Number.isFinite(duration) && duration > 0) {
       onDurationChange(duration);
     }
@@ -199,6 +215,15 @@ export const VideoStage = memo(function VideoStage({
       player.playbackRate = playbackRate;
     });
   }, [playbackRate, player]);
+
+  useEffect(() => {
+    if (!bufferOptions) {
+      return;
+    }
+    ignoreReleasedPlayerError(() => {
+      player.bufferOptions = bufferOptions;
+    });
+  }, [bufferOptions, player]);
 
   return (
     <View style={styles.root}>

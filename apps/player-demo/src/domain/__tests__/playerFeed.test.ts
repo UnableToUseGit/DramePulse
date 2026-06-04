@@ -1,6 +1,7 @@
 import {
   buildPlayerFeedItems,
   findNextEpisodeIndex,
+  flushBufferedPlaybackPosition,
   getFeedPageIndex,
   getFeedReleaseTargetIndex,
   getFeedScrollEnabled,
@@ -15,7 +16,8 @@ import {
   groupVideosBySeries,
   shouldRestoreScrollOffset,
   shouldStartEdgeBackSwipe,
-  shouldPreloadFeedPage
+  shouldPreloadFeedPage,
+  stagePlaybackPositionUpdate
 } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
 import type { RoleCommerceFeedAd } from "../roleCommerceAds";
@@ -329,5 +331,33 @@ describe("playerFeed", () => {
   it("disables feed scrolling while timeline dragging is active", () => {
     expect(getFeedScrollEnabled({ isTimelineDragging: false })).toBe(true);
     expect(getFeedScrollEnabled({ isTimelineDragging: true })).toBe(false);
+  });
+
+  it("buffers playback position updates while the feed is dragging", () => {
+    expect(
+      stagePlaybackPositionUpdate({
+        isFeedDragging: true,
+        playbackPositions: { ep01: 8 },
+        videoId: "ep01",
+        time: 9
+      })
+    ).toEqual({
+      bufferedPosition: { videoId: "ep01", time: 9 },
+      nextPlaybackPositions: { ep01: 8 },
+      shouldPublish: false
+    });
+  });
+
+  it("flushes a buffered playback position after feed dragging ends", () => {
+    expect(
+      flushBufferedPlaybackPosition({
+        bufferedPosition: { videoId: "ep01", time: 9 },
+        playbackPositions: { ep01: 8, ep02: 3 }
+      })
+    ).toEqual({
+      bufferedPosition: undefined,
+      nextPlaybackPositions: { ep01: 9, ep02: 3 },
+      shouldPublish: true
+    });
   });
 });

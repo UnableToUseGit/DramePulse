@@ -254,11 +254,33 @@ ob.log:23  first_frame_render
 
 `PlayerFeed` 通过前端 domain coordinator 统一计算页面角色、是否准备 video player、是否拥有播放权和恢复播放时间。`PlayerPage` 消费 coordinator 给出的 `resumeTime`，不再等页面成为 active 后才为恢复进度创建 seek。`VideoStage` 支持在 player 创建时初始化恢复位置，并在存在待处理 seek 时阻塞 `play()` 命令，避免同一轮状态更新中出现“先播放、后 seek”。
 
+2026 年 6 月 4 日进一步对页面角色增加渲染分层：
+
+- `active`：渲染完整播放器页面，包括弹幕、互动层、Chrome、进度条和 Story Q&A；
+- `preload`：保留同一个 `PlayerPage` 内的静音 `VideoStage`，用于准备 player、缓存和恢复位置，但不渲染 Chrome、进度条、Story Q&A 等重 UI；
+- `parked`：只保留黑底占位，不挂载 video player。
+
+该调整借鉴短视频 Feed 的“轻 item + 独立播放资源调度”思路，目标是减少竖滑期间 React Native 组件树压力，同时避免 `preload -> active` 切换时卸载并重建 `VideoStage`。它不改变当前播放权规则：预加载页仍不拥有播放权，只负责资源准备。
+
 新增的 Home Feed 播放观测事件：
 
 - `resume_position_initialized`：player 创建时尝试初始化到保存进度；
 - `seek_requested`：组件收到 seek 请求；
 - `seek_applied`：已向 native player 设置 `currentTime`。
+
+Home Feed 播放观测日志仍会打印到 Metro/Expo 终端，同时在开发模式下批量 POST 到本地 API：
+
+```text
+POST /api/dev/home-feed-playback-logs
+```
+
+本地 FastAPI 会追加写入：
+
+```text
+logs/home-feed-playback.log
+```
+
+该能力只用于本地开发观测。前端连接云端 API 时不会写入本机文件；如果写文件接口不可用，前端会静默忽略失败，终端日志仍保留。
 
 ### P1：阻止非活动 player 真正进入播放
 
@@ -282,6 +304,15 @@ ob.log:23  first_frame_render
 
 - `feed_scroll_release`：用户松手，记录当前 offset、预测目标页和 native `targetContentOffset`；
 - `feed_playback_owner_change`：播放权切换，作为 release 后播放启动延迟的指标起点。
+
+为降低滑动过程中的 JS 和 React render 压力，Feed 拖动期间不再把播放进度立即同步到 App 顶层 `playbackPositions`；当前播放位置先缓存在 `PlayerFeed` 的 ref 中，等 `onMomentumScrollEnd` 后再 flush。这样仍保留跨页面恢复能力，但避免手势滚动中每秒触发 App 与 Feed 重渲染。
+
+后续验证发现，iOS 上部分后端 progressive 视频在 `expo-video` source caching 打开时会在预加载阶段进入 `status=error`，错误为 `Failed to load the player item: Operation Stopped`，并伴随 `source_load duration=null`、`bufferedPosition=0`。因此当前策略调整为保留保守前向缓冲配置，但默认关闭 feed source caching：
+
+- 使用 `preferredForwardBufferDuration: 8`、`minBufferForPlayback: 1` 和 `maxBufferBytes: 24MB`；
+- `FEED_VIDEO_SOURCE_CACHING_ENABLED` 默认为 `false`，Feed 视频直接使用原始 `streamUrl`；
+- `source_load` 观测会记录 `cacheEnabled` 和 `bufferedPosition`，用于真机确认是否仍出现 native 加载错误；
+- `buildVideoStageSource` 仍保留按需包装 `useCaching: true` 的能力，后续只有在确认目标视频源兼容时再重新启用。
 
 ### P2：优化首屏冷启动
 

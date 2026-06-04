@@ -17,6 +17,11 @@ export type PlayerFeedRoleCommerceAdItem = {
 
 export type PlayerFeedItem = PlayerFeedVideoItem | PlayerFeedRoleCommerceAdItem;
 
+export interface BufferedPlaybackPosition {
+  videoId: string;
+  time: number;
+}
+
 
 export interface SeriesGroup {
   seriesKey: string;
@@ -104,6 +109,65 @@ export function getTimelineChromeVisibility({ isTimelineDragging }: { isTimeline
 
 export function getFeedScrollEnabled({ isTimelineDragging }: { isTimelineDragging: boolean }) {
   return !isTimelineDragging;
+}
+
+export function stagePlaybackPositionUpdate({
+  isFeedDragging,
+  playbackPositions,
+  videoId,
+  time
+}: {
+  isFeedDragging: boolean;
+  playbackPositions: Record<string, number>;
+  videoId: string;
+  time: number;
+}) {
+  if (playbackPositions[videoId] === time) {
+    return {
+      bufferedPosition: undefined,
+      nextPlaybackPositions: playbackPositions,
+      shouldPublish: false
+    };
+  }
+  if (isFeedDragging) {
+    return {
+      bufferedPosition: { videoId, time },
+      nextPlaybackPositions: playbackPositions,
+      shouldPublish: false
+    };
+  }
+  return {
+    bufferedPosition: undefined,
+    nextPlaybackPositions: {
+      ...playbackPositions,
+      [videoId]: time
+    },
+    shouldPublish: true
+  };
+}
+
+export function flushBufferedPlaybackPosition({
+  bufferedPosition,
+  playbackPositions
+}: {
+  bufferedPosition: BufferedPlaybackPosition | undefined;
+  playbackPositions: Record<string, number>;
+}) {
+  if (!bufferedPosition || playbackPositions[bufferedPosition.videoId] === bufferedPosition.time) {
+    return {
+      bufferedPosition: undefined,
+      nextPlaybackPositions: playbackPositions,
+      shouldPublish: false
+    };
+  }
+  return {
+    bufferedPosition: undefined,
+    nextPlaybackPositions: {
+      ...playbackPositions,
+      [bufferedPosition.videoId]: bufferedPosition.time
+    },
+    shouldPublish: true
+  };
 }
 
 export function shouldPreloadFeedPage({

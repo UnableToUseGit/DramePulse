@@ -107,7 +107,11 @@ npm start
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
 - Home Feed 在开发模式下提供播放观测面板和 `[HomeFeedPlayback]` 结构化终端日志，可查看页面挂载、预加载、播放权、播放器状态、真实播放状态和首帧耗时；
 - Home Feed 播放编排已拆分页面角色，包括 `active`、`preload` 和 `parked`，预加载页可在不拥有播放权时准备恢复进度；
+- Home Feed 根据页面角色拆分渲染负载：`active` 页渲染完整互动播放器，`preload` 页保留同一个静音 `VideoStage` 做资源准备但跳过重 UI，`parked` 页只保留占位；
 - Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
+- Home Feed 拖动期间会缓冲播放进度上报，等滚动结束后再同步到 App 顶层播放位置状态，减少滑动中的重渲染；
+- Home Feed 远程剧集视频启用 `expo-video` source caching 和保守前向 buffer 配置，`source_load` 观测会带上 `cacheEnabled` 与 `bufferedPosition`；
+- Home Feed 播放观测在开发模式下会批量写入本地 `logs/home-feed-playback.log`，前提是前端连接本地 FastAPI；
 - Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
 - 右侧操作栏、顶部/底部播放器 Chrome；
 - Story Q&A 面板，调用 `POST /api/story-qa/ask`；

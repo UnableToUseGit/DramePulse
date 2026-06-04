@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions, View } from "react-native";
+import { API_BASE_URL } from "../config";
+import { createHomeFeedPlaybackFileLogger } from "../domain/homeFeedPlaybackFileLogger";
 import {
+  type BufferedPlaybackPosition,
   buildPlayerFeedItems,
   findNextFeedItemIndex,
+  flushBufferedPlaybackPosition,
   getFeedPageIndex,
   getFeedReleaseTargetIndex,
   getFeedScrollEnabled,
   getRequestedVideoFeedIndex,
   getVideoIndexFromFeedItems,
-  PlayerFeedItem
+  PlayerFeedItem,
+  stagePlaybackPositionUpdate
 } from "../domain/playerFeed";
 import { getFeedPlaybackPageState } from "../domain/feedPlaybackCoordinator";
 import {
@@ -72,17 +77,45 @@ export function PlayerFeed({
   const [pageHeight, setPageHeight] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const listRef = useRef<FlatList<PlayerFeedItem>>(null);
+  const bufferedPlaybackPositionRef = useRef<BufferedPlaybackPosition | undefined>(undefined);
+  const isFeedDraggingRef = useRef(false);
+  const playbackPositionsRef = useRef(playbackPositions);
   const previousRequestedVideoIdRef = useRef(requestedVideoId);
   const previousObservedActiveItemIdRef = useRef<string | undefined>(undefined);
   const previousObservedPlaybackOwnerItemIdRef = useRef<string | undefined>(undefined);
   const homeFeedPlaybackObserverRef = useRef<HomeFeedPlaybackObserver | undefined>(undefined);
   if (__DEV__ && mode === "home" && homeFeedPlaybackObserverRef.current === undefined) {
-    homeFeedPlaybackObserverRef.current = createHomeFeedPlaybackObserver();
+    homeFeedPlaybackObserverRef.current = createHomeFeedPlaybackObserver({
+      log: createHomeFeedPlaybackFileLogger({ apiBaseUrl: API_BASE_URL })
+    });
   }
   const playbackObserver = __DEV__ && mode === "home" ? homeFeedPlaybackObserverRef.current : undefined;
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
   const isFeedScrollEnabled = getFeedScrollEnabled({ isTimelineDragging });
+
+  useEffect(() => {
+    playbackPositionsRef.current = playbackPositions;
+  }, [playbackPositions]);
+
+  const publishPlaybackPositions = useCallback(
+    (nextPlaybackPositions: Record<string, number>) => {
+      playbackPositionsRef.current = nextPlaybackPositions;
+      onPlaybackPositionsChange(nextPlaybackPositions);
+    },
+    [onPlaybackPositionsChange]
+  );
+
+  const flushBufferedPosition = useCallback(() => {
+    const staged = flushBufferedPlaybackPosition({
+      bufferedPosition: bufferedPlaybackPositionRef.current,
+      playbackPositions: playbackPositionsRef.current
+    });
+    bufferedPlaybackPositionRef.current = staged.bufferedPosition;
+    if (staged.shouldPublish) {
+      publishPlaybackPositions(staged.nextPlaybackPositions);
+    }
+  }, [publishPlaybackPositions]);
 
   const recordActiveItemChange = useCallback(
     (index: number) => {
@@ -174,6 +207,8 @@ export function PlayerFeed({
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isFeedDraggingRef.current = false;
+      flushBufferedPosition();
       playbackObserver?.record({
         eventType: "feed_scroll_end",
         activeIndex,
@@ -190,6 +225,7 @@ export function PlayerFeed({
     [
       activeIndex,
       feedItems.length,
+      flushBufferedPosition,
       handleSetActiveIndex,
       handleSetPlaybackOwnerIndex,
       playbackObserver,
@@ -199,6 +235,7 @@ export function PlayerFeed({
 
   const handleScrollBeginDrag = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isFeedDraggingRef.current = true;
       playbackObserver?.record({
         eventType: "feed_scroll_begin",
         activeIndex,
@@ -252,15 +289,24 @@ export function PlayerFeed({
 
   const handlePlaybackPositionChange = useCallback(
     (videoId: string, time: number) => {
-      if (playbackPositions[videoId] === time) {
+      const staged = stagePlaybackPositionUpdate({
+        isFeedDragging: isFeedDraggingRef.current,
+        playbackPositions: playbackPositionsRef.current,
+        videoId,
+        time
+      });
+      if (isFeedDraggingRef.current) {
+        if (staged.bufferedPosition) {
+          bufferedPlaybackPositionRef.current = staged.bufferedPosition;
+        }
         return;
       }
-      onPlaybackPositionsChange({
-        ...playbackPositions,
-        [videoId]: time
-      });
+      bufferedPlaybackPositionRef.current = staged.bufferedPosition;
+      if (staged.shouldPublish) {
+        publishPlaybackPositions(staged.nextPlaybackPositions);
+      }
     },
-    [onPlaybackPositionsChange, playbackPositions]
+    [publishPlaybackPositions]
   );
 
   return (
@@ -307,7 +353,7 @@ export function PlayerFeed({
                 pageIndex={index}
                 playbackObserver={playbackObserver}
                 isActive={playbackPageState.shouldOwnPlayback}
-                shouldMountVideo={playbackPageState.shouldPrepareVideo}
+                pageRole={playbackPageState.pageRole}
                 height={resolvedPageHeight}
                 resumePlaybackTime={playbackPageState.resumeTime}
                 hasNextEpisode={nextItem !== undefined}

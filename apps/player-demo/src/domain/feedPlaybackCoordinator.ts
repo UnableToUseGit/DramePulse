@@ -10,6 +10,34 @@ export interface FeedPlaybackPageState {
   resumeTime: number;
 }
 
+export interface FeedPlaybackPageRenderState {
+  shouldRenderVideo: boolean;
+  shouldRenderInteractiveShell: boolean;
+  shouldRenderPlaybackControls: boolean;
+}
+
+export function getFeedPlaybackPageRenderState(pageRole: FeedPlaybackPageRole): FeedPlaybackPageRenderState {
+  if (pageRole === "active") {
+    return {
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: true,
+      shouldRenderPlaybackControls: true
+    };
+  }
+  if (pageRole === "preload") {
+    return {
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: false,
+      shouldRenderPlaybackControls: false
+    };
+  }
+  return {
+    shouldRenderVideo: false,
+    shouldRenderInteractiveShell: false,
+    shouldRenderPlaybackControls: false
+  };
+}
+
 export function getFeedPlaybackPageState({
   item,
   pageIndex,

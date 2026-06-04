@@ -1,4 +1,4 @@
-import { getFeedPlaybackPageState } from "../feedPlaybackCoordinator";
+import { getFeedPlaybackPageRenderState, getFeedPlaybackPageState } from "../feedPlaybackCoordinator";
 import type { PlayerFeedItem } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
 
@@ -23,6 +23,24 @@ function makeVideoItem(video: PlayerVideo): PlayerFeedItem {
 }
 
 describe("feedPlaybackCoordinator", () => {
+  it("keeps non-active feed pages lightweight while preserving video preload", () => {
+    expect(getFeedPlaybackPageRenderState("active")).toEqual({
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: true,
+      shouldRenderPlaybackControls: true
+    });
+    expect(getFeedPlaybackPageRenderState("preload")).toEqual({
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: false,
+      shouldRenderPlaybackControls: false
+    });
+    expect(getFeedPlaybackPageRenderState("parked")).toEqual({
+      shouldRenderVideo: false,
+      shouldRenderInteractiveShell: false,
+      shouldRenderPlaybackControls: false
+    });
+  });
+
   it("marks active, preload, and parked video pages with explicit playback roles", () => {
     const activeVideo = makeVideo({ videoId: "ep02" });
     const preloadVideo = makeVideo({ videoId: "ep01" });
