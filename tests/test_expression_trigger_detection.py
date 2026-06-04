@@ -382,6 +382,19 @@ class ExpressionTriggerPromptTest(unittest.TestCase):
 
 
 class ExpressionTriggerPipelineTest(unittest.TestCase):
+    def test_expression_trigger_new_package_exports_mllm_baseline(self) -> None:
+        from pipelines.expression_trigger import ExpressionTriggerPipeline
+        from pipelines.expression_trigger.baseline_mllm import ExpressionTriggerPipeline as BaselinePipeline
+
+        self.assertIs(ExpressionTriggerPipeline, BaselinePipeline)
+
+    def test_expression_trigger_labels_and_parsing_import_from_new_package(self) -> None:
+        from pipelines.expression_trigger.labels import normalize_plot_primary_expression
+        from pipelines.expression_trigger.parsing import parse_expression_triggers
+
+        self.assertEqual(normalize_plot_primary_expression("爽到了"), "爽点")
+        self.assertEqual(parse_expression_triggers({"expression_triggers": []}, video_id="demo"), [])
+
     def test_pipeline_extracts_frames_with_cost_bounded_height(self) -> None:
         class FakeClient:
             def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, image_paths: list[Path], frame_timestamps_seconds: list[float] | None = None, max_tokens: int = 2400):

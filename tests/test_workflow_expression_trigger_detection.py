@@ -20,6 +20,22 @@ from pipelines.workflow_expression_trigger_detection import (
 
 
 class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
+    def test_workflow_imports_from_new_package(self) -> None:
+        from pipelines.expression_trigger.workflow import WorkflowExpressionTriggerPipeline
+
+        self.assertIsNotNone(WorkflowExpressionTriggerPipeline)
+
+    def test_workflow_helpers_import_from_new_package(self) -> None:
+        from pipelines.expression_trigger.candidates import build_visual_candidate_windows
+        from pipelines.expression_trigger.postprocess import consolidate_expression_triggers
+        from pipelines.expression_trigger.resonance import build_resonance_cues
+        from pipelines.expression_trigger.review import build_filter_frame_timestamps
+
+        self.assertIsNotNone(build_visual_candidate_windows)
+        self.assertIsNotNone(build_filter_frame_timestamps)
+        self.assertIsNotNone(consolidate_expression_triggers)
+        self.assertIsNotNone(build_resonance_cues)
+
     def test_candidate_generation_prompt_is_high_recall_and_multimodal(self) -> None:
         prompt = _build_candidate_generation_prompt(
             video_id="demo_ep01",

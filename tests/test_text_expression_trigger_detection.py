@@ -8,6 +8,11 @@ from pipelines.text_expression_trigger_detection import TextExpressionTriggerPip
 
 
 class TextExpressionTriggerPromptTest(unittest.TestCase):
+    def test_text_baseline_imports_from_new_package(self) -> None:
+        from pipelines.expression_trigger.baseline_text import TextExpressionTriggerPipeline
+
+        self.assertIsNotNone(TextExpressionTriggerPipeline)
+
     def test_build_text_user_prompt_matches_multimodal_quality_without_frame_requirements(self) -> None:
         prompt = _build_text_user_prompt(
             video_id="demo_ep01",
