@@ -27,6 +27,7 @@ export function PlayerControls({
   duration,
   hasNextEpisode,
   nextEpisodeLabel,
+  bottomOffset = 72,
   onSeekCommit,
   onDragStateChange,
   storyChapters,
@@ -36,6 +37,7 @@ export function PlayerControls({
   duration: number;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
+  bottomOffset?: number;
   onSeekCommit: (time: number) => void;
   onDragStateChange?: (isDragging: boolean) => void;
   storyChapters?: StoryChapter[];
@@ -107,7 +109,7 @@ export function PlayerControls({
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { bottom: bottomOffset }]}>
       {isDragging ? (
         <View pointerEvents="none" style={styles.dragPreview}>
           {storyboardCell ? <StoryboardPreview cell={storyboardCell} /> : null}
@@ -119,7 +121,7 @@ export function PlayerControls({
       ) : null}
       {isDragging ? (
         <View
-          style={[styles.fullscreenScrubLayer, { height: viewport.height }]}
+          style={[styles.fullscreenScrubLayer, { bottom: -bottomOffset, height: viewport.height }]}
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
           onResponderMove={(event) => {
@@ -317,15 +319,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 72,
     height: 34,
     justifyContent: "center"
   },
   fullscreenScrubLayer: {
     position: "absolute",
     left: 0,
-    right: 0,
-    bottom: -72
+    right: 0
   },
   progressRow: {
     flexDirection: "row",

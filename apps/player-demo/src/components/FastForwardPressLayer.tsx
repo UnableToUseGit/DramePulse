@@ -3,18 +3,20 @@ import { colors, spacing } from "../theme";
 
 export function FastForwardPressLayer({
   isHoldingFastForward,
+  bottomOffset = 120,
   onPress,
   onLongPress,
   onPressOut
 }: {
   isHoldingFastForward: boolean;
+  bottomOffset?: number;
   onPress: () => void;
   onLongPress: () => void;
   onPressOut: () => void;
 }) {
   return (
     <Pressable
-      style={styles.root}
+      style={[styles.root, { bottom: bottomOffset }]}
       delayLongPress={260}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -34,7 +36,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 96,
     right: 0,
-    bottom: 120,
     width: "42%",
     alignItems: "center",
     justifyContent: "center"

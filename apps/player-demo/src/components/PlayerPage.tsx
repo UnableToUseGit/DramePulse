@@ -75,6 +75,10 @@ interface PlayerPageProps {
   pageRole: FeedPlaybackPageRole;
   visualPageRole: FeedPlaybackPageRole;
   height: number;
+  videoHeight: number;
+  controlsBottomOffset: number;
+  metaBottomOffset: number;
+  actionRailBottomOffset: number;
   resumePlaybackTime: number;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
@@ -104,6 +108,10 @@ export function PlayerPage({
   pageRole,
   visualPageRole,
   height,
+  videoHeight,
+  controlsBottomOffset,
+  metaBottomOffset,
+  actionRailBottomOffset,
   resumePlaybackTime,
   hasNextEpisode,
   nextEpisodeLabel,
@@ -534,47 +542,50 @@ export function PlayerPage({
 
   return (
     <View style={[styles.root, { height }]}>
-      {renderState.shouldRenderVideo ? (
-        <VideoStage
-          key={`${video.videoId}:${video.streamUrl}`}
-          observation={videoObservation}
-          isStarted={playbackState.isStarted}
-          isPlaying={playbackState.shouldPlay}
-          initialPlaybackTime={resumePlaybackTime}
-          seekRequest={seekRequest}
-          onStart={handleResume}
-          onTimeChange={handleTimeChange}
-          onDurationChange={handleDurationChange}
-          onPlayToEnd={handlePlayToEnd}
-          onSeekHandled={handleSeekHandled}
-          playbackRate={speedControls.effectivePlaybackRate}
-          bufferOptions={videoBufferOptions}
-          enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}
-          showStartEntry={false}
-          streamUrl={video.streamUrl}
-        />
-      ) : (
-        <View style={styles.inactiveVideoPlaceholder} />
-      )}
-      {isActive && playbackState.isStarted && danmakuState === "ready" ? (
-        <DanmakuLayer
-          currentTime={currentTime}
-          danmaku={mergedDanmaku}
-          isPlaying={playbackState.shouldPlay}
-          seekVersion={seekVersion}
-        />
-      ) : null}
-      {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+      <View style={[styles.videoViewport, { height: videoHeight }]}>
+        {renderState.shouldRenderVideo ? (
+          <VideoStage
+            key={`${video.videoId}:${video.streamUrl}`}
+            observation={videoObservation}
+            isStarted={playbackState.isStarted}
+            isPlaying={playbackState.shouldPlay}
+            initialPlaybackTime={resumePlaybackTime}
+            seekRequest={seekRequest}
+            onStart={handleResume}
+            onTimeChange={handleTimeChange}
+            onDurationChange={handleDurationChange}
+            onPlayToEnd={handlePlayToEnd}
+            onSeekHandled={handleSeekHandled}
+            playbackRate={speedControls.effectivePlaybackRate}
+            bufferOptions={videoBufferOptions}
+            enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}
+            showStartEntry={false}
+            streamUrl={video.streamUrl}
+          />
+        ) : (
+          <View style={styles.inactiveVideoPlaceholder} />
+        )}
+        {isActive && playbackState.isStarted && danmakuState === "ready" ? (
+          <DanmakuLayer
+            currentTime={currentTime}
+            danmaku={mergedDanmaku}
+            isPlaying={playbackState.shouldPlay}
+            seekVersion={seekVersion}
+          />
+        ) : null}
+        {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+        {renderState.shouldRenderInteractiveShell ? <PlaybackHint visible={playbackState.shouldShowPauseHint} /> : null}
+      </View>
       {isActive && playbackState.isStarted ? (
         <FastForwardPressLayer
           isHoldingFastForward={speedControls.isHoldingFastForward}
+          bottomOffset={metaBottomOffset}
           onPress={speedControls.handleRightPress}
           onLongPress={speedControls.handleRightLongPress}
           onPressOut={speedControls.handleRightPressOut}
         />
       ) : null}
       {isActive && danmakuState === "error" ? <Text style={styles.danmakuError}>弹幕暂不可用</Text> : null}
-      {renderState.shouldRenderInteractiveShell ? <PlaybackHint visible={playbackState.shouldShowPauseHint} /> : null}
       {renderState.shouldRenderInteractiveShell ? (
         <ActionRailResonanceBurstLayer
           cue={participatingResonanceCue}
@@ -599,6 +610,8 @@ export function PlayerPage({
           title={video.title}
           plotSummary={video.plotSummary}
           episodeLabel={video.episodeLabel}
+          metaBottomOffset={metaBottomOffset}
+          actionRailBottomOffset={actionRailBottomOffset}
           showActionRail={timelineChromeVisibility.showActionRail}
           showMeta={timelineChromeVisibility.showMeta}
           mode={mode}
@@ -625,6 +638,7 @@ export function PlayerPage({
           duration={resolvedDuration}
           hasNextEpisode={hasNextEpisode}
           nextEpisodeLabel={nextEpisodeLabel}
+          bottomOffset={controlsBottomOffset}
           onSeekCommit={handleSeekCommit}
           onDragStateChange={handleTimelineDragStateChange}
           storyChapters={video.storyChapters}
@@ -651,6 +665,14 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: "#050505",
     overflow: "hidden"
+  },
+  videoViewport: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+    backgroundColor: "#050505"
   },
   inactiveVideoPlaceholder: {
     ...StyleSheet.absoluteFillObject,

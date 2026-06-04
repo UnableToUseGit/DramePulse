@@ -16,6 +16,7 @@ export function PlayerMeta({
   showInnerVoice,
   showDanmakuEntry = true,
   reserveActionRail = true,
+  bottomOffset = 118,
   preTitleAccessory,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku
@@ -29,6 +30,7 @@ export function PlayerMeta({
   showInnerVoice: boolean;
   showDanmakuEntry?: boolean;
   reserveActionRail?: boolean;
+  bottomOffset?: number;
   preTitleAccessory?: ReactNode;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
@@ -44,7 +46,7 @@ export function PlayerMeta({
   }, [title, plotSummary]);
 
   return (
-    <View style={[styles.root, reserveActionRail ? styles.withActionRail : styles.fullWidth]}>
+    <View style={[styles.root, reserveActionRail ? styles.withActionRail : styles.fullWidth, { bottom: bottomOffset }]}>
       {showDanmakuEntry ? (
         <DanmakuEntryArea
           currentTime={currentTime}
@@ -105,8 +107,7 @@ export function PlayerMeta({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    left: spacing.lg,
-    bottom: 118
+    left: spacing.lg
   },
   withActionRail: {
     right: 100

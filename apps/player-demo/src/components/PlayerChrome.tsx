@@ -23,6 +23,8 @@ export function PlayerChrome({
   plotSummary,
   episodeLabel,
   metaTags,
+  metaBottomOffset,
+  actionRailBottomOffset,
   preTitleAccessory,
   showActionRail = true,
   showMeta = true,
@@ -51,6 +53,8 @@ export function PlayerChrome({
   plotSummary: string;
   episodeLabel?: string;
   metaTags?: string[];
+  metaBottomOffset?: number;
+  actionRailBottomOffset?: number;
   preTitleAccessory?: ReactNode;
   showActionRail?: boolean;
   showMeta?: boolean;
@@ -82,6 +86,7 @@ export function PlayerChrome({
           liked={liked}
           onToggleLike={onToggleLike}
           onOpenStoryQa={onOpenStoryQa}
+          bottomOffset={actionRailBottomOffset}
           resonanceCue={resonanceCue}
           resonanceTapState={resonanceTapState}
           onParticipateResonance={onParticipateResonance}
@@ -93,6 +98,7 @@ export function PlayerChrome({
           plotSummary={plotSummary}
           episodeLabel={episodeLabel}
           metaTags={metaTags}
+          bottomOffset={metaBottomOffset}
           preTitleAccessory={preTitleAccessory}
           currentTime={currentTime}
           isActive={isActive}

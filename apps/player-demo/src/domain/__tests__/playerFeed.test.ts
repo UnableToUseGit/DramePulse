@@ -4,6 +4,7 @@ import {
   flushBufferedPlaybackPosition,
   getFeedPageIndex,
   getFeedReleaseTargetIndex,
+  getFeedVisualLayout,
   getFeedScrollEnabled,
   getNextEpisodeInfoByIndex,
   getRequestedVideoFeedIndex,
@@ -118,6 +119,24 @@ describe("playerFeed", () => {
     expect(getFeedPageIndex({ offsetY: -120, pageHeight: 800, itemCount: 3 })).toBe(0);
     expect(getFeedPageIndex({ offsetY: 2600, pageHeight: 800, itemCount: 3 })).toBe(2);
     expect(getFeedPageIndex({ offsetY: 400, pageHeight: 800, itemCount: 0 })).toBe(0);
+  });
+
+  it("keeps video above the bottom dock while preserving full-page feed height", () => {
+    expect(getFeedVisualLayout({ pageHeight: 800, mode: "home" })).toEqual({
+      bottomDockHeight: 74,
+      controlsBottomOffset: 72,
+      metaBottomOffset: 118,
+      actionRailBottomOffset: 124,
+      videoHeight: 726
+    });
+    expect(getFeedVisualLayout({ pageHeight: 800, mode: "series", hasSeriesEpisodeBar: true })).toEqual({
+      bottomDockHeight: 96,
+      controlsBottomOffset: 94,
+      metaBottomOffset: 140,
+      actionRailBottomOffset: 146,
+      videoHeight: 704
+    });
+    expect(getFeedVisualLayout({ pageHeight: 60, mode: "home" }).videoHeight).toBe(1);
   });
 
   it("derives video commands from user intent without treating inactive pages as user pauses", () => {

@@ -10,6 +10,7 @@ import {
   getFeedPageIndex,
   getFeedReleaseTargetIndex,
   getFeedScrollEnabled,
+  getFeedVisualLayout,
   getRequestedVideoFeedIndex,
   getVideoIndexFromFeedItems,
   PlayerFeedItem,
@@ -94,6 +95,11 @@ export function PlayerFeed({
   const playbackObserver = __DEV__ && mode === "home" ? homeFeedPlaybackObserverRef.current : undefined;
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
+  const feedVisualLayout = getFeedVisualLayout({
+    pageHeight: resolvedPageHeight,
+    mode,
+    hasSeriesEpisodeBar: mode === "series" && seriesEpisodeCount !== undefined
+  });
   const isFeedScrollEnabled = getFeedScrollEnabled({ isTimelineDragging });
 
   useEffect(() => {
@@ -387,6 +393,9 @@ export function PlayerFeed({
                 <RoleCommerceAdPage
                   ad={item.ad}
                   height={resolvedPageHeight}
+                  videoHeight={feedVisualLayout.videoHeight}
+                  controlsBottomOffset={feedVisualLayout.controlsBottomOffset}
+                  metaBottomOffset={feedVisualLayout.metaBottomOffset}
                   isActive={playbackPageState.shouldOwnPlayback}
                   hasNextItem={nextItem !== undefined}
                   nextItemLabel={nextItemLabel}
@@ -402,6 +411,10 @@ export function PlayerFeed({
                 pageRole={playbackPageState.pageRole}
                 visualPageRole={visualPageState.pageRole}
                 height={resolvedPageHeight}
+                videoHeight={feedVisualLayout.videoHeight}
+                controlsBottomOffset={feedVisualLayout.controlsBottomOffset}
+                metaBottomOffset={feedVisualLayout.metaBottomOffset}
+                actionRailBottomOffset={feedVisualLayout.actionRailBottomOffset}
                 resumePlaybackTime={playbackPageState.resumeTime}
                 hasNextEpisode={nextItem !== undefined}
                 nextEpisodeLabel={nextItemLabel}

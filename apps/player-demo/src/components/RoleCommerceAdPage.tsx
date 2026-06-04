@@ -25,12 +25,18 @@ const AD_VIDEO_SOURCE = require("../../assets/video/ads.mp4");
 export function RoleCommerceAdPage({
   ad,
   height,
+  videoHeight,
+  controlsBottomOffset,
+  metaBottomOffset,
   isActive,
   hasNextItem,
   nextItemLabel
 }: {
   ad: RoleCommerceFeedAd;
   height: number;
+  videoHeight: number;
+  controlsBottomOffset: number;
+  metaBottomOffset: number;
   isActive: boolean;
   hasNextItem: boolean;
   nextItemLabel?: string;
@@ -116,21 +122,23 @@ export function RoleCommerceAdPage({
 
   return (
     <View style={[styles.root, { height }]}>
-      <VideoStage
-        isStarted={playbackState.isStarted}
-        isPlaying={playbackState.shouldPlay}
-        seekRequest={seekRequest}
-        onStart={() => {}}
-        onTimeChange={handleTimeChange}
-        onDurationChange={handleDurationChange}
-        onPlayToEnd={handlePlayToEnd}
-        onSeekHandled={handleSeekHandled}
-        playbackRate={1}
-        showStartEntry={false}
-        streamUrl={AD_VIDEO_SOURCE}
-      />
-      {isActive ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
-      <PlaybackHint visible={playbackState.shouldShowPauseHint} />
+      <View style={[styles.videoViewport, { height: videoHeight }]}>
+        <VideoStage
+          isStarted={playbackState.isStarted}
+          isPlaying={playbackState.shouldPlay}
+          seekRequest={seekRequest}
+          onStart={() => {}}
+          onTimeChange={handleTimeChange}
+          onDurationChange={handleDurationChange}
+          onPlayToEnd={handlePlayToEnd}
+          onSeekHandled={handleSeekHandled}
+          playbackRate={1}
+          showStartEntry={false}
+          streamUrl={AD_VIDEO_SOURCE}
+        />
+        {isActive ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+        <PlaybackHint visible={playbackState.shouldShowPauseHint} />
+      </View>
       <PlayerChrome
         liked={false}
         onToggleLike={() => {}}
@@ -143,6 +151,7 @@ export function RoleCommerceAdPage({
         plotSummary={ad.productDescription}
         episodeLabel="广告"
         metaTags={["广告", "商品同款", ad.characterName]}
+        metaBottomOffset={metaBottomOffset}
         preTitleAccessory={<RoleCommerceProductCta label={ad.ctaText} onPress={handleOpenProductSheet} />}
         showActionRail={false}
         showDanmakuEntry={false}
@@ -160,6 +169,7 @@ export function RoleCommerceAdPage({
         duration={duration}
         hasNextEpisode={completionAction.shouldShowNextItemHint && hasNextItem}
         nextEpisodeLabel={nextItemLabel}
+        bottomOffset={controlsBottomOffset}
         onSeekCommit={handleSeekCommit}
       />
       <RoleCommerceProductSheet visible={isProductSheetVisible} ad={ad} onClose={handleCloseProductSheet} />
@@ -171,6 +181,14 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: "#050505",
     overflow: "hidden"
+  },
+  videoViewport: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+    backgroundColor: "#050505"
   },
   tapLayer: {
     ...StyleSheet.absoluteFillObject
