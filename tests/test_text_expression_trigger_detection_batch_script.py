@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,20 @@ def test_new_text_baseline_batch_script_exports_main() -> None:
     from scripts.run_expression_trigger_text_baseline_batch import main
 
     assert callable(main)
+
+
+def test_new_text_baseline_batch_script_runs_when_executed_directly() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/run_expression_trigger_text_baseline_batch.py", "--help"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "subtitle-only Expression Trigger Detection" in result.stdout
 
 
 def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:
