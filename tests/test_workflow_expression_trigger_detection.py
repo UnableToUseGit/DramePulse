@@ -35,6 +35,10 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIsNotNone(build_filter_frame_timestamps)
         self.assertIsNotNone(consolidate_expression_triggers)
         self.assertIsNotNone(build_resonance_cues)
+        self.assertEqual(build_visual_candidate_windows.__module__, "pipelines.expression_trigger.candidates")
+        self.assertEqual(build_filter_frame_timestamps.__module__, "pipelines.expression_trigger.review")
+        self.assertEqual(consolidate_expression_triggers.__module__, "pipelines.expression_trigger.postprocess")
+        self.assertEqual(build_resonance_cues.__module__, "pipelines.expression_trigger.resonance")
 
     def test_candidate_generation_prompt_is_high_recall_and_multimodal(self) -> None:
         prompt = _build_candidate_generation_prompt(
@@ -270,7 +274,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             for index in range(300)
         ]
 
-        with patch("pipelines.expression_trigger.workflow._overlap_seconds") as overlap_seconds:
+        with patch("pipelines.expression_trigger.candidates._overlap_seconds") as overlap_seconds:
             overlap_seconds.side_effect = lambda start_a, end_a, start_b, end_b: max(
                 0.0,
                 min(end_a, end_b) - max(start_a, start_b),
@@ -301,7 +305,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 raise AssertionError("build_visual_candidate_windows did not terminate")
             return max(0.0, min(end_a, end_b) - max(start_a, start_b))
 
-        with patch("pipelines.expression_trigger.workflow._overlap_seconds", side_effect=overlap_seconds):
+        with patch("pipelines.expression_trigger.candidates._overlap_seconds", side_effect=overlap_seconds):
             windows = build_visual_candidate_windows(
                 subtitle_segments=subtitle_segments,
                 duration_sec=196.245011,
