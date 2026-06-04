@@ -4,7 +4,6 @@ import argparse
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
-import os
 from pathlib import Path
 import sys
 from typing import Any, Sequence
@@ -12,9 +11,8 @@ from typing import Any, Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipelines.client import OpenAiLlmClient, VolcArkLlmClient
+from pipelines.client.factory import build_ark_client, build_llm_client
 from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
-from scripts.transcription.env import load_dotenv_values
 
 
 DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
@@ -161,47 +159,6 @@ def extract_danmaku_items(source_payload: dict[str, Any]) -> list[dict[str, Any]
         if item is not None:
             items.append(item)
     return items
-
-
-def _first_env_value(dotenv_values: dict[str, str], keys: Sequence[str]) -> str | None:
-    for key in keys:
-        value = dotenv_values.get(key)
-        if value:
-            return value
-    for key in keys:
-        value = os.environ.get(key)
-        if value:
-            return value
-    return None
-
-
-def _llm_config_value(dotenv_values: dict[str, str], generic_key: str, legacy_keys: Sequence[str]) -> str | None:
-    generic_value = _first_env_value(dotenv_values, [generic_key])
-    if generic_value:
-        return generic_value
-    return _first_env_value(dotenv_values, legacy_keys)
-
-
-def build_llm_client(*, env_path: Path | None = None):
-    dotenv_values = load_dotenv_values(env_path)
-    provider = (_first_env_value(dotenv_values, ["LLM_PROVIDER"]) or "ark").strip().lower()
-    if provider in {"ark", "volc", "volc_ark", "volcark"}:
-        return VolcArkLlmClient(
-            api_key=_llm_config_value(dotenv_values, "API_KEY", ["ARK_API_KEY"]),
-            base_url=_llm_config_value(dotenv_values, "BASE_URL", ["ARK_BASE_URL"]),
-            model_name=_llm_config_value(dotenv_values, "MODEL", ["ARK_MODEL"]),
-        )
-    if provider in {"openai", "open_ai"}:
-        return OpenAiLlmClient(
-            api_key=_llm_config_value(dotenv_values, "API_KEY", ["OPENAI_API_KEY"]),
-            base_url=_llm_config_value(dotenv_values, "BASE_URL", ["OPENAI_BASE_URL"]),
-            model_name=_llm_config_value(dotenv_values, "MODEL", ["OPENAI_MODEL"]),
-        )
-    raise ValueError(f"Unsupported LLM_PROVIDER: {provider}")
-
-
-def build_ark_client(*, env_path: Path | None = None):
-    return build_llm_client(env_path=env_path)
 
 
 def build_pipeline(

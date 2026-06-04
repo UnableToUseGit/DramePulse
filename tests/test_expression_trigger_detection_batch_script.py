@@ -409,7 +409,7 @@ def test_build_llm_client_defaults_to_ark_with_generic_env_values(tmp_path: Path
         def __init__(self, **kwargs: object) -> None:
             self.kwargs = kwargs
 
-    with patch("scripts.run_expression_trigger_detection_batch.VolcArkLlmClient", FakeArkClient):
+    with patch("pipelines.client.factory.VolcArkLlmClient", FakeArkClient):
         client = build_llm_client(env_path=env_path)
 
     assert isinstance(client, FakeArkClient)
@@ -441,7 +441,7 @@ def test_build_llm_client_selects_openai_with_generic_env_values(tmp_path: Path)
         def __init__(self, **kwargs: object) -> None:
             self.kwargs = kwargs
 
-    with patch("scripts.run_expression_trigger_detection_batch.OpenAiLlmClient", FakeOpenAiClient):
+    with patch("pipelines.client.factory.OpenAiLlmClient", FakeOpenAiClient):
         client = build_llm_client(env_path=env_path)
 
     assert isinstance(client, FakeOpenAiClient)

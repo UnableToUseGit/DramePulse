@@ -410,5 +410,60 @@ class OpenAiLlmClientTest(unittest.TestCase):
         self.assertEqual(client.model_name, "gpt-5.5")
 
 
+class LlmClientFactoryTest(unittest.TestCase):
+    def test_build_llm_client_defaults_to_ark_with_generic_env_values(self) -> None:
+        from pipelines.client.factory import build_llm_client
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_path = Path(tmpdir) / ".env"
+            env_path.write_text(
+                "API_KEY=test-key\n"
+                "BASE_URL=https://ark.example.test/api/v3\n"
+                "MODEL=test-model\n",
+                encoding="utf-8",
+            )
+
+            class FakeArkClient:
+                def __init__(self, *, api_key: str | None, base_url: str | None, model_name: str | None) -> None:
+                    self.api_key = api_key
+                    self.base_url = base_url
+                    self.model_name = model_name
+
+            with patch("pipelines.client.factory.VolcArkLlmClient", FakeArkClient):
+                client = build_llm_client(env_path=env_path)
+
+        self.assertIsInstance(client, FakeArkClient)
+        self.assertEqual(client.api_key, "test-key")
+        self.assertEqual(client.base_url, "https://ark.example.test/api/v3")
+        self.assertEqual(client.model_name, "test-model")
+
+    def test_build_llm_client_selects_openai_with_generic_env_values(self) -> None:
+        from pipelines.client.factory import build_llm_client
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_path = Path(tmpdir) / ".env"
+            env_path.write_text(
+                "LLM_PROVIDER=openai\n"
+                "API_KEY=test-openai-key\n"
+                "BASE_URL=https://openai.example.test/v1\n"
+                "MODEL=gpt-test\n",
+                encoding="utf-8",
+            )
+
+            class FakeOpenAiClient:
+                def __init__(self, *, api_key: str | None, base_url: str | None, model_name: str | None) -> None:
+                    self.api_key = api_key
+                    self.base_url = base_url
+                    self.model_name = model_name
+
+            with patch("pipelines.client.factory.OpenAiLlmClient", FakeOpenAiClient):
+                client = build_llm_client(env_path=env_path)
+
+        self.assertIsInstance(client, FakeOpenAiClient)
+        self.assertEqual(client.api_key, "test-openai-key")
+        self.assertEqual(client.base_url, "https://openai.example.test/v1")
+        self.assertEqual(client.model_name, "gpt-test")
+
+
 if __name__ == "__main__":
     unittest.main()
