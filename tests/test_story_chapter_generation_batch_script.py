@@ -2,13 +2,31 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
 from scripts.run_story_chapter_generation_batch import discover_story_chapter_inputs, main
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
 class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
+    def test_new_story_chapter_text_batch_algorithm_script_runs_when_executed_directly(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "scripts/algorithm/story_chapter/run_text_batch.py", "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Batch run story chapter generation", result.stdout)
+
     def test_discover_story_chapter_inputs_finds_dataset_episodes(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)

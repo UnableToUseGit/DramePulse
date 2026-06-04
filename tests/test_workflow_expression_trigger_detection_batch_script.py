@@ -174,6 +174,20 @@ def test_new_workflow_batch_script_runs_when_executed_directly() -> None:
     assert "workflow Expression Trigger Detection" in result.stdout
 
 
+def test_new_workflow_algorithm_script_runs_when_executed_directly() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/algorithm/expression_trigger/run_workflow_batch.py", "--help"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "workflow Expression Trigger Detection" in result.stdout
+
+
 def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
     from pipelines.workflow_expression_trigger_detection import WorkflowExpressionTriggerResult
     from scripts.run_workflow_expression_trigger_detection_batch import main

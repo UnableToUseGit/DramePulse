@@ -2,11 +2,26 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+
+def test_new_inner_voice_algorithm_script_runs_when_executed_directly() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/algorithm/inner_voice_danmaku/run.py", "--help"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Generate inner voice danmaku cues" in result.stdout
 
 
 def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:

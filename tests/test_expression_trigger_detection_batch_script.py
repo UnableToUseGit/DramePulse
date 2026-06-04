@@ -93,6 +93,20 @@ def test_new_mllm_baseline_batch_script_runs_when_executed_directly() -> None:
     assert "Expression Trigger Detection" in result.stdout
 
 
+def test_new_mllm_baseline_algorithm_script_runs_when_executed_directly() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/algorithm/expression_trigger/run_mllm_baseline_batch.py", "--help"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Expression Trigger Detection" in result.stdout
+
+
 def test_discover_episodes_filters_multiple_series_ids(tmp_path: Path) -> None:
     from scripts.run_expression_trigger_detection_batch import discover_episodes
 
