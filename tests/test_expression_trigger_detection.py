@@ -410,7 +410,7 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
             video_path.write_bytes(b"fake-video")
             subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
 
-            with patch("pipelines.expression_trigger_detection.extract_frames_at_timestamps", return_value=FakeExtraction()) as extract:
+            with patch("pipelines.expression_trigger.baseline_mllm.extract_frames_at_timestamps", return_value=FakeExtraction()) as extract:
                 pipeline = ExpressionTriggerPipeline(llm_client=FakeClient(), sample_interval_sec=1.0, max_frames=1)
                 pipeline.run(
                     video_id="demo_ep01",

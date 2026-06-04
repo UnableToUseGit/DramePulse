@@ -1,4 +1,4 @@
-from pipelines.workflow_expression_trigger_detection import (
+from pipelines.expression_trigger.workflow import (
     _build_candidate_generation_prompt,
     build_candidate_generation_frame_timestamps,
     build_visual_candidate_frame_timestamps,

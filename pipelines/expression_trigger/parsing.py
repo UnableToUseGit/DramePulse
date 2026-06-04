@@ -1,4 +1,4 @@
-from pipelines.expression_trigger_detection import (
+from pipelines.expression_trigger.baseline_mllm import (
     expression_trigger_to_highlight_asset,
     expression_triggers_to_highlight_assets,
     filter_triggers_within_duration,

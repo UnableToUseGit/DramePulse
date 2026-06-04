@@ -270,7 +270,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             for index in range(300)
         ]
 
-        with patch("pipelines.workflow_expression_trigger_detection._overlap_seconds") as overlap_seconds:
+        with patch("pipelines.expression_trigger.workflow._overlap_seconds") as overlap_seconds:
             overlap_seconds.side_effect = lambda start_a, end_a, start_b, end_b: max(
                 0.0,
                 min(end_a, end_b) - max(start_a, start_b),
@@ -301,7 +301,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 raise AssertionError("build_visual_candidate_windows did not terminate")
             return max(0.0, min(end_a, end_b) - max(start_a, start_b))
 
-        with patch("pipelines.workflow_expression_trigger_detection._overlap_seconds", side_effect=overlap_seconds):
+        with patch("pipelines.expression_trigger.workflow._overlap_seconds", side_effect=overlap_seconds):
             windows = build_visual_candidate_windows(
                 subtitle_segments=subtitle_segments,
                 duration_sec=196.245011,
@@ -478,8 +478,8 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                 encoding="utf-8",
             )
             fake_client = FakeClient()
-            with patch("pipelines.workflow_expression_trigger_detection.probe_video_duration_seconds", return_value=21.0), patch(
-                "pipelines.workflow_expression_trigger_detection.extract_frames_at_timestamps",
+            with patch("pipelines.expression_trigger.workflow.probe_video_duration_seconds", return_value=21.0), patch(
+                "pipelines.expression_trigger.workflow.extract_frames_at_timestamps",
                 side_effect=fake_extract_frames,
             ):
                 progress_events: list[tuple[str, dict[str, object]]] = []
@@ -581,8 +581,8 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             subtitle_path.write_text("1\n00:00:05,000 --> 00:00:08,000\n你终于输了\n", encoding="utf-8")
             pipeline = WorkflowExpressionTriggerPipeline(llm_client=FakeClient())
 
-            with patch("pipelines.workflow_expression_trigger_detection.probe_video_duration_seconds", return_value=10.0), patch(
-                "pipelines.workflow_expression_trigger_detection.extract_frames_at_timestamps",
+            with patch("pipelines.expression_trigger.workflow.probe_video_duration_seconds", return_value=10.0), patch(
+                "pipelines.expression_trigger.workflow.extract_frames_at_timestamps",
                 return_value=FakeExtraction(),
             ), self.assertRaises(LlmResponseError):
                 pipeline.run(

@@ -1,4 +1,4 @@
-from pipelines.expression_trigger_detection import (
+from pipelines.expression_trigger.baseline_mllm import (
     CHARACTER_APPEAL_KEYWORDS,
     FINALE_KEYWORDS,
     LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES,
