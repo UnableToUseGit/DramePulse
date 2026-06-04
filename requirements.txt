@@ -10,6 +10,7 @@ volcengine-python-sdk>=5.0.0
 openai>=2.0.0
 opencv-python>=4.8.0
 scenedetect>=0.6,<0.8
+json-repair>=0.60.0
 
 # Development and validation helpers.
 pytest>=8.0.0

@@ -16,6 +16,7 @@ dependencies = [
   "openai>=2.0.0",
   "opencv-python>=4.8.0",
   "scenedetect>=0.6,<0.8",
+  "json-repair>=0.60.0",
 ]
 
 [project.optional-dependencies]

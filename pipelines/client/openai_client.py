@@ -82,7 +82,6 @@ class OpenAiLlmClient:
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": 0.2,
-            "response_format": {"type": "json_object"},
         }
         reasoning_effort = reasoning_effort_for_model(self.model_name)
         if reasoning_effort:

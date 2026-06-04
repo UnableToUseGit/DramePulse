@@ -84,7 +84,6 @@ class VolcArkLlmClient:
                 max_tokens=max_tokens,
                 temperature=0.2,
                 extra_body={"thinking": {"type": "disabled"}},
-                response_format={"type": "json_object"},
             ),
             last_call_setter=self._set_last_call_diagnostics,
         )

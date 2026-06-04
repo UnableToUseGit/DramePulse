@@ -58,14 +58,48 @@ def response_content_to_text(content: Any) -> str:
     return str(content)
 
 
+def extract_json_object_text(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+    try:
+        parsed = json.loads(stripped)
+    except JSONDecodeError:
+        pass
+    else:
+        if isinstance(parsed, dict):
+            return stripped
+
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stripped):
+        if char != "{":
+            continue
+        try:
+            parsed, end_index = decoder.raw_decode(stripped[index:])
+        except JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return stripped[index : index + end_index]
+    return stripped
+
+
 def parse_json_content(content: Any) -> dict[str, Any]:
     text = response_content_to_text(content).strip()
     if not text:
         raise LlmResponseError("LLM response is empty", raw_response_text=text)
+    json_text = extract_json_object_text(text)
     try:
-        parsed = json.loads(text)
+        parsed = json.loads(json_text)
     except JSONDecodeError as exc:
-        raise LlmResponseError("LLM response is not valid JSON", raw_response_text=text) from exc
+        import json_repair
+
+        try:
+            repaired = json_repair.loads(json_text)
+        except Exception as repair_exc:
+            raise LlmResponseError("LLM response is not valid JSON", raw_response_text=text) from repair_exc
+        if not isinstance(repaired, dict):
+            raise LlmResponseError("LLM response is not valid JSON", raw_response_text=text) from exc
+        return repaired
     if not isinstance(parsed, dict):
         raise LlmResponseError("LLM response JSON must be an object", raw_response_text=text)
     return parsed

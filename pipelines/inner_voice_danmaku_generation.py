@@ -47,6 +47,30 @@ GENERIC_LOW_SEMANTIC_TEXTS = {
     "甜",
 }
 
+GENERIC_EMOTION_OR_PLOT_SUBJECTS = (
+    "这段",
+    "这一段",
+    "这里",
+    "这幕",
+    "剧情",
+    "这段剧情",
+)
+
+GENERIC_EMOTION_OR_PLOT_PREDICATES = (
+    "太好笑",
+    "好好笑",
+    "笑死",
+    "太好哭",
+    "好哭",
+    "看哭",
+    "太爽",
+    "爽到了",
+    "太甜",
+    "甜到了",
+    "应景",
+    "太应景",
+)
+
 ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
@@ -98,6 +122,15 @@ def _is_low_quality_text(text: str) -> bool:
     if re.fullmatch(r"(哈|笑|啊|？|\?)+", compact):
         return True
     return False
+
+
+def _is_generic_emotion_or_plot_summary(text: str) -> bool:
+    compact = _compact_text(text)
+    if not compact:
+        return False
+    return any(compact.startswith(subject) for subject in GENERIC_EMOTION_OR_PLOT_SUBJECTS) and any(
+        predicate in compact for predicate in GENERIC_EMOTION_OR_PLOT_PREDICATES
+    )
 
 
 def _normalize_danmaku_items(items: list[dict[str, Any]]) -> list[InnerVoiceDanmakuItem]:
@@ -317,6 +350,8 @@ def _parse_llm_clusters(
             reject_reason = "unsupported_intent"
         elif not text or _is_low_quality_text(text):
             reject_reason = "low_quality_text"
+        elif _is_generic_emotion_or_plot_summary(text):
+            reject_reason = "generic_emotion_or_plot_summary"
         elif not source_ids or any(source_id not in valid_comment_ids for source_id in source_ids):
             reject_reason = "invalid_source_comment_ids"
         elif confidence < 0.65:
@@ -361,6 +396,7 @@ def _candidate_to_cue(
         "triggerTime": _round_time(float(candidate["triggerTime"])),
         "durationSec": _round_time(duration_sec),
         "text": str(candidate["representativeText"]),
+        "intentType": str(candidate["intentType"]),
         "danmakuTrack": (index - 1) % 3,
     }
 

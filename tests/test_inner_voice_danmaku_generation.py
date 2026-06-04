@@ -69,6 +69,7 @@ class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
         self.assertEqual(cue["durationSec"], 5.0)
         self.assertEqual(cue["text"], "男主这个眼神绝了")
         self.assertEqual(cue["danmakuTrack"], 0)
+        self.assertEqual(cue["intentType"], "actor_charm")
         self.assertEqual(result["debug"]["selectedCueCount"], 1)
         self.assertEqual(result["debug"]["cues"][0]["intentType"], "actor_charm")
         self.assertIn("dm_1", result["debug"]["cues"][0]["sourceCommentIds"])
@@ -147,9 +148,71 @@ class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
         self.assertIn("dm_1", str(fake_client.calls[0]["user_prompt"]))
         self.assertEqual(len(result["cues"]), 1)
         self.assertEqual(result["cues"][0]["text"], "她终于怼回去了")
+        self.assertEqual(result["cues"][0]["intentType"], "plot_reaction")
         self.assertEqual(result["debug"]["cues"][0]["intentType"], "plot_reaction")
         self.assertEqual(result["debug"]["cues"][0]["sourceCommentIds"], ["dm_1", "dm_2"])
         self.assertEqual(result["debug"]["llmCallCount"], 1)
+
+    def test_filters_generic_emotion_summary_text_from_llm_clusters(self) -> None:
+        fake_client = FakeLlmClient(
+            {
+                "clusters": [
+                    {
+                        "intentType": "plot_reaction",
+                        "representativeText": "这段真的太好笑了",
+                        "sourceCommentIds": ["dm_1"],
+                        "confidence": 0.9,
+                        "reason": "泛情绪评价。",
+                    },
+                    {
+                        "intentType": "plot_reaction",
+                        "representativeText": "这段剧情太好哭了",
+                        "sourceCommentIds": ["dm_2"],
+                        "confidence": 0.9,
+                        "reason": "泛情绪评价。",
+                    },
+                    {
+                        "intentType": "plot_reaction",
+                        "representativeText": "剧情太应景了",
+                        "sourceCommentIds": ["dm_3"],
+                        "confidence": 0.9,
+                        "reason": "泛剧情评价。",
+                    },
+                    {
+                        "intentType": "plot_reaction",
+                        "representativeText": "老板这句太暖了",
+                        "sourceCommentIds": ["dm_4"],
+                        "confidence": 0.9,
+                        "reason": "具体台词反应。",
+                    },
+                ]
+            }
+        )
+
+        result = generate_inner_voice_danmaku(
+            video_id="demo_ep01",
+            series_id="demo",
+            episode_id="ep01",
+            danmaku_items=[
+                {"danmaku_id": "dm_1", "time_sec": 40.0, "text": "这段真的太好笑了", "digg_count": 2},
+                {"danmaku_id": "dm_2", "time_sec": 41.0, "text": "这段剧情太好哭了", "digg_count": 2},
+                {"danmaku_id": "dm_3", "time_sec": 42.0, "text": "剧情太应景了", "digg_count": 2},
+                {"danmaku_id": "dm_4", "time_sec": 43.0, "text": "老板这句太暖了", "digg_count": 2},
+            ],
+            llm_client=fake_client,
+            enable_llm_semantic=True,
+            window_sec=8.0,
+            step_sec=2.0,
+            min_window_danmaku_count=2,
+            min_window_score=2.0,
+        )
+
+        self.assertEqual([cue["text"] for cue in result["cues"]], ["老板这句太暖了"])
+        self.assertEqual(result["debug"]["filteredCandidateCount"], 3)
+        self.assertEqual(
+            [candidate["reason"] for candidate in result["debug"]["filteredCandidates"]],
+            ["generic_emotion_or_plot_summary", "generic_emotion_or_plot_summary", "generic_emotion_or_plot_summary"],
+        )
 
     def test_rejects_llm_cluster_without_valid_source_ids(self) -> None:
         fake_client = FakeLlmClient(

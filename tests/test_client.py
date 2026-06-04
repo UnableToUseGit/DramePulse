@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -88,7 +90,7 @@ class VolcArkLlmClientTest(unittest.TestCase):
         self.assertEqual(payload["max_tokens"], 123)
         self.assertEqual(payload["temperature"], 0.2)
         self.assertEqual(payload["extra_body"], {"thinking": {"type": "disabled"}})
-        self.assertEqual(payload["response_format"], {"type": "json_object"})
+        self.assertNotIn("response_format", payload)
         messages = payload["messages"]
         self.assertEqual(messages[0]["content"], "system")
         self.assertEqual(
@@ -248,7 +250,7 @@ class OpenAiLlmClientTest(unittest.TestCase):
         self.assertEqual(payload["model"], "gpt-test")
         self.assertEqual(payload["max_tokens"], 456)
         self.assertEqual(payload["temperature"], 0.2)
-        self.assertEqual(payload["response_format"], {"type": "json_object"})
+        self.assertNotIn("response_format", payload)
         self.assertNotIn("extra_body", payload)
         self.assertEqual(payload["messages"][0]["content"], "system")
         self.assertEqual(
@@ -265,6 +267,53 @@ class OpenAiLlmClientTest(unittest.TestCase):
         self.assertEqual(client.last_call_diagnostics["status"], "success")
         self.assertEqual(client.last_call_diagnostics["provider"], "openai")
         self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 18)
+
+    def test_generate_json_multimodal_extracts_fenced_json_without_response_format(self) -> None:
+        _FakeOpenAI.response_content = '```json\n{"ok": true}\n```'
+
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        self.assertEqual(result, {"ok": True})
+        assert _FakeOpenAI.last_instance is not None
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertNotIn("response_format", payload)
+        self.assertEqual(client.last_call_diagnostics["status"], "success")
+
+    def test_generate_json_multimodal_repairs_malformed_json_with_json_repair(self) -> None:
+        _FakeOpenAI.response_content = "{ok: true, count: 1,}"
+        fake_json_repair = types.ModuleType("json_repair")
+        calls: list[str] = []
+
+        def fake_loads(value: str) -> dict[str, object]:
+            calls.append(value)
+            return {"ok": True, "count": 1}
+
+        fake_json_repair.loads = fake_loads  # type: ignore[attr-defined]
+
+        with patch.dict(sys.modules, {"json_repair": fake_json_repair}), patch(
+            "pipelines.client.openai_client.OpenAI",
+            _FakeOpenAI,
+        ):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        self.assertEqual(result, {"ok": True, "count": 1})
+        self.assertEqual(calls, ["{ok: true, count: 1,}"])
+        self.assertEqual(client.last_call_diagnostics["status"], "success")
 
     def test_generate_json_multimodal_disables_gpt_5_1_reasoning(self) -> None:
         with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
