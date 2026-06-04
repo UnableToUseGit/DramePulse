@@ -1,5 +1,7 @@
 # 高光点识别模块设计
 
+> 本文档记录早期高光识别设计。当前算法主线已迁移为 Expression Trigger，代码入口为 `pipelines/expression_trigger/`。旧 `highlight_recognition` pipeline 已废弃并移除。
+
 ## 1. 模块定位
 
 高光点识别模块负责从短剧视频和字幕中识别适合触发互动的剧情片段，并输出结构化的 `Highlight Asset` 列表。
@@ -171,16 +173,16 @@ MVP 阶段采用“字幕 + 多图理解 + 结构化校验”的方式完成最�
 
 ## 8. 实现接口
 
-当前脚本入口：
+早期脚本入口已废弃：
 
 ```text
 scripts/run_highlight_recognition.py
 ```
 
-示例运行：
+当前 Expression Trigger 主链路入口：
 
 ```bash
-python scripts/run_highlight_recognition.py case1_ep01
+python scripts/run_expression_trigger_workflow_batch.py --video-id case1_ep01 --force
 ```
 
 输出写入：

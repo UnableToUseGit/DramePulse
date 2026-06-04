@@ -82,13 +82,13 @@ python scripts/serve_algorithm_review_tool.py \
 
 当前主流程文件：
 
-- `pipelines/workflow_expression_trigger_detection.py`
-- `scripts/run_workflow_expression_trigger_detection_batch.py`
+- `pipelines/expression_trigger/workflow.py`
+- `scripts/run_expression_trigger_workflow_batch.py`
 
 运行示例：
 
 ```bash
-python scripts/run_workflow_expression_trigger_detection_batch.py \
+python scripts/run_expression_trigger_workflow_batch.py \
   --data-root /Users/qinminghao/Desktop/ByteDance/DataForAlgorithm \
   --output-root output/workflow_expression_trigger \
   --series-id beiwang nanian_dongzhi tianxia_diyi_wanku \
@@ -134,8 +134,8 @@ python scripts/run_workflow_expression_trigger_detection_batch.py \
 
 当前也保留纯文本版本：
 
-- `pipelines/text_expression_trigger_detection.py`
-- `scripts/run_text_expression_trigger_detection_batch.py`
+- `pipelines/expression_trigger/baseline_text.py`
+- `scripts/run_expression_trigger_text_baseline_batch.py`
 
 观察结论：
 
@@ -147,8 +147,8 @@ python scripts/run_workflow_expression_trigger_detection_batch.py \
 
 已经从 `story-navigation` worktree 复制章节划分相关文件到当前目录，便于后续一起开发：
 
-- `pipelines/story_chapter_generation.py`
-- `pipelines/story_chapter_generation_multimodal.py`
+- `pipelines/story_chapter/baseline_text.py`
+- `pipelines/story_chapter/baseline_mllm.py`
 - `scripts/run_story_chapter_generation.py`
 - `scripts/run_story_chapter_generation_batch.py`
 - `scripts/run_story_chapter_generation_multimodal.py`
