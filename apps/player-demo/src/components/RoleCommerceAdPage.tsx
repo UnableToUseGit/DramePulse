@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { createInitialResonanceTapState } from "../action-rail-resonance/tapState";
 import type { ResonanceTapState } from "../action-rail-resonance/tapState";
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
+import {
+  getRoleCommerceAdCompletionAction,
+  getRoleCommerceAdPlaybackState,
+  getRoleCommerceAdProductSheetOpenAction,
+  type RoleCommerceAdPlaybackIntent
+} from "../domain/roleCommerceAdPlayback";
 import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
+import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
+import { RoleCommerceProductCta } from "./RoleCommerceProductCta";
+import { RoleCommerceProductSheet } from "./RoleCommerceProductSheet";
 import { SeekRequest, VideoStage } from "./VideoStage";
 
 declare const require: (path: string) => number;
@@ -18,24 +27,29 @@ export function RoleCommerceAdPage({
   height,
   isActive,
   hasNextItem,
-  nextItemLabel,
-  onPlayNextItem
+  nextItemLabel
 }: {
   ad: RoleCommerceFeedAd;
   height: number;
   isActive: boolean;
   hasNextItem: boolean;
   nextItemLabel?: string;
-  onPlayNextItem: () => void;
 }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(1);
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
+  const [userPlaybackIntent, setUserPlaybackIntent] = useState<RoleCommerceAdPlaybackIntent>("playing");
+  const [isProductSheetVisible, setIsProductSheetVisible] = useState(false);
   const didCompleteRef = useRef(false);
+  const playbackState = getRoleCommerceAdPlaybackState({ isActive, userPlaybackIntent });
+  const completionAction = getRoleCommerceAdCompletionAction();
 
   useEffect(() => {
     if (isActive) {
       didCompleteRef.current = false;
+      setUserPlaybackIntent("playing");
+    } else {
+      setIsProductSheetVisible(false);
     }
   }, [isActive]);
 
@@ -48,21 +62,50 @@ export function RoleCommerceAdPage({
   }, []);
 
   const handlePlayToEnd = useCallback(() => {
-    if (!hasNextItem || didCompleteRef.current) {
+    if (didCompleteRef.current) {
       return;
     }
     didCompleteRef.current = true;
-    onPlayNextItem();
-  }, [hasNextItem, onPlayNextItem]);
+    setCurrentTime(duration);
+    setUserPlaybackIntent(completionAction.nextPlaybackIntent);
+  }, [completionAction.nextPlaybackIntent, duration]);
+
+  const handleTogglePlay = useCallback(() => {
+    if (!isActive) {
+      return;
+    }
+    if (didCompleteRef.current) {
+      didCompleteRef.current = false;
+      setCurrentTime(0);
+      setSeekRequest({ id: Date.now(), time: 0 });
+      setUserPlaybackIntent("playing");
+      return;
+    }
+    setUserPlaybackIntent((intent) => (intent === "playing" ? "paused" : "playing"));
+  }, [isActive]);
 
   const handleSeekCommit = useCallback((time: number) => {
     didCompleteRef.current = false;
     setCurrentTime(time);
+    setUserPlaybackIntent("playing");
     setSeekRequest({ id: Date.now(), time });
   }, []);
 
   const handleSeekHandled = useCallback(() => {
     setSeekRequest(undefined);
+  }, []);
+
+  const handleOpenProductSheet = useCallback(() => {
+    if (!isActive) {
+      return;
+    }
+    const action = getRoleCommerceAdProductSheetOpenAction({ currentPlaybackIntent: userPlaybackIntent });
+    setUserPlaybackIntent(action.nextPlaybackIntent);
+    setIsProductSheetVisible(action.shouldShowProductSheet);
+  }, [isActive, userPlaybackIntent]);
+
+  const handleCloseProductSheet = useCallback(() => {
+    setIsProductSheetVisible(false);
   }, []);
 
   const noopSendInnerVoice = useCallback((_cue: InnerVoiceDanmakuCue) => {}, []);
@@ -74,8 +117,8 @@ export function RoleCommerceAdPage({
   return (
     <View style={[styles.root, { height }]}>
       <VideoStage
-        isStarted
-        isPlaying={isActive}
+        isStarted={playbackState.isStarted}
+        isPlaying={playbackState.shouldPlay}
         seekRequest={seekRequest}
         onStart={() => {}}
         onTimeChange={handleTimeChange}
@@ -86,6 +129,8 @@ export function RoleCommerceAdPage({
         showStartEntry={false}
         streamUrl={AD_VIDEO_SOURCE}
       />
+      {isActive ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+      <PlaybackHint visible={playbackState.shouldShowPauseHint} />
       <PlayerChrome
         liked={false}
         onToggleLike={() => {}}
@@ -98,6 +143,7 @@ export function RoleCommerceAdPage({
         plotSummary={ad.productDescription}
         episodeLabel="广告"
         metaTags={["广告", "商品同款", ad.characterName]}
+        preTitleAccessory={<RoleCommerceProductCta label={ad.ctaText} onPress={handleOpenProductSheet} />}
         showActionRail={false}
         showDanmakuEntry={false}
         mode="series"
@@ -112,10 +158,11 @@ export function RoleCommerceAdPage({
       <PlayerControls
         currentTime={currentTime}
         duration={duration}
-        hasNextEpisode={hasNextItem}
+        hasNextEpisode={completionAction.shouldShowNextItemHint && hasNextItem}
         nextEpisodeLabel={nextItemLabel}
         onSeekCommit={handleSeekCommit}
       />
+      <RoleCommerceProductSheet visible={isProductSheetVisible} ad={ad} onClose={handleCloseProductSheet} />
     </View>
   );
 }
@@ -124,5 +171,8 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: "#050505",
     overflow: "hidden"
+  },
+  tapLayer: {
+    ...StyleSheet.absoluteFillObject
   }
 });

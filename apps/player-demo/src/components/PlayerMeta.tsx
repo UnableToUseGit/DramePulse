@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
@@ -15,6 +16,7 @@ export function PlayerMeta({
   showInnerVoice,
   showDanmakuEntry = true,
   reserveActionRail = true,
+  preTitleAccessory,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku
 }: {
@@ -27,6 +29,7 @@ export function PlayerMeta({
   showInnerVoice: boolean;
   showDanmakuEntry?: boolean;
   reserveActionRail?: boolean;
+  preTitleAccessory?: ReactNode;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
 }) {
@@ -51,6 +54,7 @@ export function PlayerMeta({
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
         />
       ) : null}
+      {preTitleAccessory ? <View style={styles.preTitleAccessory}>{preTitleAccessory}</View> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}
@@ -122,6 +126,10 @@ const styles = StyleSheet.create({
     minHeight: 28,
     flexDirection: "row",
     alignItems: "flex-start"
+  },
+  preTitleAccessory: {
+    alignSelf: "flex-start",
+    marginBottom: spacing.sm
   },
   titleArrow: {
     position: "absolute",

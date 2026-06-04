@@ -23,6 +23,7 @@ export function PlayerChrome({
   plotSummary,
   episodeLabel,
   metaTags,
+  preTitleAccessory,
   showActionRail = true,
   showMeta = true,
   showDanmakuEntry = true,
@@ -50,6 +51,7 @@ export function PlayerChrome({
   plotSummary: string;
   episodeLabel?: string;
   metaTags?: string[];
+  preTitleAccessory?: ReactNode;
   showActionRail?: boolean;
   showMeta?: boolean;
   showDanmakuEntry?: boolean;
@@ -91,6 +93,7 @@ export function PlayerChrome({
           plotSummary={plotSummary}
           episodeLabel={episodeLabel}
           metaTags={metaTags}
+          preTitleAccessory={preTitleAccessory}
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}

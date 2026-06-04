@@ -26,6 +26,7 @@
 
 - `player/player-interaction-lab-design.md`：播放器 Interaction Lab 的开发工具设计。
 - `player/home-feed-playback-observations.md`：Home Feed 视频播放与竖滑 Feed 的真机日志观察、已确认问题和优化优先级。
+- `player/feed-video-delivery-and-cache-status.md`：Home Feed 视频传输、CDN/HLS、客户端缓存与未解决问题。
 - `player/player-vertical-swipe-requirements.md`：播放器上下滑切集需求。
 
 ## 当前状态

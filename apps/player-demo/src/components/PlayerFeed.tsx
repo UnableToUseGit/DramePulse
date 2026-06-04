@@ -390,7 +390,6 @@ export function PlayerFeed({
                   isActive={playbackPageState.shouldOwnPlayback}
                   hasNextItem={nextItem !== undefined}
                   nextItemLabel={nextItemLabel}
-                  onPlayNextItem={() => handlePlayNextItem(index)}
                 />
               );
             }
