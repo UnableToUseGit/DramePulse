@@ -1,41 +1,26 @@
-import Svg, { Ellipse, Path } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 
-export function CandyResonanceIcon({ isLit }: { isLit: boolean }) {
-  const colors = isLit
+const CANDY_WRAPPER_PATH =
+  "M6.31,15l-2.5.6a1,1,0,0,0-.75,1.24,1,1,0,0,0,.27.48l3,3a1,1,0,0,0,1.44,0A1,1,0,0,0,8,19.79l.61-2.5ZM17.63,8.27l2.49-.61A1,1,0,0,0,20.6,6L17.66,3a1,1,0,0,0-1.45,0,1.09,1.09,0,0,0-.27.48L15.34,6l2.29,2.29Z";
+
+const CANDY_BODY_PATH =
+  "M9.31,7.93,7,10.28l8,4.63,2.34-2.35-8-4.63Zm8.93,3.58a2.55,2.55,0,0,0-.42-3L15.11,5.75a2.55,2.55,0,0,0-3.61,0h0L10.31,6.94ZM6.08,14.78a2.56,2.56,0,0,1-.1-3.5l8,4.62L12.4,17.49a2.57,2.57,0,0,1-3.61,0h0Z";
+
+export function CandyResonanceIcon({ isLit, size = 38 }: { isLit: boolean; size?: number }) {
+  const fills = isLit
     ? {
-        body: "#ff7bbd",
-        wrapper: "#ffd66e",
-        detail: "#fff1bd"
+        wrapper: "#ff91b0",
+        body: "#f71762"
       }
     : {
-        body: "#ffffff",
         wrapper: "#ffffff",
-        detail: "#ffffff"
+        body: "#ffffff"
       };
 
   return (
-    <Svg width={38} height={38} viewBox="0 0 1024 1024">
-      <Path
-        d="M314 410c-64 64-64 168 0 232l62 62c64 64 168 64 232 0l102-102c64-64 64-168 0-232l-62-62c-64-64-168-64-232 0L314 410z"
-        fill={colors.body}
-      />
-      <Path
-        d="M642 314l72-204c8-24 38-32 56-14l158 158c18 18 10 48-14 56l-204 72c-15 5-32 1-44-11l-13-13c-12-12-16-29-11-44z"
-        fill={colors.wrapper}
-      />
-      <Path
-        d="M382 710l-72 204c-8 24-38 32-56 14L96 770c-18-18-10-48 14-56l204-72c15-5 32-1 44 11l13 13c12 12 16 29 11 44z"
-        fill={colors.wrapper}
-      />
-      <Path
-        d="M594 392l126-34c16-4 32 6 36 22s-6 32-22 36l-126 34c-16 4-32-6-36-22s6-32 22-36z"
-        fill={colors.detail}
-      />
-      <Path
-        d="M292 632l-126 34c-16 4-32-6-36-22s6-32 22-36l126-34c16-4 32 6 36 22s-6 32-22 36z"
-        fill={colors.detail}
-      />
-      <Ellipse cx={512} cy={506} rx={106} ry={78} fill={colors.detail} opacity={isLit ? 0.24 : 0.18} />
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d={CANDY_WRAPPER_PATH} fill={fills.wrapper} />
+      <Path d={CANDY_BODY_PATH} fill={fills.body} />
     </Svg>
   );
 }

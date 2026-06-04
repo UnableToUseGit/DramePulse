@@ -1,6 +1,22 @@
 import type { PlayerVideo } from "./playerApi";
+import type { RoleCommerceFeedAd } from "./roleCommerceAds";
 
 export type UserPlaybackIntent = "playing" | "paused";
+
+export type PlayerFeedVideoItem = {
+  itemType: "video";
+  itemId: string;
+  video: PlayerVideo;
+};
+
+export type PlayerFeedRoleCommerceAdItem = {
+  itemType: "role_commerce_ad";
+  itemId: string;
+  ad: RoleCommerceFeedAd;
+};
+
+export type PlayerFeedItem = PlayerFeedVideoItem | PlayerFeedRoleCommerceAdItem;
+
 
 export interface SeriesGroup {
   seriesKey: string;
@@ -110,6 +126,63 @@ export function findNextEpisodeIndex(videos: PlayerVideo[], currentIndex: number
   }
   const nextIndex = videos.findIndex((video, index) => index > currentIndex && getSeriesKey(video) === currentSeriesKey);
   return nextIndex >= 0 ? nextIndex : undefined;
+}
+
+function shouldPlaceRoleCommerceAdAfterVideo({
+  ad,
+  video,
+  videoIndex
+}: {
+  ad: RoleCommerceFeedAd;
+  video: PlayerVideo;
+  videoIndex: number;
+}) {
+  if (ad.placement === "after_first_video") {
+    return videoIndex === 0;
+  }
+  return ad.afterVideoId === video.videoId;
+}
+
+export function buildPlayerFeedItems({
+  videos,
+  roleCommerceAds = [],
+  mode
+}: {
+  videos: PlayerVideo[];
+  roleCommerceAds?: RoleCommerceFeedAd[];
+  mode: "home" | "series";
+}): PlayerFeedItem[] {
+  return videos.flatMap((video, videoIndex) => {
+    const videoItem: PlayerFeedVideoItem = {
+      itemType: "video",
+      itemId: `video:${video.videoId}`,
+      video
+    };
+    if (mode !== "series") {
+      return [videoItem];
+    }
+    const adItems: PlayerFeedRoleCommerceAdItem[] = roleCommerceAds
+      .filter((ad) => shouldPlaceRoleCommerceAdAfterVideo({ ad, video, videoIndex }))
+      .map((ad) => ({
+        itemType: "role_commerce_ad",
+        itemId: `role-commerce:${ad.adId}`,
+        ad
+      }));
+    return [videoItem, ...adItems];
+  });
+}
+
+export function findNextFeedItemIndex(items: PlayerFeedItem[], currentIndex: number) {
+  const nextIndex = currentIndex + 1;
+  return nextIndex >= 0 && nextIndex < items.length ? nextIndex : undefined;
+}
+
+export function getVideoIndexFromFeedItems(items: PlayerFeedItem[], videoId: string | undefined) {
+  if (!videoId) {
+    return 0;
+  }
+  const index = items.findIndex((item) => item.itemType === "video" && item.video.videoId === videoId);
+  return index >= 0 ? index : 0;
 }
 
 export function getNextEpisodeInfoByIndex(videos: PlayerVideo[]) {

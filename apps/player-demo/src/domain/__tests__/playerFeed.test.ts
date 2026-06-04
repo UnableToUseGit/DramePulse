@@ -1,4 +1,5 @@
 import {
+  buildPlayerFeedItems,
   findNextEpisodeIndex,
   getFeedPageIndex,
   getFeedScrollEnabled,
@@ -15,6 +16,7 @@ import {
   shouldPreloadFeedPage
 } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
+import type { RoleCommerceFeedAd } from "../roleCommerceAds";
 
 function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
   return {
@@ -24,6 +26,25 @@ function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
     duration: 60,
     streamUrl: "http://localhost/video.mp4",
     danmakuUrl: "http://localhost/danmaku",
+    ...overrides
+  };
+}
+
+function makeAd(overrides: Partial<RoleCommerceFeedAd> = {}): RoleCommerceFeedAd {
+  return {
+    adId: "rc1",
+    campaignId: "campaign1",
+    placement: "after_first_video",
+    sponsorLabel: "广告",
+    characterName: "太奶奶",
+    productName: "云雾哑光口红",
+    title: "太奶奶亲自挑的气色口红",
+    hook: "别让气色输在第一眼。",
+    productDescription: "太奶奶同款短剧番外推荐。",
+    voiceoverLines: ["这支颜色，提气色，不张扬。"],
+    sellingPoints: ["显气色"],
+    priceText: "到手价 99 元",
+    ctaText: "查看同款",
     ...overrides
   };
 }
@@ -80,6 +101,21 @@ describe("playerFeed", () => {
     expect(findNextEpisodeIndex(videos, 0)).toBe(2);
     expect(findNextEpisodeIndex(videos, 1)).toBeUndefined();
     expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
+  });
+
+  it("builds role commerce ads only for a series feed", () => {
+    const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" })];
+    const ad = makeAd();
+
+    expect(buildPlayerFeedItems({ videos, roleCommerceAds: [ad], mode: "home" }).map((item) => item.itemId)).toEqual([
+      "video:s1e1",
+      "video:s1e2"
+    ]);
+    expect(buildPlayerFeedItems({ videos, roleCommerceAds: [ad], mode: "series" }).map((item) => item.itemId)).toEqual([
+      "video:s1e1",
+      "role-commerce:rc1",
+      "video:s1e2"
+    ]);
   });
 
   it("precomputes next episode labels for each feed item", () => {

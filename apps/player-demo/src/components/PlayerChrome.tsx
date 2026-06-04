@@ -22,8 +22,10 @@ export function PlayerChrome({
   title,
   plotSummary,
   episodeLabel,
+  metaTags,
   showActionRail = true,
   showMeta = true,
+  showDanmakuEntry = true,
   mode = "home",
   currentTime,
   isActive,
@@ -47,8 +49,10 @@ export function PlayerChrome({
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  metaTags?: string[];
   showActionRail?: boolean;
   showMeta?: boolean;
+  showDanmakuEntry?: boolean;
   mode?: "home" | "series";
   currentTime: number;
   isActive: boolean;
@@ -86,9 +90,12 @@ export function PlayerChrome({
           title={title}
           plotSummary={plotSummary}
           episodeLabel={episodeLabel}
+          metaTags={metaTags}
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}
+          showDanmakuEntry={showDanmakuEntry}
+          reserveActionRail={showActionRail}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
         />

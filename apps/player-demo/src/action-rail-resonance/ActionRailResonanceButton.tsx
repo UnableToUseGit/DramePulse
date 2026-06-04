@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../theme";
 import { CandyResonanceIcon } from "./CandyResonanceIcon";
+import { SmileResonanceIcon } from "./SmileResonanceIcon";
+import { TearResonanceIcon } from "./TearResonanceIcon";
+import { ThrillResonanceIcon } from "./ThrillResonanceIcon";
 import { formatResonanceCount, getParticipatingCount } from "./formatCount";
 import { reduceResonanceTap, ResonanceTapState } from "./tapState";
 import type { ActionRailResonanceCue, ActionRailResonanceEmotionType } from "./types";
@@ -37,9 +40,13 @@ export function ActionRailResonanceButton({
   onParticipate: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const attention = useRef(new Animated.Value(0)).current;
   const colorsForEmotion = EMOTION_COLORS[cue.emotionType];
   const hasParticipated = tapState.phase !== "idle";
+  const isThrillCue = cue.emotionType === "爽点";
   const isCandyCue = cue.emotionType === "甜点";
+  const isLaughCue = cue.emotionType === "笑点";
+  const isTearCue = cue.emotionType === "泪点";
   const countText = useMemo(
     () => formatResonanceCount(getParticipatingCount({ baseCount: cue.baseCount, hasParticipated })),
     [cue.baseCount, hasParticipated]
@@ -72,12 +79,88 @@ export function ActionRailResonanceButton({
     scale.setValue(1);
   }, [cue.cueId, scale]);
 
+  useEffect(() => {
+    if (hasParticipated) {
+      attention.stopAnimation();
+      attention.setValue(0);
+      return;
+    }
+
+    attention.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(attention, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [attention, cue.cueId, hasParticipated]);
+
+  const attentionOpacity = attention.interpolate({
+    inputRange: [0, 0.16, 1],
+    outputRange: [0, 0.62, 0]
+  });
+  const attentionScale = attention.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.78, 1.45]
+  });
+  const secondaryAttentionOpacity = attention.interpolate({
+    inputRange: [0, 0.36, 1],
+    outputRange: [0, 0.46, 0]
+  });
+  const secondaryAttentionScale = attention.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.56, 1.76]
+  });
+
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={cue.label} style={styles.root} onPress={handlePress}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={cue.label}
+      accessibilityState={{ selected: hasParticipated }}
+      disabled={hasParticipated}
+      style={styles.root}
+      onPress={handlePress}
+    >
       <Animated.View style={[styles.iconShell, { transform: [{ scale }] }]}>
-        {isCandyCue ? (
+        {!hasParticipated ? (
+          <>
+            <Animated.View
+              style={[
+                styles.attentionHalo,
+                {
+                  backgroundColor: colorsForEmotion.glow,
+                  opacity: attentionOpacity,
+                  transform: [{ scale: attentionScale }]
+                }
+              ]}
+            />
+            <Animated.View
+              style={[
+                styles.attentionHalo,
+                styles.attentionHaloSecondary,
+                {
+                  borderColor: colorsForEmotion.primary,
+                  opacity: secondaryAttentionOpacity,
+                  transform: [{ scale: secondaryAttentionScale }]
+                }
+              ]}
+            />
+          </>
+        ) : null}
+        {isThrillCue || isCandyCue || isLaughCue || isTearCue ? (
           <View style={styles.plainIconWrap}>
-            <CandyResonanceIcon isLit={hasParticipated} />
+            {isThrillCue ? (
+              <ThrillResonanceIcon isLit={hasParticipated} size={58} />
+            ) : isCandyCue ? (
+              <CandyResonanceIcon isLit={hasParticipated} />
+            ) : isLaughCue ? (
+              <SmileResonanceIcon isLit={hasParticipated} size={62} />
+            ) : (
+              <TearResonanceIcon isLit={hasParticipated} size={62} />
+            )}
           </View>
         ) : (
           <>
@@ -96,7 +179,7 @@ export function ActionRailResonanceButton({
                 }
               ]}
             >
-            <Ionicons name={cue.icon} size={28} color={hasParticipated ? colorsForEmotion.primary : "#f4f4f4"} />
+              <Ionicons name={cue.icon} size={28} color={hasParticipated ? colorsForEmotion.primary : "#f4f4f4"} />
             </View>
           </>
         )}
@@ -123,6 +206,16 @@ const styles = StyleSheet.create({
     height: 46,
     alignItems: "center",
     justifyContent: "center"
+  },
+  attentionHalo: {
+    position: "absolute",
+    width: 48,
+    height: 48,
+    borderRadius: 24
+  },
+  attentionHaloSecondary: {
+    backgroundColor: "transparent",
+    borderWidth: 1.4
   },
   glow: {
     position: "absolute",

@@ -29,11 +29,10 @@ export function shouldResetActionRailResonanceCue({
 }
 
 export function getVisibleActionRailResonanceCue({
-  activeCue,
-  participatingCue
+  activeCue
 }: {
   activeCue: ActionRailResonanceCue | undefined;
   participatingCue: ActionRailResonanceCue | undefined;
 }) {
-  return participatingCue ?? activeCue;
+  return activeCue;
 }

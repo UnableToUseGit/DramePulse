@@ -50,7 +50,7 @@ export const VideoStage = memo(function VideoStage({
   onPlayToEnd: () => void;
   onSeekHandled: () => void;
   playbackRate: number;
-  streamUrl: string;
+  streamUrl: string | number;
   showStartEntry?: boolean;
 }) {
   const onTimeChangeRef = useRef(onTimeChange);

@@ -1,5 +1,6 @@
 import {
   getInnerVoiceDragState,
+  getInnerVoiceFlingVelocity,
   getInnerVoiceLaunchTarget,
   shouldClaimInnerVoiceDrag,
   shouldSendInnerVoiceDraft
@@ -41,6 +42,17 @@ describe("inner voice danmaku gesture helpers", () => {
     expect(getInnerVoiceLaunchTarget({ dx: 12, dy: -38, vy: -1.6 })).toEqual({
       translateX: 24,
       translateY: -254
+    });
+  });
+
+  it("converts release velocity into a strong upward fling", () => {
+    expect(getInnerVoiceFlingVelocity({ vx: 0.2, vy: -0.2 })).toEqual({
+      velocityX: 200,
+      velocityY: -1050
+    });
+    expect(getInnerVoiceFlingVelocity({ vx: 2.4, vy: -1.6 })).toEqual({
+      velocityX: 1400,
+      velocityY: -2120
     });
   });
 });

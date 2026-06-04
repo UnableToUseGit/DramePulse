@@ -9,24 +9,31 @@ export function PlayerMeta({
   title,
   plotSummary,
   episodeLabel,
+  metaTags,
   currentTime,
   isActive,
   showInnerVoice,
+  showDanmakuEntry = true,
+  reserveActionRail = true,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku
 }: {
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  metaTags?: string[];
   currentTime: number;
   isActive: boolean;
   showInnerVoice: boolean;
+  showDanmakuEntry?: boolean;
+  reserveActionRail?: boolean;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   const titleCanExpand = Array.from(title).length > 9;
   const [isTitleExpanded, setIsTitleExpanded] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const resolvedTags = metaTags ?? [episodeLabel ?? "短剧", "都市爱情", "真实弹幕"];
 
   useEffect(() => {
     setIsTitleExpanded(false);
@@ -34,14 +41,16 @@ export function PlayerMeta({
   }, [title, plotSummary]);
 
   return (
-    <View style={styles.root}>
-      <DanmakuEntryArea
-        currentTime={currentTime}
-        isActive={isActive}
-        showInnerVoice={showInnerVoice}
-        onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
-        onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
-      />
+    <View style={[styles.root, reserveActionRail ? styles.withActionRail : styles.fullWidth]}>
+      {showDanmakuEntry ? (
+        <DanmakuEntryArea
+          currentTime={currentTime}
+          isActive={isActive}
+          showInnerVoice={showInnerVoice}
+          onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+          onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+        />
+      ) : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}
@@ -62,15 +71,11 @@ export function PlayerMeta({
         ) : null}
       </Pressable>
       <View style={styles.tags}>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          {episodeLabel ?? "短剧"}
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          都市爱情
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          真实弹幕
-        </Text>
+        {resolvedTags.map((tag) => (
+          <Text key={tag} numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+            {tag}
+          </Text>
+        ))}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -97,8 +102,13 @@ const styles = StyleSheet.create({
   root: {
     position: "absolute",
     left: spacing.lg,
-    right: 100,
     bottom: 118
+  },
+  withActionRail: {
+    right: 100
+  },
+  fullWidth: {
+    right: spacing.lg
   },
   title: {
     flex: 1,

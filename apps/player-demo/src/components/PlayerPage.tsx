@@ -28,12 +28,9 @@ import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
 import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
 import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
-import { EmotionAuraExample } from "../emotion-aura/EmotionAuraExample";
 import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
-import { EmojiHoldExample } from "../interaction-examples/EmojiHoldExample";
 import { InteractionLabControls } from "../interaction-examples/InteractionLabControls";
-import { PollBarExample } from "../interaction-examples/PollBarExample";
-import { shouldResetExample } from "../interaction-examples/trigger";
+import { isActionRailResonancePresentation, shouldResetExample } from "../interaction-examples/trigger";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { DanmakuLayer } from "./DanmakuLayer";
 import { FastForwardPressLayer } from "./FastForwardPressLayer";
@@ -45,8 +42,24 @@ import { SeekRequest, VideoStage } from "./VideoStage";
 import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
-const ACTION_RAIL_RESONANCE_PREVIEW_CUE =
-  ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "甜点") ?? ACTION_RAIL_RESONANCE_CUES[0];
+const ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS = 520;
+const ACTION_RAIL_RESONANCE_EFFECT_HOLD_MS = 1500;
+
+function getActionRailPreviewCue(type: InteractionPresentationType) {
+  if (type === "action_rail_thrill") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "爽点");
+  }
+  if (type === "action_rail_candy") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "甜点");
+  }
+  if (type === "action_rail_laugh") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "笑点");
+  }
+  if (type === "action_rail_tear") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "泪点");
+  }
+  return undefined;
+}
 
 export function PlayerPage({
   video,
@@ -107,16 +120,18 @@ export function PlayerPage({
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
   const storyQaRequestRef = useRef(0);
+  const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
   const activeActionRailResonanceCue = useMemo(
     () => {
-      if (selectedPresentationType !== "action_rail_resonance" || !isActive || !playbackState.isStarted) {
+      if (!isActionRailResonancePresentation(selectedPresentationType) || !isActive || !playbackState.isStarted) {
         return undefined;
       }
-      const previewCue = ACTION_RAIL_RESONANCE_PREVIEW_CUE;
-      if (previewCue && !completedResonanceCueIds.has(previewCue.cueId)) {
-        return previewCue;
+      const previewCue = getActionRailPreviewCue(selectedPresentationType);
+      if (previewCue) {
+        return completedResonanceCueIds.has(previewCue.cueId) ? undefined : previewCue;
       }
       return getActiveActionRailResonanceCue({
         cues: ACTION_RAIL_RESONANCE_CUES,
@@ -130,6 +145,20 @@ export function PlayerPage({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
   });
+
+  const clearResonanceTimers = useCallback(() => {
+    if (resonanceButtonDismissTimeoutRef.current) {
+      clearTimeout(resonanceButtonDismissTimeoutRef.current);
+      resonanceButtonDismissTimeoutRef.current = undefined;
+    }
+    if (resonanceEffectTimeoutRef.current) {
+      clearTimeout(resonanceEffectTimeoutRef.current);
+      resonanceEffectTimeoutRef.current = undefined;
+    }
+  }, []);
+
+  useEffect(() => clearResonanceTimers, [clearResonanceTimers]);
+
   const {
     dismiss: dismissInteractionExample,
     reset: resetInteractionExample,
@@ -210,10 +239,11 @@ export function PlayerPage({
   }, [video.duration, video.videoId]);
 
   useEffect(() => {
+    clearResonanceTimers();
     setCompletedResonanceCueIds(new Set());
     setParticipatingResonanceCue(undefined);
     setResonanceTapState(createInitialResonanceTapState());
-  }, [selectedPresentationType, video.videoId]);
+  }, [clearResonanceTimers, selectedPresentationType, video.videoId]);
 
   const handleTimeChange = useCallback(
     (time: number) => {
@@ -234,6 +264,7 @@ export function PlayerPage({
             firstTriggerTime: ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0
           })
         ) {
+          clearResonanceTimers();
           setCompletedResonanceCueIds(new Set());
           setParticipatingResonanceCue(undefined);
           setResonanceTapState(createInitialResonanceTapState());
@@ -271,6 +302,7 @@ export function PlayerPage({
       playbackState.shouldPlay,
       resetInteractionExample,
       resolvedDuration,
+      clearResonanceTimers,
       video.videoId
     ]
   );
@@ -306,6 +338,7 @@ export function PlayerPage({
         resetInteractionExample();
       }
       if (time < (ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0)) {
+        clearResonanceTimers();
         setCompletedResonanceCueIds(new Set());
         setParticipatingResonanceCue(undefined);
         setResonanceTapState(createInitialResonanceTapState());
@@ -314,7 +347,7 @@ export function PlayerPage({
       setSeekVersion((version) => version + 1);
       setSeekRequest({ id: Date.now(), time });
     },
-    [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
+    [clearResonanceTimers, isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
   const handleTimelineDragStateChange = useCallback(
@@ -346,17 +379,27 @@ export function PlayerPage({
   );
 
   const handleParticipateResonance = useCallback((cue: ActionRailResonanceCue, nextState: ResonanceTapState) => {
+    clearResonanceTimers();
     setParticipatingResonanceCue(cue);
     setResonanceTapState(nextState);
+    resonanceButtonDismissTimeoutRef.current = setTimeout(() => {
+      setCompletedResonanceCueIds((ids) => new Set(ids).add(cue.cueId));
+      resonanceButtonDismissTimeoutRef.current = undefined;
+    }, ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS);
+    resonanceEffectTimeoutRef.current = setTimeout(() => {
+      setParticipatingResonanceCue(undefined);
+      setResonanceTapState(createInitialResonanceTapState());
+      resonanceEffectTimeoutRef.current = undefined;
+    }, ACTION_RAIL_RESONANCE_EFFECT_HOLD_MS);
     // First version records locally. Future API wiring can report cueId/highlightId/tapCount here.
     void nextState;
-  }, []);
+  }, [clearResonanceTimers]);
 
   useEffect(() => {
     if (activeActionRailResonanceCue || participatingResonanceCue) {
       return;
     }
-    if (selectedPresentationType !== "action_rail_resonance") {
+    if (!isActionRailResonancePresentation(selectedPresentationType)) {
       return;
     }
     const expiredCue = ACTION_RAIL_RESONANCE_CUES.find(
@@ -466,23 +509,8 @@ export function PlayerPage({
         tapCount={resonanceTapState.tapCount}
         releaseCount={resonanceTapState.releaseCount}
       />
-      {isInteractionExampleVisible && selectedPresentationType === "emotion_aura" ? (
-        <EmotionAuraExample
-          currentTime={currentTime}
-          isActive={isActive}
-          showImmediately
-          onDismiss={() => undefined}
-          onTogglePlayback={handleTogglePlay}
-        />
-      ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "poll_bar" ? (
-        <PollBarExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
-      ) : null}
       {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
         <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
-      ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "emoji_hold" ? (
-        <EmojiHoldExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
       ) : null}
       <PlayerChrome
         liked={liked}

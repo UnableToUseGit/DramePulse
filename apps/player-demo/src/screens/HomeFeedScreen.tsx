@@ -14,7 +14,7 @@ export function HomeFeedScreen({
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
   onOpenTheater: () => void;
 }) {
-  const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("action_rail_candy");
 
   return (
     <PlayerFeed
