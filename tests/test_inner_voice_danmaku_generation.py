@@ -38,6 +38,11 @@ class FakeLlmClient:
 
 
 class InnerVoiceDanmakuGenerationTest(unittest.TestCase):
+    def test_inner_voice_pipeline_imports_from_new_package(self) -> None:
+        from pipelines.inner_voice_danmaku.pipeline import InnerVoiceDanmakuPipeline
+
+        self.assertIsNotNone(InnerVoiceDanmakuPipeline)
+
     def test_builds_actor_charm_cue_from_rule_cluster_without_llm(self) -> None:
         result = generate_inner_voice_danmaku(
             video_id="demo_ep01",
