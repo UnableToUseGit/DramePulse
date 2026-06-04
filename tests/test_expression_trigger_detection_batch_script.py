@@ -72,6 +72,12 @@ def test_discover_episodes_scans_dataset_shape_with_filters_and_limit(tmp_path: 
     assert episodes[0].source_json_path == data_root / "series_a" / "ep01" / "douyin.json"
 
 
+def test_new_mllm_baseline_batch_script_exports_main() -> None:
+    from scripts.run_expression_trigger_mllm_baseline_batch import main
+
+    assert callable(main)
+
+
 def test_discover_episodes_filters_multiple_series_ids(tmp_path: Path) -> None:
     from scripts.run_expression_trigger_detection_batch import discover_episodes
 

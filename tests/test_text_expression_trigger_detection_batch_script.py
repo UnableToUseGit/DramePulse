@@ -9,6 +9,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
+def test_new_text_baseline_batch_script_exports_main() -> None:
+    from scripts.run_expression_trigger_text_baseline_batch import main
+
+    assert callable(main)
+
+
 def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:
     episode_dir = data_root / series_id / episode_id
     episode_dir.mkdir(parents=True)

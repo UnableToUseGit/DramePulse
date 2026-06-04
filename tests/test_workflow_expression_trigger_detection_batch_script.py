@@ -153,6 +153,12 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
     assert fake_pipeline.call["metadata"]["title"] == "series_a ep01"
 
 
+def test_new_workflow_batch_script_exports_main() -> None:
+    from scripts.run_expression_trigger_workflow_batch import main
+
+    assert callable(main)
+
+
 def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
     from pipelines.workflow_expression_trigger_detection import WorkflowExpressionTriggerResult
     from scripts.run_workflow_expression_trigger_detection_batch import main
