@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from pipelines.client import LlmClientProtocol
-from pipelines.expression_trigger_detection import (
-    PLOT_PRIMARY_EXPRESSION_DEFINITIONS,
+from pipelines.expression_trigger.baseline_mllm import (
     _build_system_prompt,
+)
+from pipelines.expression_trigger.labels import PLOT_PRIMARY_EXPRESSION_DEFINITIONS
+from pipelines.expression_trigger.parsing import (
     filter_triggers_within_duration,
     format_expression_subtitle_timeline_seconds,
     parse_expression_triggers,

@@ -3,39 +3,33 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 import tempfile
-from typing import Any, Iterable
+from typing import Any
 
 from pipelines.client import LlmClientProtocol
+from pipelines.expression_trigger.labels import (
+    CHARACTER_APPEAL_KEYWORDS,
+    FINALE_KEYWORDS,
+    LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES,
+    PERFORMANCE_KEYWORDS,
+    PLOT_PRIMARY_EXPRESSION_DEFINITIONS,
+    SUPPORTED_INTERACTION_MODES,
+    SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
+    SUPPORTED_SOURCE_TYPES,
+    normalize_plot_primary_expression,
+)
+from pipelines.expression_trigger.parsing import (
+    expression_trigger_to_highlight_asset,
+    expression_triggers_to_highlight_assets,
+    filter_triggers_within_duration,
+    format_expression_subtitle_timeline_seconds,
+    parse_expression_triggers,
+)
 from pipelines.utils import (
-    SubtitleSegment,
     build_sample_timestamps,
     extract_frames_at_timestamps,
     load_subtitle_segments,
     probe_video_duration_seconds,
 )
-
-
-SUPPORTED_SOURCE_TYPES = {"plot", "performance", "character_appeal", "finale_judgment"}
-SUPPORTED_INTERACTION_MODES = {"single_tap", "hold_burst", "repeat_tap", "stance_poll", "finale_rating"}
-PLOT_PRIMARY_EXPRESSION_DEFINITIONS = (
-    ("爽点", "主角或正义方在被压制、羞辱、质疑或不公平对待之后，当场反击、打脸、赢回主动权或惩罚恶人带来的解气爽感。"),
-    ("甜点", "角色之间在暧昧、克制、误会、保护或双向在意的铺垫之后，关系出现明确升温、确认或亲密推进。"),
-    ("泪点", "亲情、爱情、牺牲、重逢、告别、无私守护或善意在充分铺垫后兑现，带来感动、悲伤或泪目。"),
-    ("笑点", "台词、动作、表演反应、误会、尴尬或前后反差形成明确笑点，观众自然想表达哈哈、笑死或绷不住。"),
-)
-LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES = {
-    "爽到了": "爽点",
-    "磕到了": "甜点",
-    "看哭了": "泪点",
-    "笑死": "笑点",
-}
-SUPPORTED_PLOT_PRIMARY_EXPRESSIONS = {
-    label for label, _description in PLOT_PRIMARY_EXPRESSION_DEFINITIONS
-} | set(LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES)
-
-PERFORMANCE_KEYWORDS = ("笑死", "哈哈", "绷不住", "离谱", "抓马", "尬", "急了", "演技")
-CHARACTER_APPEAL_KEYWORDS = ("好帅", "太帅", "太美", "漂亮", "老婆", "老公", "可爱", "眼神", "姐姐")
-FINALE_KEYWORDS = ("大结局", "完结", "结局", "好剧", "烂尾", "没看够", "上头", "太短")
 
 
 def _now_iso() -> str:
@@ -52,136 +46,6 @@ def _round_time(value: float) -> float:
 
 def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
-
-
-def normalize_plot_primary_expression(value: Any) -> str:
-    expression = _clean_text(value)
-    return LEGACY_PLOT_PRIMARY_EXPRESSION_ALIASES.get(expression, expression)
-
-
-def _iter_raw_items(raw: Any) -> tuple[list[Any], bool]:
-    if isinstance(raw, dict):
-        if isinstance(raw.get("expression_triggers"), list):
-            return raw["expression_triggers"], False
-        if isinstance(raw.get("triggers"), list):
-            return raw["triggers"], False
-        if isinstance(raw.get("highlights"), list):
-            return raw["highlights"], True
-    if isinstance(raw, list):
-        return raw, False
-    return [], False
-
-
-def _normalize_source_type(value: Any, *, from_legacy_highlight: bool) -> str:
-    if from_legacy_highlight:
-        return "plot"
-    source_type = _clean_text(value)
-    return source_type if source_type in SUPPORTED_SOURCE_TYPES else ""
-
-
-def _normalize_interaction_mode(value: Any, *, source_type: str) -> str:
-    interaction_mode = "" if value is None else _clean_text(value)
-    if not interaction_mode:
-        interaction_mode = "finale_rating" if source_type == "finale_judgment" else "single_tap"
-    return interaction_mode if interaction_mode in SUPPORTED_INTERACTION_MODES else ""
-
-
-def parse_expression_triggers(raw: Any, *, video_id: str) -> list[dict[str, Any]]:
-    items, from_legacy_highlight = _iter_raw_items(raw)
-    now = _now_iso()
-    triggers: list[dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        try:
-            start_time = float(item["start_time"])
-            end_time = float(item["end_time"])
-            intensity = float(item.get("intensity", item.get("expression_intensity", 0.0)))
-            confidence = float(item["confidence"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if start_time < 0 or end_time <= start_time:
-            continue
-        if not 0.0 <= intensity <= 1.0 or not 0.0 <= confidence <= 1.0:
-            continue
-
-        source_type = _normalize_source_type(item.get("source_type") or item.get("highlight_type"), from_legacy_highlight=from_legacy_highlight)
-        if not source_type:
-            continue
-        interaction_mode = _normalize_interaction_mode(item.get("interaction_mode"), source_type=source_type)
-        if not interaction_mode:
-            continue
-
-        primary_expression = normalize_plot_primary_expression(item.get("primary_expression") or item.get("emotion"))
-        summary = "" if item.get("summary") is None else _clean_text(item.get("summary"))
-        reason = "" if item.get("reason") is None else _clean_text(item.get("reason"))
-        setup = "" if item.get("setup") is None else _clean_text(item.get("setup"))
-        turning_point = "" if item.get("turning_point") is None else _clean_text(item.get("turning_point"))
-        expression_release = "" if item.get("expression_release") is None else _clean_text(item.get("expression_release"))
-        if not primary_expression:
-            continue
-        if source_type == "plot" and primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
-            continue
-
-        payoff_time = float(item.get("payoff_time", item.get("cue_time", start_time + (end_time - start_time) / 2.0)))
-        payoff_time = min(max(start_time, payoff_time), end_time)
-        trigger = {
-            "trigger_id": f"et_{video_id}_{len(triggers) + 1:03d}",
-            "video_id": video_id,
-            "candidate_id": _clean_text(item.get("candidate_id") or ""),
-            "decision": _clean_text(item.get("decision") or ""),
-            "role_in_arc": _clean_text(item.get("role_in_arc") or ""),
-            "start_time": _round_time(start_time),
-            "end_time": _round_time(end_time),
-            "story_interval_start": _round_time(start_time),
-            "story_interval_end": _round_time(end_time),
-            "payoff_time": _round_time(payoff_time),
-            "cue_time": _round_time(payoff_time),
-            "source_type": source_type,
-            "primary_expression": primary_expression,
-            "interaction_mode": interaction_mode,
-            "intensity": intensity,
-            "confidence": confidence,
-            "summary": summary,
-            "setup": setup,
-            "turning_point": turning_point,
-            "expression_release": expression_release,
-            "reason": reason,
-            "evidence": item.get("evidence") if isinstance(item.get("evidence"), dict) else {},
-            "status": _clean_text(item.get("status", "verified")) or "verified",
-            "created_at": str(item.get("created_at", now)),
-            "updated_at": str(item.get("updated_at", now)),
-        }
-        triggers.append(trigger)
-    return triggers
-
-
-def expression_trigger_to_highlight_asset(trigger: dict[str, Any], *, index: int) -> dict[str, Any]:
-    video_id = str(trigger["video_id"])
-    confidence = float(trigger["confidence"])
-    return {
-        "highlight_id": f"h_{video_id}_{index:03d}",
-        "video_id": video_id,
-        "start_time": float(trigger["start_time"]),
-        "end_time": float(trigger["end_time"]),
-        "highlight_type": str(trigger["source_type"]),
-        "emotion": str(trigger["primary_expression"]),
-        "intensity": float(trigger["intensity"]),
-        "summary": str(trigger["summary"]),
-        "setup": str(trigger.get("setup") or ""),
-        "turning_point": str(trigger.get("turning_point") or ""),
-        "expression_release": str(trigger.get("expression_release") or ""),
-        "reason": str(trigger["reason"]),
-        "confidence": confidence,
-        "highlight_score": confidence,
-        "status": str(trigger.get("status") or "verified"),
-        "created_at": str(trigger.get("created_at") or _now_iso()),
-        "updated_at": str(trigger.get("updated_at") or _now_iso()),
-    }
-
-
-def expression_triggers_to_highlight_assets(triggers: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [expression_trigger_to_highlight_asset(trigger, index=index) for index, trigger in enumerate(triggers, start=1)]
 
 
 def _danmaku_signal_score(item: dict[str, Any]) -> float:
@@ -339,30 +203,6 @@ def _build_system_prompt() -> str:
         "An Expression Trigger is a moment where viewers likely want to tap a low-friction expression, "
         "not merely a narrative turning point. Return JSON only."
     )
-
-
-def format_expression_subtitle_timeline_seconds(segments: list[SubtitleSegment]) -> str:
-    lines = ["[SUBTITLE_TIMELINE]"]
-    for segment in segments:
-        text = " ".join(segment.text.split())
-        lines.append(f"[{segment.start:.3f}-{segment.end:.3f}] {text}")
-    lines.append("[/SUBTITLE_TIMELINE]")
-    return "\n".join(lines)
-
-
-def filter_triggers_within_duration(triggers: list[dict[str, Any]], *, duration_sec: float) -> list[dict[str, Any]]:
-    if duration_sec <= 0:
-        return triggers
-    filtered: list[dict[str, Any]] = []
-    for trigger in triggers:
-        try:
-            start_time = float(trigger["start_time"])
-            end_time = float(trigger["end_time"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if 0.0 <= start_time <= duration_sec and end_time <= duration_sec:
-            filtered.append(trigger)
-    return filtered
 
 
 def _build_user_prompt(

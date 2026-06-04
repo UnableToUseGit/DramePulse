@@ -4,9 +4,11 @@ import json
 from typing import Any
 
 from pipelines.expression_trigger.baseline_mllm import (
-    SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
     _clean_text,
     _round_time,
+)
+from pipelines.expression_trigger.labels import (
+    SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
     normalize_plot_primary_expression,
 )
 from pipelines.expression_trigger.candidates import (

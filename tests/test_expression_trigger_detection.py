@@ -392,6 +392,8 @@ class ExpressionTriggerPipelineTest(unittest.TestCase):
         from pipelines.expression_trigger.labels import normalize_plot_primary_expression
         from pipelines.expression_trigger.parsing import parse_expression_triggers
 
+        self.assertEqual(normalize_plot_primary_expression.__module__, "pipelines.expression_trigger.labels")
+        self.assertEqual(parse_expression_triggers.__module__, "pipelines.expression_trigger.parsing")
         self.assertEqual(normalize_plot_primary_expression("爽到了"), "爽点")
         self.assertEqual(parse_expression_triggers({"expression_triggers": []}, video_id="demo"), [])
 

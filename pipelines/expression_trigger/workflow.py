@@ -10,6 +10,8 @@ from pipelines.client import LlmClientProtocol
 from pipelines.expression_trigger.baseline_mllm import (
     _build_system_prompt,
     _round_time,
+)
+from pipelines.expression_trigger.parsing import (
     filter_triggers_within_duration,
     format_expression_subtitle_timeline_seconds,
     parse_expression_triggers,

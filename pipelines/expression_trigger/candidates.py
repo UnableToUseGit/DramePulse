@@ -4,10 +4,12 @@ import json
 from typing import Any
 
 from pipelines.expression_trigger.baseline_mllm import (
-    PLOT_PRIMARY_EXPRESSION_DEFINITIONS,
-    SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
     _clean_text,
     _round_time,
+)
+from pipelines.expression_trigger.labels import (
+    PLOT_PRIMARY_EXPRESSION_DEFINITIONS,
+    SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
     normalize_plot_primary_expression,
 )
 from pipelines.utils import SubtitleSegment, build_sample_timestamps

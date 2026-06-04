@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from pipelines.expression_trigger.baseline_mllm import _round_time, normalize_plot_primary_expression
+from pipelines.expression_trigger.baseline_mllm import _round_time
+from pipelines.expression_trigger.labels import normalize_plot_primary_expression
 from pipelines.expression_trigger.postprocess import _trigger_start_time
 
 
