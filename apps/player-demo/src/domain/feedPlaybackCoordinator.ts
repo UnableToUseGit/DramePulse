@@ -16,6 +16,12 @@ export interface FeedPlaybackPageRenderState {
   shouldRenderPlaybackControls: boolean;
 }
 
+export interface FeedPlaybackPagePresentationState {
+  shouldRenderVideo: boolean;
+  shouldRenderInteractiveShell: boolean;
+  shouldRenderPlaybackControls: boolean;
+}
+
 export function getFeedPlaybackPageRenderState(pageRole: FeedPlaybackPageRole): FeedPlaybackPageRenderState {
   if (pageRole === "active") {
     return {
@@ -35,6 +41,23 @@ export function getFeedPlaybackPageRenderState(pageRole: FeedPlaybackPageRole): 
     shouldRenderVideo: false,
     shouldRenderInteractiveShell: false,
     shouldRenderPlaybackControls: false
+  };
+}
+
+export function getFeedPlaybackPagePresentationState({
+  playbackPageRole,
+  visualPageRole
+}: {
+  playbackPageRole: FeedPlaybackPageRole;
+  visualPageRole: FeedPlaybackPageRole;
+}): FeedPlaybackPagePresentationState {
+  const playbackRenderState = getFeedPlaybackPageRenderState(playbackPageRole);
+  const visualRenderState = getFeedPlaybackPageRenderState(visualPageRole);
+
+  return {
+    shouldRenderVideo: playbackRenderState.shouldRenderVideo || visualRenderState.shouldRenderVideo,
+    shouldRenderInteractiveShell: visualRenderState.shouldRenderInteractiveShell,
+    shouldRenderPlaybackControls: visualRenderState.shouldRenderPlaybackControls
   };
 }
 

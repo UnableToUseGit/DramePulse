@@ -4,6 +4,7 @@ import type { BufferOptions, SurfaceType, VideoPlayer, VideoViewProps } from "ex
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
+import { getVideoBufferHealthSample } from "../domain/videoBufferHealth";
 import { getVideoPlaybackCommand, type VideoPlaybackCommand } from "../domain/videoPlayback";
 import { buildVideoStageSource } from "../domain/videoSource";
 import { colors, radii, spacing } from "../theme";
@@ -86,6 +87,7 @@ export const VideoStage = memo(function VideoStage({
   showStartEntry?: boolean;
 }) {
   const onTimeChangeRef = useRef(onTimeChange);
+  const lastBufferHealthReportedTimeRef = useRef<number | undefined>(undefined);
   const lastHandledSeekIdRef = useRef<number | undefined>(undefined);
   const recordObservation = (
     eventType: Parameters<HomeFeedPlaybackObserver["record"]>[0]["eventType"],
@@ -136,8 +138,19 @@ export const VideoStage = memo(function VideoStage({
     onTimeChangeRef.current = onTimeChange;
   }, [onTimeChange]);
 
-  useEventListener(player, "timeUpdate", ({ currentTime }) => {
+  useEventListener(player, "timeUpdate", ({ bufferedPosition, currentTime }) => {
     onTimeChangeRef.current(currentTime ?? 0);
+    const bufferHealth = getVideoBufferHealthSample({
+      bufferedPosition,
+      currentTime,
+      isPlaying: player.playing,
+      lastReportedTime: lastBufferHealthReportedTimeRef.current,
+      shouldPlay: isPlaying
+    });
+    lastBufferHealthReportedTimeRef.current = bufferHealth.nextLastReportedTime;
+    if (bufferHealth.shouldRecord) {
+      recordObservation("buffer_health", bufferHealth.details);
+    }
   });
 
   useEventListener(player, "playingChange", ({ isPlaying: playerIsPlaying }) => {

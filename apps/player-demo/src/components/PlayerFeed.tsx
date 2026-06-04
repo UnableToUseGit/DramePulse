@@ -74,12 +74,14 @@ export function PlayerFeed({
   );
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [playbackOwnerIndex, setPlaybackOwnerIndex] = useState(initialIndex);
+  const [visualActiveIndex, setVisualActiveIndex] = useState(initialIndex);
   const [pageHeight, setPageHeight] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const listRef = useRef<FlatList<PlayerFeedItem>>(null);
   const bufferedPlaybackPositionRef = useRef<BufferedPlaybackPosition | undefined>(undefined);
   const isFeedDraggingRef = useRef(false);
   const playbackPositionsRef = useRef(playbackPositions);
+  const visualActiveIndexRef = useRef(initialIndex);
   const previousRequestedVideoIdRef = useRef(requestedVideoId);
   const previousObservedActiveItemIdRef = useRef<string | undefined>(undefined);
   const previousObservedPlaybackOwnerItemIdRef = useRef<string | undefined>(undefined);
@@ -168,6 +170,14 @@ export function PlayerFeed({
     [recordPlaybackOwnerChange]
   );
 
+  const handleSetVisualActiveIndex = useCallback((index: number) => {
+    if (visualActiveIndexRef.current === index) {
+      return;
+    }
+    visualActiveIndexRef.current = index;
+    setVisualActiveIndex(index);
+  }, []);
+
   const handleSetActiveIndex = useCallback(
     (index: number) => {
       recordActiveItemChange(index);
@@ -202,8 +212,16 @@ export function PlayerFeed({
     }
     handleSetActiveIndex(requestedIndex);
     handleSetPlaybackOwnerIndex(requestedIndex, "requested_video");
+    handleSetVisualActiveIndex(requestedIndex);
     listRef.current?.scrollToIndex({ index: requestedIndex, animated: false });
-  }, [activeIndex, feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex, requestedVideoId]);
+  }, [
+    activeIndex,
+    feedItems,
+    handleSetActiveIndex,
+    handleSetPlaybackOwnerIndex,
+    handleSetVisualActiveIndex,
+    requestedVideoId
+  ]);
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -219,6 +237,7 @@ export function PlayerFeed({
         pageHeight: resolvedPageHeight,
         itemCount: feedItems.length
       });
+      handleSetVisualActiveIndex(nextIndex);
       handleSetActiveIndex(nextIndex);
       handleSetPlaybackOwnerIndex(nextIndex, "momentum_end");
     },
@@ -228,9 +247,22 @@ export function PlayerFeed({
       flushBufferedPosition,
       handleSetActiveIndex,
       handleSetPlaybackOwnerIndex,
+      handleSetVisualActiveIndex,
       playbackObserver,
       resolvedPageHeight
     ]
+  );
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextVisualIndex = getFeedPageIndex({
+        offsetY: event.nativeEvent.contentOffset.y,
+        pageHeight: resolvedPageHeight,
+        itemCount: feedItems.length
+      });
+      handleSetVisualActiveIndex(nextVisualIndex);
+    },
+    [feedItems.length, handleSetVisualActiveIndex, resolvedPageHeight]
   );
 
   const handleScrollBeginDrag = useCallback(
@@ -269,9 +301,17 @@ export function PlayerFeed({
           velocityY: nativeEvent.velocity?.y
         }
       });
+      handleSetVisualActiveIndex(targetIndex);
       handleSetPlaybackOwnerIndex(targetIndex, "drag_release");
     },
-    [activeIndex, feedItems.length, handleSetPlaybackOwnerIndex, playbackObserver, resolvedPageHeight]
+    [
+      activeIndex,
+      feedItems.length,
+      handleSetPlaybackOwnerIndex,
+      handleSetVisualActiveIndex,
+      playbackObserver,
+      resolvedPageHeight
+    ]
   );
 
   const handlePlayNextItem = useCallback(
@@ -282,9 +322,10 @@ export function PlayerFeed({
       }
       handleSetActiveIndex(nextIndex);
       handleSetPlaybackOwnerIndex(nextIndex, "play_next_item");
+      handleSetVisualActiveIndex(nextIndex);
       listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     },
-    [feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex]
+    [feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex, handleSetVisualActiveIndex]
   );
 
   const handlePlaybackPositionChange = useCallback(
@@ -324,13 +365,19 @@ export function PlayerFeed({
           ref={listRef}
           data={feedItems}
           initialScrollIndex={initialIndex}
-          extraData={`${activeIndex}:${playbackOwnerIndex}:${isFeedScrollEnabled}`}
+          extraData={`${activeIndex}:${playbackOwnerIndex}:${visualActiveIndex}:${isFeedScrollEnabled}`}
           keyExtractor={(item) => item.itemId}
           renderItem={({ item, index }) => {
             const playbackPageState = getFeedPlaybackPageState({
               item,
               pageIndex: index,
               activeIndex: playbackOwnerIndex,
+              playbackPositions
+            });
+            const visualPageState = getFeedPlaybackPageState({
+              item,
+              pageIndex: index,
+              activeIndex: visualActiveIndex,
               playbackPositions
             });
             const nextItem = feedItems[index + 1];
@@ -354,6 +401,7 @@ export function PlayerFeed({
                 playbackObserver={playbackObserver}
                 isActive={playbackPageState.shouldOwnPlayback}
                 pageRole={playbackPageState.pageRole}
+                visualPageRole={visualPageState.pageRole}
                 height={resolvedPageHeight}
                 resumePlaybackTime={playbackPageState.resumeTime}
                 hasNextEpisode={nextItem !== undefined}
@@ -380,8 +428,10 @@ export function PlayerFeed({
           snapToAlignment="start"
           disableIntervalMomentum
           onScrollBeginDrag={handleScrollBeginDrag}
+          onScroll={handleScroll}
           onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
+          scrollEventThrottle={64}
           getItemLayout={(_, index) => ({
             length: resolvedPageHeight,
             offset: resolvedPageHeight * index,

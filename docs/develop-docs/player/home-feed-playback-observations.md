@@ -267,6 +267,7 @@ ob.log:23  first_frame_render
 - `resume_position_initialized`：player 创建时尝试初始化到保存进度；
 - `seek_requested`：组件收到 seek 请求；
 - `seek_applied`：已向 native player 设置 `currentTime`。
+- `buffer_health`：active 播放中按节流采样 `currentTime`、`bufferedPosition` 和 `bufferAhead`，当 `bufferAhead <= 1.5s` 时标记 `isLowBuffer=true`，用于判断播放几秒后卡住是否由后续缓冲不足导致。
 
 Home Feed 播放观测日志仍会打印到 Metro/Expo 终端，同时在开发模式下批量 POST 到本地 API：
 
@@ -300,6 +301,14 @@ logs/home-feed-playback.log
 
 2026 年 6 月 4 日的下一版实现选择了更接近短视频 App 手感的折中方案：拖动过程中不切播放权，用户松手时通过 `onScrollEndDrag` 预测最终吸附页，并提前把 `playbackOwnerIndex` 交给目标页；`onMomentumScrollEnd` 只负责最终校准 `settledIndex` 和播放权。预测优先使用 native `targetContentOffset`，没有该字段时使用松手时的 `velocityY` 和当前 offset fallback。这样可以避免用户手指拖动时声音/播放来回切，又能减少“下一页首帧已出现但要等惯性滚动结束才播放”的停顿。
 
+后续体验发现，`playbackOwnerIndex` 同时驱动完整 UI 和视频播放会产生新的不自然感：用户滑向下一集后先看到预加载首帧，随后完整 UI 和视频播放在同一次播放权切换中一起启动。当前调整把 Feed 状态继续拆成三层：
+
+- `visualActiveIndex`：滚动过程中按当前 offset 推导出来的视觉页，负责 Chrome、底部控件等完整 UI；
+- `playbackOwnerIndex`：松手预测或惯性结束后确定的播放 owner，负责真正 `play()`、静音、播放进度和 active buffer 策略；
+- `activeIndex`：惯性滚动结束后的 settled 页，用于对外上报当前剧集和最终校准。
+
+这样目标页在滑动可见时可以先展示 UI，但视频仍保持“用户松手后才播放”的短视频 Feed 行为。弹幕和互动触发仍跟真正播放状态走，避免页面还没开始播放时内容层提前推进。
+
 新增观测事件：
 
 - `feed_scroll_release`：用户松手，记录当前 offset、预测目标页和 native `targetContentOffset`；
@@ -313,6 +322,14 @@ logs/home-feed-playback.log
 - `FEED_VIDEO_SOURCE_CACHING_ENABLED` 默认为 `false`，Feed 视频直接使用原始 `streamUrl`；
 - `source_load` 观测会记录 `cacheEnabled` 和 `bufferedPosition`，用于真机确认是否仍出现 native 加载错误；
 - `buildVideoStageSource` 仍保留按需包装 `useCaching: true` 的能力，后续只有在确认目标视频源兼容时再重新启用。
+
+2026 年 6 月 4 日的真机日志进一步排除了资源加载错误：后续卡住时没有 `status=error`、`duration=null` 或 `Operation Stopped`，但 active 视频在播放约 1 秒后多次出现 `bufferAhead <= 0.7s`，随后进入 `status=loading`。因此本轮实验把 buffer 策略拆成 active 和 preload 两档：
+
+- `active`：使用 `preferredForwardBufferDuration: 18`、`minBufferForPlayback: 2.5`、`maxBufferBytes: 48MB` 和 `waitsToMinimizeStalling: true`，优先减少播放中 rebuffer；
+- `preload`：继续使用 `preferredForwardBufferDuration: 8`、`minBufferForPlayback: 1`、`maxBufferBytes: 24MB` 和 `waitsToMinimizeStalling: false`，保持相邻页预热轻量；
+- `parked`：不挂载 video player；如果代码路径需要 buffer options，按 preload 档处理。
+
+该调整是一个真机验证实验：预期会略微增加 active 页首次真正开播前的等待，但应减少“首帧出来后播 1 秒就卡住”的情况。若下一轮日志仍显示 active `bufferAhead` 快速归零，需要继续调查 native 层 progressive buffer range、后台预加载 player 的资源竞争，以及是否需要显式 byte cache/proxy preload。
 
 ### P2：优化首屏冷启动
 

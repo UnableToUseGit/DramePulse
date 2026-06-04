@@ -1,4 +1,8 @@
-import { getFeedPlaybackPageRenderState, getFeedPlaybackPageState } from "../feedPlaybackCoordinator";
+import {
+  getFeedPlaybackPagePresentationState,
+  getFeedPlaybackPageRenderState,
+  getFeedPlaybackPageState
+} from "../feedPlaybackCoordinator";
 import type { PlayerFeedItem } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
 
@@ -36,6 +40,30 @@ describe("feedPlaybackCoordinator", () => {
     });
     expect(getFeedPlaybackPageRenderState("parked")).toEqual({
       shouldRenderVideo: false,
+      shouldRenderInteractiveShell: false,
+      shouldRenderPlaybackControls: false
+    });
+  });
+
+  it("decouples visual chrome from playback ownership during page handoff", () => {
+    expect(
+      getFeedPlaybackPagePresentationState({
+        playbackPageRole: "preload",
+        visualPageRole: "active"
+      })
+    ).toEqual({
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: true,
+      shouldRenderPlaybackControls: true
+    });
+
+    expect(
+      getFeedPlaybackPagePresentationState({
+        playbackPageRole: "active",
+        visualPageRole: "preload"
+      })
+    ).toEqual({
+      shouldRenderVideo: true,
       shouldRenderInteractiveShell: false,
       shouldRenderPlaybackControls: false
     });

@@ -17,6 +17,7 @@ export type HomeFeedPlaybackEventType =
   | "seek_applied"
   | "play_command"
   | "pause_command"
+  | "buffer_health"
   | "playing_change"
   | "muted_change"
   | "first_frame_render";

@@ -14,6 +14,7 @@ import {
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import {
+  getFeedPlaybackPagePresentationState,
   getFeedPlaybackPageRenderState,
   type FeedPlaybackPageRole
 } from "../domain/feedPlaybackCoordinator";
@@ -26,7 +27,7 @@ import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserve
 import { PlayerVideo } from "../domain/playerApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
-import { FEED_VIDEO_BUFFER_OPTIONS, FEED_VIDEO_SOURCE_CACHING_ENABLED } from "../domain/videoSource";
+import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
@@ -72,6 +73,7 @@ interface PlayerPageProps {
   playbackObserver?: HomeFeedPlaybackObserver;
   isActive: boolean;
   pageRole: FeedPlaybackPageRole;
+  visualPageRole: FeedPlaybackPageRole;
   height: number;
   resumePlaybackTime: number;
   hasNextEpisode: boolean;
@@ -100,6 +102,7 @@ export function PlayerPage({
   playbackObserver,
   isActive,
   pageRole,
+  visualPageRole,
   height,
   resumePlaybackTime,
   hasNextEpisode,
@@ -140,7 +143,12 @@ export function PlayerPage({
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
-  const renderState = getFeedPlaybackPageRenderState(pageRole);
+  const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
+  const renderState = getFeedPlaybackPagePresentationState({
+    playbackPageRole: pageRole,
+    visualPageRole
+  });
+  const videoBufferOptions = getFeedVideoBufferOptions(pageRole);
   const videoObservation = useMemo(
     () =>
       playbackObserver
@@ -195,9 +203,9 @@ export function PlayerPage({
       eventType: "preload_state_change",
       videoId: video.videoId,
       pageIndex,
-      details: { isPreloaded: renderState.shouldRenderVideo }
+      details: { isPreloaded: videoRenderState.shouldRenderVideo }
     });
-  }, [pageIndex, playbackObserver, renderState.shouldRenderVideo, video.videoId]);
+  }, [pageIndex, playbackObserver, videoRenderState.shouldRenderVideo, video.videoId]);
 
   useEffect(() => {
     playbackObserver?.record({
@@ -540,7 +548,7 @@ export function PlayerPage({
           onPlayToEnd={handlePlayToEnd}
           onSeekHandled={handleSeekHandled}
           playbackRate={speedControls.effectivePlaybackRate}
-          bufferOptions={FEED_VIDEO_BUFFER_OPTIONS}
+          bufferOptions={videoBufferOptions}
           enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}
           showStartEntry={false}
           streamUrl={video.streamUrl}
