@@ -32,6 +32,7 @@ const EDGE_BACK_SWIPE_WIDTH_PX = 28;
 const EDGE_BACK_SWIPE_MIN_DELTA_X_PX = 24;
 const EDGE_BACK_SWIPE_BOTTOM_EXCLUSION_PX = 96;
 const THEATER_RESTORE_MIN_OFFSET_PX = 24;
+const RELEASE_TARGET_VELOCITY_THRESHOLD = 0.8;
 
 export function getFeedPageIndex({
   offsetY,
@@ -47,6 +48,36 @@ export function getFeedPageIndex({
   }
   const rawIndex = Math.round(offsetY / pageHeight);
   return Math.min(Math.max(rawIndex, 0), itemCount - 1);
+}
+
+export function getFeedReleaseTargetIndex({
+  offsetY,
+  targetOffsetY,
+  velocityY,
+  pageHeight,
+  itemCount,
+  activeIndex
+}: {
+  offsetY: number;
+  targetOffsetY?: number;
+  velocityY?: number;
+  pageHeight: number;
+  itemCount: number;
+  activeIndex: number;
+}) {
+  if (pageHeight <= 0 || itemCount <= 0) {
+    return activeIndex;
+  }
+  if (targetOffsetY === undefined && velocityY !== undefined && Math.abs(velocityY) >= RELEASE_TARGET_VELOCITY_THRESHOLD) {
+    return Math.min(Math.max(activeIndex + Math.sign(velocityY), 0), itemCount - 1);
+  }
+  const resolvedOffsetY =
+    targetOffsetY !== undefined && Number.isFinite(targetOffsetY) ? targetOffsetY : offsetY;
+  return getFeedPageIndex({
+    offsetY: resolvedOffsetY,
+    pageHeight,
+    itemCount
+  });
 }
 
 export function getVideoPlaybackState({
@@ -183,6 +214,24 @@ export function getVideoIndexFromFeedItems(items: PlayerFeedItem[], videoId: str
   }
   const index = items.findIndex((item) => item.itemType === "video" && item.video.videoId === videoId);
   return index >= 0 ? index : 0;
+}
+
+export function getRequestedVideoFeedIndex({
+  items,
+  previousRequestedVideoId,
+  requestedVideoId,
+  activeIndex
+}: {
+  items: PlayerFeedItem[];
+  previousRequestedVideoId: string | undefined;
+  requestedVideoId: string | undefined;
+  activeIndex: number;
+}) {
+  if (!requestedVideoId || requestedVideoId === previousRequestedVideoId) {
+    return undefined;
+  }
+  const index = items.findIndex((item) => item.itemType === "video" && item.video.videoId === requestedVideoId);
+  return index >= 0 && index !== activeIndex ? index : undefined;
 }
 
 export function getNextEpisodeInfoByIndex(videos: PlayerVideo[]) {

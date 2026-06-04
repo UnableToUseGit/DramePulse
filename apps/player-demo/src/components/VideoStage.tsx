@@ -1,13 +1,17 @@
 import { useEventListener } from "expo";
 import { useVideoPlayer, VideoView } from "expo-video";
-import type { SurfaceType, VideoViewProps } from "expo-video";
+import type { SurfaceType, VideoPlayer, VideoViewProps } from "expo-video";
 import { memo, useEffect, useRef } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
+import { getVideoPlaybackCommand, type VideoPlaybackCommand } from "../domain/videoPlayback";
 import { colors, radii, spacing } from "../theme";
 
 export interface SeekRequest {
   id: number;
   time: number;
+  reason?: string;
+  blocksPlaybackUntilHandled?: boolean;
 }
 
 const DISABLED_FULLSCREEN_OPTIONS: NonNullable<VideoViewProps["fullscreenOptions"]> = { enable: false };
@@ -28,10 +32,31 @@ function ignoreReleasedPlayerError(action: () => void) {
   }
 }
 
+function applyPlaybackCommand(player: VideoPlayer, command: VideoPlaybackCommand) {
+  if (!command) {
+    return;
+  }
+  ignoreReleasedPlayerError(() => {
+    if (command === "play") {
+      player.play();
+    } else {
+      player.pause();
+    }
+  });
+}
+
+interface VideoStageObservation {
+  observer: HomeFeedPlaybackObserver;
+  videoId: string;
+  pageIndex: number;
+}
+
 export const VideoStage = memo(function VideoStage({
+  observation,
   isStarted,
   onStart,
   isPlaying,
+  initialPlaybackTime = 0,
   seekRequest,
   onTimeChange,
   onDurationChange,
@@ -41,9 +66,11 @@ export const VideoStage = memo(function VideoStage({
   streamUrl,
   showStartEntry = true
 }: {
+  observation?: VideoStageObservation;
   isStarted: boolean;
   onStart: () => void;
   isPlaying: boolean;
+  initialPlaybackTime?: number;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
   onDurationChange: (duration: number) => void;
@@ -55,12 +82,43 @@ export const VideoStage = memo(function VideoStage({
 }) {
   const onTimeChangeRef = useRef(onTimeChange);
   const lastHandledSeekIdRef = useRef<number | undefined>(undefined);
-  const playbackCommandRef = useRef<"idle" | "play" | "pause">("idle");
+  const recordObservation = (
+    eventType: Parameters<HomeFeedPlaybackObserver["record"]>[0]["eventType"],
+    details?: Record<string, string | number | boolean | undefined>
+  ) => {
+    observation?.observer.record({
+      eventType,
+      videoId: observation.videoId,
+      pageIndex: observation.pageIndex,
+      details
+    });
+  };
   const player = useVideoPlayer(streamUrl, (instance) => {
     instance.loop = false;
+    instance.muted = !isStarted || !isPlaying;
     instance.timeUpdateEventInterval = 0.5;
     instance.playbackRate = playbackRate;
+    if (initialPlaybackTime > 0) {
+      instance.currentTime = initialPlaybackTime;
+    }
   });
+  const isPlaybackBlocked =
+    seekRequest !== undefined &&
+    seekRequest.id !== lastHandledSeekIdRef.current &&
+    seekRequest.blocksPlaybackUntilHandled !== false;
+
+  useEffect(() => {
+    recordObservation("player_create");
+    if (initialPlaybackTime > 0) {
+      recordObservation("resume_position_initialized", { time: initialPlaybackTime });
+    }
+    recordObservation("status_change", { status: player.status });
+    recordObservation("playing_change", { isPlaying: player.playing });
+    recordObservation("muted_change", { isMuted: player.muted });
+    return () => {
+      recordObservation("player_release");
+    };
+  }, [player]);
 
   useEffect(() => {
     onTimeChangeRef.current = onTimeChange;
@@ -70,48 +128,77 @@ export const VideoStage = memo(function VideoStage({
     onTimeChangeRef.current(currentTime ?? 0);
   });
 
+  useEventListener(player, "playingChange", ({ isPlaying: playerIsPlaying }) => {
+    recordObservation("playing_change", { isPlaying: playerIsPlaying });
+    const command = getVideoPlaybackCommand({
+      isStarted,
+      shouldPlay: isPlaying,
+      playerIsPlaying
+    });
+    if (command === "pause") {
+      recordObservation("pause_command", { reason: "unexpected_playing_state" });
+      applyPlaybackCommand(player, command);
+    }
+  });
+
+  useEventListener(player, "mutedChange", ({ muted }) => {
+    recordObservation("muted_change", { isMuted: muted });
+  });
+
+  useEventListener(player, "statusChange", ({ status, oldStatus, error }) => {
+    recordObservation("status_change", {
+      status,
+      oldStatus,
+      error: error?.message
+    });
+  });
+
   useEventListener(player, "playToEnd", onPlayToEnd);
   useEventListener(player, "sourceLoad", ({ duration }) => {
+    recordObservation("source_load", { duration });
     if (Number.isFinite(duration) && duration > 0) {
       onDurationChange(duration);
     }
   });
 
   useEffect(() => {
-    if (!isStarted) {
-      playbackCommandRef.current = "idle";
-      return;
+    if (seekRequest && seekRequest.id !== lastHandledSeekIdRef.current) {
+      lastHandledSeekIdRef.current = seekRequest.id;
+      recordObservation("seek_requested", { time: seekRequest.time, reason: seekRequest.reason });
+      ignoreReleasedPlayerError(() => {
+        player.currentTime = seekRequest.time;
+        recordObservation("seek_applied", { time: seekRequest.time, reason: seekRequest.reason });
+      });
+      onTimeChangeRef.current(seekRequest.time);
+      onSeekHandled();
     }
-    const nextCommand = isPlaying ? "play" : "pause";
-    if (playbackCommandRef.current === nextCommand) {
-      return;
-    }
-    playbackCommandRef.current = nextCommand;
+  }, [onSeekHandled, player, seekRequest]);
+
+  useEffect(() => {
+    const shouldMute = !isStarted || !isPlaying;
     ignoreReleasedPlayerError(() => {
-      if (nextCommand === "play") {
-        player.play();
-      } else {
-        player.pause();
-      }
+      player.muted = shouldMute;
     });
-  }, [isPlaying, isStarted, player]);
+    recordObservation("muted_change", { isMuted: shouldMute });
+    const command = getVideoPlaybackCommand({
+      isStarted,
+      shouldPlay: isPlaying,
+      playerIsPlaying: player.playing,
+      isPlaybackBlocked
+    });
+    if (command) {
+      recordObservation(command === "play" ? "play_command" : "pause_command", {
+        reason: isPlaybackBlocked ? "pending_seek" : "desired_state_reconciliation"
+      });
+      applyPlaybackCommand(player, command);
+    }
+  }, [isPlaybackBlocked, isPlaying, isStarted, player]);
 
   useEffect(() => {
     ignoreReleasedPlayerError(() => {
       player.playbackRate = playbackRate;
     });
   }, [playbackRate, player]);
-
-  useEffect(() => {
-    if (seekRequest && seekRequest.id !== lastHandledSeekIdRef.current) {
-      lastHandledSeekIdRef.current = seekRequest.id;
-      ignoreReleasedPlayerError(() => {
-        player.currentTime = seekRequest.time;
-      });
-      onTimeChangeRef.current(seekRequest.time);
-      onSeekHandled();
-    }
-  }, [onSeekHandled, player, seekRequest]);
 
   return (
     <View style={styles.root}>
@@ -123,6 +210,7 @@ export const VideoStage = memo(function VideoStage({
         fullscreenOptions={DISABLED_FULLSCREEN_OPTIONS}
         allowsPictureInPicture={false}
         surfaceType={VIDEO_SURFACE_TYPE}
+        onFirstFrameRender={() => recordObservation("first_frame_render")}
       />
       {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>

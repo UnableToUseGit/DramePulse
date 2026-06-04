@@ -4,14 +4,21 @@ import {
   buildPlayerFeedItems,
   findNextFeedItemIndex,
   getFeedPageIndex,
+  getFeedReleaseTargetIndex,
   getFeedScrollEnabled,
+  getRequestedVideoFeedIndex,
   getVideoIndexFromFeedItems,
-  PlayerFeedItem,
-  shouldPreloadFeedPage
+  PlayerFeedItem
 } from "../domain/playerFeed";
+import { getFeedPlaybackPageState } from "../domain/feedPlaybackCoordinator";
+import {
+  createHomeFeedPlaybackObserver,
+  type HomeFeedPlaybackObserver
+} from "../domain/homeFeedPlaybackObserver";
 import type { PlayerVideo } from "../domain/playerApi";
 import { DEMO_ROLE_COMMERCE_ADS } from "../domain/roleCommerceAds";
 import type { InteractionPresentationType } from "../interaction-examples/types";
+import { HomeFeedPlaybackDebugPanel } from "./HomeFeedPlaybackDebugPanel";
 import { PlayerPage } from "./PlayerPage";
 import { RoleCommerceAdPage } from "./RoleCommerceAdPage";
 
@@ -28,7 +35,7 @@ function getNextItemLabel(item: PlayerFeedItem | undefined) {
 export function PlayerFeed({
   videos,
   mode,
-  initialVideoId,
+  requestedVideoId,
   playbackPositions,
   selectedPresentationType,
   seriesEpisodeCount,
@@ -41,7 +48,7 @@ export function PlayerFeed({
 }: {
   videos: PlayerVideo[];
   mode: "home" | "series";
-  initialVideoId?: string;
+  requestedVideoId?: string;
   playbackPositions: Record<string, number>;
   selectedPresentationType: InteractionPresentationType;
   seriesEpisodeCount?: number;
@@ -56,43 +63,178 @@ export function PlayerFeed({
     () => buildPlayerFeedItems({ videos, roleCommerceAds: DEMO_ROLE_COMMERCE_ADS, mode }),
     [mode, videos]
   );
-  const initialIndex = useMemo(() => getVideoIndexFromFeedItems(feedItems, initialVideoId), [feedItems, initialVideoId]);
+  const initialIndex = useMemo(
+    () => getVideoIndexFromFeedItems(feedItems, requestedVideoId),
+    [feedItems, requestedVideoId]
+  );
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [playbackOwnerIndex, setPlaybackOwnerIndex] = useState(initialIndex);
   const [pageHeight, setPageHeight] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const listRef = useRef<FlatList<PlayerFeedItem>>(null);
+  const previousRequestedVideoIdRef = useRef(requestedVideoId);
+  const previousObservedActiveItemIdRef = useRef<string | undefined>(undefined);
+  const previousObservedPlaybackOwnerItemIdRef = useRef<string | undefined>(undefined);
+  const homeFeedPlaybackObserverRef = useRef<HomeFeedPlaybackObserver | undefined>(undefined);
+  if (__DEV__ && mode === "home" && homeFeedPlaybackObserverRef.current === undefined) {
+    homeFeedPlaybackObserverRef.current = createHomeFeedPlaybackObserver();
+  }
+  const playbackObserver = __DEV__ && mode === "home" ? homeFeedPlaybackObserverRef.current : undefined;
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
   const isFeedScrollEnabled = getFeedScrollEnabled({ isTimelineDragging });
 
-  useEffect(() => {
-    setActiveIndex(initialIndex);
-    if (resolvedPageHeight > 0 && feedItems.length > 0) {
-      listRef.current?.scrollToIndex({ index: initialIndex, animated: false });
-    }
-  }, [feedItems.length, initialIndex, resolvedPageHeight]);
+  const recordActiveItemChange = useCallback(
+    (index: number) => {
+      const item = feedItems[index];
+      if (
+        !playbackObserver ||
+        item?.itemType !== "video" ||
+        previousObservedActiveItemIdRef.current === item.itemId
+      ) {
+        return;
+      }
+      previousObservedActiveItemIdRef.current = item.itemId;
+      playbackObserver.record({
+        eventType: "feed_active_item_change",
+        videoId: item.video.videoId,
+        pageIndex: index,
+        activeIndex: index
+      });
+    },
+    [feedItems, playbackObserver]
+  );
+
+  const recordPlaybackOwnerChange = useCallback(
+    (index: number, reason: string) => {
+      const item = feedItems[index];
+      if (
+        !playbackObserver ||
+        item?.itemType !== "video" ||
+        previousObservedPlaybackOwnerItemIdRef.current === item.itemId
+      ) {
+        return;
+      }
+      previousObservedPlaybackOwnerItemIdRef.current = item.itemId;
+      playbackObserver.record({
+        eventType: "feed_playback_owner_change",
+        videoId: item.video.videoId,
+        pageIndex: index,
+        activeIndex: index,
+        details: { reason }
+      });
+    },
+    [feedItems, playbackObserver]
+  );
+
+  const handleSetPlaybackOwnerIndex = useCallback(
+    (index: number, reason: string) => {
+      recordPlaybackOwnerChange(index, reason);
+      setPlaybackOwnerIndex(index);
+    },
+    [recordPlaybackOwnerChange]
+  );
 
   const handleSetActiveIndex = useCallback(
     (index: number) => {
+      recordActiveItemChange(index);
       setActiveIndex(index);
       const item = feedItems[index];
       if (item?.itemType === "video") {
         onActiveVideoChange?.(item.video);
       }
     },
-    [feedItems, onActiveVideoChange]
+    [feedItems, onActiveVideoChange, recordActiveItemChange]
   );
+
+  useEffect(() => {
+    recordActiveItemChange(activeIndex);
+  }, [activeIndex, recordActiveItemChange]);
+
+  useEffect(() => {
+    recordPlaybackOwnerChange(playbackOwnerIndex, "initial");
+  }, [playbackOwnerIndex, recordPlaybackOwnerChange]);
+
+  useEffect(() => {
+    const previousRequestedVideoId = previousRequestedVideoIdRef.current;
+    previousRequestedVideoIdRef.current = requestedVideoId;
+    const requestedIndex = getRequestedVideoFeedIndex({
+      items: feedItems,
+      previousRequestedVideoId,
+      requestedVideoId,
+      activeIndex
+    });
+    if (requestedIndex === undefined) {
+      return;
+    }
+    handleSetActiveIndex(requestedIndex);
+    handleSetPlaybackOwnerIndex(requestedIndex, "requested_video");
+    listRef.current?.scrollToIndex({ index: requestedIndex, animated: false });
+  }, [activeIndex, feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex, requestedVideoId]);
 
   const handleMomentumScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      playbackObserver?.record({
+        eventType: "feed_scroll_end",
+        activeIndex,
+        details: { offsetY: event.nativeEvent.contentOffset.y }
+      });
       const nextIndex = getFeedPageIndex({
         offsetY: event.nativeEvent.contentOffset.y,
         pageHeight: resolvedPageHeight,
         itemCount: feedItems.length
       });
       handleSetActiveIndex(nextIndex);
+      handleSetPlaybackOwnerIndex(nextIndex, "momentum_end");
     },
-    [feedItems.length, handleSetActiveIndex, resolvedPageHeight]
+    [
+      activeIndex,
+      feedItems.length,
+      handleSetActiveIndex,
+      handleSetPlaybackOwnerIndex,
+      playbackObserver,
+      resolvedPageHeight
+    ]
+  );
+
+  const handleScrollBeginDrag = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      playbackObserver?.record({
+        eventType: "feed_scroll_begin",
+        activeIndex,
+        details: { offsetY: event.nativeEvent.contentOffset.y }
+      });
+    },
+    [activeIndex, playbackObserver]
+  );
+
+  const handleScrollEndDrag = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nativeEvent = event.nativeEvent as NativeScrollEvent & {
+        targetContentOffset?: { y?: number };
+        velocity?: { y?: number };
+      };
+      const targetIndex = getFeedReleaseTargetIndex({
+        activeIndex,
+        itemCount: feedItems.length,
+        offsetY: nativeEvent.contentOffset.y,
+        pageHeight: resolvedPageHeight,
+        targetOffsetY: nativeEvent.targetContentOffset?.y,
+        velocityY: nativeEvent.velocity?.y
+      });
+      playbackObserver?.record({
+        eventType: "feed_scroll_release",
+        activeIndex,
+        details: {
+          offsetY: nativeEvent.contentOffset.y,
+          targetIndex,
+          targetOffsetY: nativeEvent.targetContentOffset?.y,
+          velocityY: nativeEvent.velocity?.y
+        }
+      });
+      handleSetPlaybackOwnerIndex(targetIndex, "drag_release");
+    },
+    [activeIndex, feedItems.length, handleSetPlaybackOwnerIndex, playbackObserver, resolvedPageHeight]
   );
 
   const handlePlayNextItem = useCallback(
@@ -102,9 +244,10 @@ export function PlayerFeed({
         return;
       }
       handleSetActiveIndex(nextIndex);
+      handleSetPlaybackOwnerIndex(nextIndex, "play_next_item");
       listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
     },
-    [feedItems, handleSetActiveIndex]
+    [feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex]
   );
 
   const handlePlaybackPositionChange = useCallback(
@@ -119,20 +262,6 @@ export function PlayerFeed({
     },
     [onPlaybackPositionsChange, playbackPositions]
   );
-
-  const scrollToVideo = useCallback(
-    (video: PlayerVideo) => {
-      const index = feedItems.findIndex((item) => item.itemType === "video" && item.video.videoId === video.videoId);
-      if (index < 0) {
-        return;
-      }
-      handleSetActiveIndex(index);
-      listRef.current?.scrollToIndex({ index, animated: false });
-    },
-    [feedItems, handleSetActiveIndex]
-  );
-
-  void scrollToVideo;
 
   return (
     <View
@@ -149,9 +278,15 @@ export function PlayerFeed({
           ref={listRef}
           data={feedItems}
           initialScrollIndex={initialIndex}
-          extraData={`${activeIndex}:${isFeedScrollEnabled}`}
+          extraData={`${activeIndex}:${playbackOwnerIndex}:${isFeedScrollEnabled}`}
           keyExtractor={(item) => item.itemId}
           renderItem={({ item, index }) => {
+            const playbackPageState = getFeedPlaybackPageState({
+              item,
+              pageIndex: index,
+              activeIndex: playbackOwnerIndex,
+              playbackPositions
+            });
             const nextItem = feedItems[index + 1];
             const nextItemLabel = getNextItemLabel(nextItem);
             if (item.itemType === "role_commerce_ad") {
@@ -159,7 +294,7 @@ export function PlayerFeed({
                 <RoleCommerceAdPage
                   ad={item.ad}
                   height={resolvedPageHeight}
-                  isActive={index === activeIndex}
+                  isActive={playbackPageState.shouldOwnPlayback}
                   hasNextItem={nextItem !== undefined}
                   nextItemLabel={nextItemLabel}
                   onPlayNextItem={() => handlePlayNextItem(index)}
@@ -169,10 +304,12 @@ export function PlayerFeed({
             return (
               <PlayerPage
                 video={item.video}
-                isActive={index === activeIndex}
-                shouldMountVideo={shouldPreloadFeedPage({ pageIndex: index, activeIndex })}
+                pageIndex={index}
+                playbackObserver={playbackObserver}
+                isActive={playbackPageState.shouldOwnPlayback}
+                shouldMountVideo={playbackPageState.shouldPrepareVideo}
                 height={resolvedPageHeight}
-                initialPlaybackTime={playbackPositions[item.video.videoId]}
+                resumePlaybackTime={playbackPageState.resumeTime}
                 hasNextEpisode={nextItem !== undefined}
                 nextEpisodeLabel={nextItemLabel}
                 selectedPresentationType={selectedPresentationType}
@@ -196,6 +333,8 @@ export function PlayerFeed({
           snapToInterval={resolvedPageHeight}
           snapToAlignment="start"
           disableIntervalMomentum
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           getItemLayout={(_, index) => ({
             length: resolvedPageHeight,
@@ -211,6 +350,7 @@ export function PlayerFeed({
           removeClippedSubviews={false}
         />
       ) : null}
+      {playbackObserver ? <HomeFeedPlaybackDebugPanel observer={playbackObserver} /> : null}
     </View>
   );
 }

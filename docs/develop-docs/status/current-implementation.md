@@ -105,6 +105,10 @@ npm start
 - 使用后端 `danmaku_url` 获取弹幕，并在端内做移动端采样和调度展示；
 - 竖滑 Feed 播放多集/多视频；
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
+- Home Feed 在开发模式下提供播放观测面板和 `[HomeFeedPlayback]` 结构化终端日志，可查看页面挂载、预加载、播放权、播放器状态、真实播放状态和首帧耗时；
+- Home Feed 播放编排已拆分页面角色，包括 `active`、`preload` 和 `parked`，预加载页可在不拥有播放权时准备恢复进度；
+- Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
+- Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
 - 右侧操作栏、顶部/底部播放器 Chrome；
 - Story Q&A 面板，调用 `POST /api/story-qa/ask`；
 - Interaction Lab，用本地固定 example 对比 `poll_bar`、`danmaku_poll`、`emoji_hold`、`emotion_aura`、`inner_voice_danmaku` 等互动呈现方式。
@@ -112,6 +116,8 @@ npm start
 当前边界：
 
 - 播放器已经接入后端视频和弹幕；
+- Home Feed 播放观测只保留本次运行的内存事件，不持久化、不上报后端，也不属于业务 `User Event`；
+- 播放观测当前不覆盖 Series Feed、广告页、弹幕和互动组件渲染成本；
 - 播放器当前的 Interaction Lab 仍是前端本地互动形态实验，不等同于完整的服务端 `Interaction Plan` 自动触发链路；
 - 播放器当前未配置 EAS Build 安装包，主要通过 Expo Go 预览；
 - Expo CLI 建议使用 `apps/player-demo/.nvmrc` 指定的 Node 版本；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。

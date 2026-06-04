@@ -2,8 +2,10 @@ import {
   buildPlayerFeedItems,
   findNextEpisodeIndex,
   getFeedPageIndex,
+  getFeedReleaseTargetIndex,
   getFeedScrollEnabled,
   getNextEpisodeInfoByIndex,
+  getRequestedVideoFeedIndex,
   getResumePlaybackTime,
   getTimelineChromeVisibility,
   getVideoPlaybackState,
@@ -54,6 +56,60 @@ describe("playerFeed", () => {
     expect(getFeedPageIndex({ offsetY: 0, pageHeight: 800, itemCount: 3 })).toBe(0);
     expect(getFeedPageIndex({ offsetY: 799, pageHeight: 800, itemCount: 3 })).toBe(1);
     expect(getFeedPageIndex({ offsetY: 1601, pageHeight: 800, itemCount: 3 })).toBe(2);
+  });
+
+  it("predicts the release target page from native target offset when available", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 0,
+        itemCount: 4,
+        offsetY: 460,
+        pageHeight: 800,
+        targetOffsetY: 800
+      })
+    ).toBe(1);
+  });
+
+  it("falls back to the current release offset when native target offset is unavailable", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 0,
+        itemCount: 4,
+        offsetY: 560,
+        pageHeight: 800
+      })
+    ).toBe(1);
+
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 970,
+        pageHeight: 800
+      })
+    ).toBe(1);
+  });
+
+  it("uses release velocity to predict the next page when target offset is unavailable", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 930,
+        pageHeight: 800,
+        velocityY: 1.2
+      })
+    ).toBe(2);
+
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 1460,
+        pageHeight: 800,
+        velocityY: -1.2
+      })
+    ).toBe(0);
   });
 
   it("clamps feed page index to available videos", () => {
@@ -116,6 +172,44 @@ describe("playerFeed", () => {
       "role-commerce:rc1",
       "video:s1e2"
     ]);
+  });
+
+  it("requests feed navigation only when a new target video differs from the active item", () => {
+    const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" })];
+    const items = buildPlayerFeedItems({ videos, roleCommerceAds: [makeAd()], mode: "series" });
+
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e2",
+        activeIndex: 0
+      })
+    ).toBe(2);
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e2",
+        activeIndex: 2
+      })
+    ).toBeUndefined();
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e1",
+        activeIndex: 1
+      })
+    ).toBeUndefined();
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "missing",
+        activeIndex: 0
+      })
+    ).toBeUndefined();
   });
 
   it("precomputes next episode labels for each feed item", () => {

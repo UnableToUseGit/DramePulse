@@ -14,11 +14,11 @@ import {
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import {
-  getResumePlaybackTime,
   getTimelineChromeVisibility,
   getVideoPlaybackState,
   UserPlaybackIntent
 } from "../domain/playerFeed";
+import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
 import { PlayerVideo } from "../domain/playerApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
@@ -63,10 +63,12 @@ function getActionRailPreviewCue(type: InteractionPresentationType) {
 
 export function PlayerPage({
   video,
+  pageIndex,
+  playbackObserver,
   isActive,
   shouldMountVideo,
   height,
-  initialPlaybackTime,
+  resumePlaybackTime,
   hasNextEpisode,
   nextEpisodeLabel,
   selectedPresentationType,
@@ -81,10 +83,12 @@ export function PlayerPage({
   onOpenSeriesDetail
 }: {
   video: PlayerVideo;
+  pageIndex: number;
+  playbackObserver?: HomeFeedPlaybackObserver;
   isActive: boolean;
   shouldMountVideo: boolean;
   height: number;
-  initialPlaybackTime?: number;
+  resumePlaybackTime: number;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
   selectedPresentationType: InteractionPresentationType;
@@ -123,6 +127,17 @@ export function PlayerPage({
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
+  const videoObservation = useMemo(
+    () =>
+      playbackObserver
+        ? {
+            observer: playbackObserver,
+            videoId: video.videoId,
+            pageIndex
+          }
+        : undefined,
+    [pageIndex, playbackObserver, video.videoId]
+  );
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
   const activeActionRailResonanceCue = useMemo(
     () => {
@@ -145,6 +160,39 @@ export function PlayerPage({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
   });
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "page_mount",
+      videoId: video.videoId,
+      pageIndex
+    });
+    return () => {
+      playbackObserver?.record({
+        eventType: "page_unmount",
+        videoId: video.videoId,
+        pageIndex
+      });
+    };
+  }, [pageIndex, playbackObserver, video.videoId]);
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "preload_state_change",
+      videoId: video.videoId,
+      pageIndex,
+      details: { isPreloaded: shouldMountVideo }
+    });
+  }, [pageIndex, playbackObserver, shouldMountVideo, video.videoId]);
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "playback_ownership_change",
+      videoId: video.videoId,
+      pageIndex,
+      details: { hasPlaybackOwnership: playbackState.shouldPlay }
+    });
+  }, [pageIndex, playbackObserver, playbackState.shouldPlay, video.videoId]);
 
   const clearResonanceTimers = useCallback(() => {
     if (resonanceButtonDismissTimeoutRef.current) {
@@ -209,14 +257,11 @@ export function PlayerPage({
     const becameActive = !wasActiveRef.current;
     const videoChanged = previousVideoIdRef.current !== video.videoId;
     if (becameActive || videoChanged) {
-      const resumeTime = getResumePlaybackTime({
-        savedTime: initialPlaybackTime,
-        duration: video.duration
-      });
+      const resumeTime = resumePlaybackTime;
       setCurrentTime(resumeTime);
       setResolvedDuration(video.duration);
       setUserPlaybackIntent("playing");
-      setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
+      setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
@@ -232,7 +277,7 @@ export function PlayerPage({
       previousVideoIdRef.current = video.videoId;
     }
     wasActiveRef.current = true;
-  }, [initialPlaybackTime, isActive, resetInteractionExample, video.duration, video.videoId]);
+  }, [isActive, resetInteractionExample, resumePlaybackTime, video.duration, video.videoId]);
 
   useEffect(() => {
     setResolvedDuration(video.duration);
@@ -345,7 +390,7 @@ export function PlayerPage({
       }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
-      setSeekRequest({ id: Date.now(), time });
+      setSeekRequest({ id: Date.now(), time, reason: "user_seek" });
     },
     [clearResonanceTimers, isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
@@ -470,8 +515,10 @@ export function PlayerPage({
       {shouldMountVideo ? (
         <VideoStage
           key={`${video.videoId}:${video.streamUrl}`}
+          observation={videoObservation}
           isStarted={playbackState.isStarted}
           isPlaying={playbackState.shouldPlay}
+          initialPlaybackTime={resumePlaybackTime}
           seekRequest={seekRequest}
           onStart={handleResume}
           onTimeChange={handleTimeChange}
