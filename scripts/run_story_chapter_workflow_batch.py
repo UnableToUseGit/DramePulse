@@ -119,6 +119,11 @@ def main(
 
     args.output_root.mkdir(parents=True, exist_ok=True)
     active_pipeline = pipeline or build_pipeline(args)
+    print(
+        f"Discovered {len(inputs)} workflow inputs "
+        f"series={args.series_id or 'ALL'} episodes={args.episode_id or 'ALL'} output_root={args.output_root}",
+        flush=True,
+    )
 
     results: list[dict[str, object]] = []
     succeeded = 0
@@ -128,11 +133,11 @@ def main(
         output_path = _output_path_for(args.output_root, item.video_id)
         if args.only_missing and output_path.exists():
             skipped += 1
-            print(f"[{index}/{len(inputs)}] skip existing {item.video_id}")
+            print(f"[{index}/{len(inputs)}] skip existing {item.video_id}", flush=True)
             results.append({**_input_result_fields(item), "status": "skipped", "output_path": str(output_path), "error": None})
             continue
 
-        print(f"[{index}/{len(inputs)}] run workflow {item.video_id}")
+        print(f"[{index}/{len(inputs)}] run workflow {item.video_id}", flush=True)
         try:
             written_path = active_pipeline.run(
                 video_id=item.video_id,
@@ -144,11 +149,12 @@ def main(
             )
         except Exception as exc:  # noqa: BLE001 - batch should continue and report per-episode failures.
             failed += 1
-            print(f"[{index}/{len(inputs)}] failed {item.video_id}: {exc}")
+            print(f"[{index}/{len(inputs)}] failed {item.video_id}: {exc}", flush=True)
             results.append({**_input_result_fields(item), "status": "failed", "output_path": str(output_path), "error": str(exc)})
             continue
 
         succeeded += 1
+        print(f"[{index}/{len(inputs)}] succeeded {item.video_id}: {written_path}", flush=True)
         results.append({**_input_result_fields(item), "status": "succeeded", "output_path": str(written_path), "error": None})
 
     summary = {
@@ -163,7 +169,7 @@ def main(
     }
     summary_path = _summary_path(args.output_root)
     summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote workflow batch summary: {summary_path}")
+    print(f"Wrote workflow batch summary: {summary_path}", flush=True)
     return 1 if failed else 0
 
 

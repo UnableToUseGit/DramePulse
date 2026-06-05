@@ -310,6 +310,100 @@ class StoryChapterWorkflowTest(unittest.TestCase):
         self.assertIn("FULL_UTTERANCE_TIMELINE", selector_client.calls[0]["user_prompt"])
         self.assertLessEqual(len(selector_client.calls[0]["image_paths"]), 3)
 
+    def test_workflow_pipeline_reports_progress_stages(self) -> None:
+        messages: list[str] = []
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            video_path = tmp_path / "video.mp4"
+            transcription_path = tmp_path / "video.transcription.json"
+            scene_path = tmp_path / "scene_detection.json"
+            video_path.write_bytes(b"fake video")
+            transcription_path.write_text(
+                json.dumps(
+                    {
+                        "raw_response": {
+                            "chunks": [
+                                {
+                                    "offset_seconds": 0.0,
+                                    "raw_result": {
+                                        "transcripts": [
+                                            {
+                                                "sentences": [
+                                                    {"begin_time": 500, "end_time": 1500, "text": "开场。"},
+                                                    {"begin_time": 3500, "end_time": 4500, "text": "转场。"},
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            scene_path.write_text(
+                json.dumps(
+                    {
+                        "video_id": "demo_ep01",
+                        "duration_seconds": 8.0,
+                        "scenes": [
+                            {"scene_id": "s_001", "start_time": 0.0, "end_time": 3.0},
+                            {"scene_id": "s_002", "start_time": 3.0, "end_time": 8.0},
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+
+            def fake_extract_frames(**kwargs):
+                output_dir = kwargs["output_dir"]
+                output_dir.mkdir(parents=True, exist_ok=True)
+                for timestamp in kwargs["timestamps_seconds"]:
+                    (output_dir / f"t_{int(timestamp * 1000):09d}.png").write_bytes(b"png")
+                return {"backend": "fake", "frame_count": len(kwargs["timestamps_seconds"])}
+
+            pipeline = StoryChapterWorkflowPipeline(
+                text_llm_client=FakeWorkflowClient(
+                    {"topic_shift_reviews": [{"candidate_id": "bc_001", "topic_shift_score": 0.8, "reason": "转场。"}]}
+                ),
+                mllm_client=FakeWorkflowClient(
+                    {
+                        "chapters": [
+                            {
+                                "start_time": 0.0,
+                                "end_time": 8.0,
+                                "end_boundary_candidate_id": None,
+                                "title": "剧情开场",
+                                "summary": "故事开始并转场。",
+                                "importance": 0.6,
+                            }
+                        ],
+                        "warnings": [],
+                    }
+                ),
+                extract_frames=fake_extract_frames,
+                top_candidates=1,
+                progress_logger=messages.append,
+            )
+            pipeline.run(
+                video_id="demo_ep01",
+                video_path=video_path,
+                video_metadata={"duration_seconds": 8.0},
+                transcription_path=transcription_path,
+                scene_detection_path=scene_path,
+                output_root=tmp_path / "output",
+            )
+
+        joined = "\n".join(messages)
+        self.assertIn("load inputs", joined)
+        self.assertIn("topic shift LLM start", joined)
+        self.assertIn("frame extraction start", joined)
+        self.assertIn("MLLM selector start", joined)
+        self.assertIn("wrote output", joined)
+
 
 if __name__ == "__main__":
     unittest.main()

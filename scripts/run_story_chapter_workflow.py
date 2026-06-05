@@ -13,6 +13,10 @@ from pipelines.story_chapter.workflow import StoryChapterWorkflowPipeline
 from scripts.run_story_chapter_generation import load_video_metadata_from_scene_detection
 
 
+def print_progress(message: str) -> None:
+    print(message, flush=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run story chapter workflow for one episode.")
     parser.add_argument("video_id", help="Video id used for output directory and prompts.")
@@ -35,6 +39,7 @@ def build_pipeline(args: argparse.Namespace) -> StoryChapterWorkflowPipeline:
         top_candidates=args.top_candidates,
         candidate_frame_offsets_seconds=args.candidate_frame_offset_seconds,
         frame_max_height=args.frame_max_height,
+        progress_logger=print_progress,
     )
 
 

@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 import json
 from pathlib import Path
 import tempfile
-from typing import Any, Protocol, Sequence
+from typing import Any, Callable, Protocol, Sequence
 
 from pipelines.story_chapter.baseline_text import Utterance, _round_time, load_scenes, load_utterances_from_transcription
 from pipelines.utils import FrameExtractionResult, extract_frames_at_timestamps
@@ -641,6 +641,7 @@ class StoryChapterWorkflowPipeline:
         constraints: ChapterSelectionConstraints | None = None,
         text_max_tokens: int = 2400,
         selector_max_tokens: int = 3600,
+        progress_logger: Callable[[str], None] | None = None,
     ) -> None:
         self.text_llm_client = text_llm_client
         self.mllm_client = mllm_client
@@ -651,6 +652,11 @@ class StoryChapterWorkflowPipeline:
         self.constraints = constraints or ChapterSelectionConstraints()
         self.text_max_tokens = text_max_tokens
         self.selector_max_tokens = selector_max_tokens
+        self.progress_logger = progress_logger
+
+    def _log(self, video_id: str, message: str) -> None:
+        if self.progress_logger is not None:
+            self.progress_logger(f"[story_chapter_workflow] {video_id}: {message}")
 
     def run(
         self,
@@ -663,15 +669,20 @@ class StoryChapterWorkflowPipeline:
         output_root: Path,
     ) -> Path:
         video_duration_seconds = _video_duration_from_metadata(video_metadata)
+        self._log(video_id, "load inputs start")
         utterances = load_utterances_from_transcription(transcription_path)
         scenes = load_scenes(scene_detection_path)
+        self._log(video_id, f"load inputs done utterances={len(utterances)} scenes={len(scenes)} duration={video_duration_seconds:.3f}s")
         warnings: list[str] = []
 
+        self._log(video_id, "candidate recall start")
         candidates = recall_boundary_candidates(
             utterances=utterances,
             scenes=scenes,
             video_duration_seconds=video_duration_seconds,
         )
+        self._log(video_id, f"candidate recall done candidates={len(candidates)}")
+        self._log(video_id, f"topic shift LLM start candidates={len(candidates)}")
         scored_candidates, topic_warnings, topic_raw = score_topic_shifts_with_llm(
             llm_client=self.text_llm_client,
             video_id=video_id,
@@ -680,11 +691,13 @@ class StoryChapterWorkflowPipeline:
             candidates=candidates,
             max_tokens=self.text_max_tokens,
         )
+        self._log(video_id, f"topic shift LLM done warnings={len(topic_warnings)}")
         warnings.extend(topic_warnings)
         selected_candidates = sorted(scored_candidates, key=lambda candidate: candidate.score, reverse=True)[
             : self.top_candidates
         ]
         selected_candidates = sorted(selected_candidates, key=lambda candidate: candidate.time)
+        self._log(video_id, f"candidate pruning done selected={len(selected_candidates)} top_candidates={self.top_candidates}")
         frame_timestamps, frame_timestamps_by_candidate = _selector_frame_timestamps(
             candidates=selected_candidates,
             video_duration_seconds=video_duration_seconds,
@@ -693,6 +706,7 @@ class StoryChapterWorkflowPipeline:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             frame_dir = Path(tmpdir) / "selector_frames"
+            self._log(video_id, f"frame extraction start timestamps={len(frame_timestamps)}")
             extraction_result = self.extract_frames(
                 video_path=video_path,
                 output_dir=frame_dir,
@@ -700,6 +714,8 @@ class StoryChapterWorkflowPipeline:
                 max_height=self.frame_max_height,
             )
             image_paths = sorted(frame_dir.glob("*.png"))
+            self._log(video_id, f"frame extraction done images={len(image_paths)}")
+            self._log(video_id, f"MLLM selector start candidates={len(selected_candidates)} images={len(image_paths)}")
             selector_raw = self.mllm_client.generate_json_multimodal(
                 system_prompt=build_selector_system_prompt(),
                 user_prompt=build_selector_user_prompt(
@@ -714,8 +730,10 @@ class StoryChapterWorkflowPipeline:
                 frame_timestamps_seconds=frame_timestamps,
                 max_tokens=self.selector_max_tokens,
             )
+            self._log(video_id, "MLLM selector done")
             frame_extraction = _frame_extraction_to_dict(extraction_result)
 
+        self._log(video_id, "selector validation start")
         story_chapters, selector_warnings = parse_and_validate_selector_result(
             raw=selector_raw,
             video_id=video_id,
@@ -723,6 +741,7 @@ class StoryChapterWorkflowPipeline:
             candidates=selected_candidates,
         )
         if selector_warnings:
+            self._log(video_id, f"selector validation warnings={len(selector_warnings)} fallback start")
             warnings.extend(selector_warnings)
             story_chapters = build_fallback_chapters(
                 video_id=video_id,
@@ -731,6 +750,9 @@ class StoryChapterWorkflowPipeline:
                 constraints=self.constraints,
             )
             warnings.append("Used rule selector fallback because MLLM selector output was invalid.")
+            self._log(video_id, f"fallback done chapters={len(story_chapters)}")
+        else:
+            self._log(video_id, f"selector validation done chapters={len(story_chapters)}")
 
         output_dir = output_root / video_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -758,6 +780,7 @@ class StoryChapterWorkflowPipeline:
             "warnings": warnings,
         }
         output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        self._log(video_id, f"wrote output {output_path}")
         return output_path
 
 
