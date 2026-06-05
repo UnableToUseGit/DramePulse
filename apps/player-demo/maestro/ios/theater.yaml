@@ -1,0 +1,11 @@
+appId: com.dramepulse.playerdemo
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "首页"
+    timeout: 30000
+- tapOn: "剧场"
+- extendedWaitUntil:
+    visible: "搜索短剧名、角色或高光剧情"
+    timeout: 10000
+- takeScreenshot: player-demo-theater

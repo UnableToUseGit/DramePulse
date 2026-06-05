@@ -56,15 +56,15 @@ export function SeriesDetailSheet({
           </Pressable>
         </View>
         <View style={styles.tabs}>
-          <Pressable onPress={() => setActiveTab("summary")}>
+          <Pressable accessibilityRole="button" accessibilityLabel="查看简介" onPress={() => setActiveTab("summary")}>
             <Text style={[styles.tab, activeTab === "summary" ? styles.activeTab : null]}>简介</Text>
           </Pressable>
-          <Pressable onPress={() => setActiveTab("episodes")}>
+          <Pressable accessibilityRole="button" accessibilityLabel="查看选集" onPress={() => setActiveTab("episodes")}>
             <Text style={[styles.tab, activeTab === "episodes" ? styles.activeTab : null]}>选集</Text>
           </Pressable>
         </View>
         {activeTab === "summary" ? (
-          <View style={styles.summaryPanel}>
+          <View accessible accessibilityLabel="剧情简介面板" style={styles.summaryPanel}>
             <Text style={styles.summary}>{series.summary}</Text>
             <View style={styles.tags}>
               {["短剧", "情绪高光", "真实弹幕"].map((tag) => (
@@ -75,7 +75,7 @@ export function SeriesDetailSheet({
             </View>
           </View>
         ) : (
-          <View style={styles.episodesPanel}>
+          <View accessible accessibilityLabel="选集列表" style={styles.episodesPanel}>
             <View style={styles.ranges}>
               {episodeRanges.map((range, index) => (
                 <Text key={range} style={[styles.range, index === 0 ? styles.activeRange : null]}>

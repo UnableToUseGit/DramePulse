@@ -7,13 +7,22 @@
     "scheme": "dramepulse",
     "userInterfaceStyle": "dark",
     "ios": {
+      "bundleIdentifier": "com.dramepulse.playerdemo",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
       "supportsTablet": false
     },
     "android": {
+      "package": "com.dramepulse.playerdemo",
+      "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true
     },
     "plugins": [
-      "expo-video"
+      "expo-video",
+      "expo-font"
     ]
   }
 }

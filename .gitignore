@@ -136,10 +136,15 @@ checkpoints/
 playwright-report/
 test-results/
 screenshots/
+player-demo-*.png
 .superpowers/
 .worktrees/
 .playwright
 .playwright-cli/
+
+# Expo local native build outputs
+apps/player-demo/ios/
+apps/player-demo/android/
 
 # Keep repository placeholders
 !.gitkeep

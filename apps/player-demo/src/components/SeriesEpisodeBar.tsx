@@ -10,7 +10,7 @@ export function SeriesEpisodeBar({
   onPress: () => void;
 }) {
   return (
-    <Pressable accessibilityRole="button" style={styles.root} onPress={onPress}>
+    <Pressable accessibilityRole="button" accessibilityLabel="打开选集" style={styles.root} onPress={onPress}>
       <Text numberOfLines={1} style={styles.text}>
         选集 · 全{episodeCount}集 · 免费观看
       </Text>
