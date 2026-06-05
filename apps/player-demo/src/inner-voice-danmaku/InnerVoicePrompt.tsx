@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radii.pill,
-    backgroundColor: "rgba(8,8,10,0.76)",
+    backgroundColor: "rgba(0,0,0,0.46)",
     borderWidth: 1,
     borderColor: "rgba(255,213,138,0.26)",
     shadowColor: "#FFD58A",

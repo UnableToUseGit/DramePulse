@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, playerOverlay, radii, spacing } from "../theme";
 
-export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.5, 2] as const;
+export const PLAYBACK_RATES = [1, 2] as const;
 export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
 
 function formatRate(rate: number) {
@@ -70,11 +70,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
     borderRadius: radii.pill,
-    ...playerOverlay.strongPanel
+    backgroundColor: "rgba(0,0,0,0.46)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.13)"
   },
   buttonOpen: {
-    borderColor: "rgba(255,213,138,0.74)",
-    backgroundColor: "rgba(255,106,26,0.82)"
+    borderColor: "rgba(255,213,138,0.74)"
   },
   buttonText: {
     color: colors.text,

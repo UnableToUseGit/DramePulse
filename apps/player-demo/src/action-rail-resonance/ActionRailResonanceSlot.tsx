@@ -20,7 +20,7 @@ export function ActionRailResonanceSlot({
   const [presence, setPresence] = useState<ResonancePresenceState>(() => createHiddenPresenceState());
   const translateX = useRef(new Animated.Value(OFFSCREEN_X)).current;
   const opacity = useRef(new Animated.Value(0)).current;
-  const shouldRender = presence.phase !== "hidden";
+  const shouldShowAnimatedContent = presence.phase !== "hidden";
   const [renderedChildren, setRenderedChildren] = useState<ReactNode>(null);
 
   useEffect(() => {
@@ -80,15 +80,13 @@ export function ActionRailResonanceSlot({
     }
   }, [opacity, presence.phase, translateX]);
 
-  if (!shouldRender) {
-    return null;
-  }
-
   return (
     <View style={styles.slot} pointerEvents={cueId ? "auto" : "none"}>
-      <Animated.View style={[styles.animated, { opacity, transform: [{ translateX }] }]}>
-        {renderedChildren}
-      </Animated.View>
+      {shouldShowAnimatedContent ? (
+        <Animated.View style={[styles.animated, { opacity, transform: [{ translateX }] }]}>
+          {renderedChildren}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -96,6 +94,7 @@ export function ActionRailResonanceSlot({
 const styles = StyleSheet.create({
   slot: {
     width: 58,
+    height: 58,
     overflow: "visible"
   },
   animated: {

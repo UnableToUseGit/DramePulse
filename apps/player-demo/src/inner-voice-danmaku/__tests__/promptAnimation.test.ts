@@ -27,4 +27,12 @@ describe("InnerVoicePrompt animation", () => {
     expect(source).toContain("maxWidth: 220");
     expect(source).not.toContain("width: 220");
   });
+
+  it("uses the same translucent black background as the danmaku entry button", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/inner-voice-danmaku/InnerVoicePrompt.tsx", "utf8");
+
+    expect(source).toContain("backgroundColor: \"rgba(0,0,0,0.46)\"");
+    expect(source).not.toContain("backgroundColor: \"rgba(8,8,10,0.76)\"");
+  });
 });
