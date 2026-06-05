@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Story Chapter Viewer</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -46,6 +47,7 @@
             <div id="timeline" class="timeline" aria-label="story chapter timeline">
               <div id="sceneLayer" class="scene-layer"></div>
               <div id="chapterLayer" class="chapter-layer"></div>
+              <div id="goldBoundaryLayer" class="gold-boundary-layer"></div>
               <div id="playhead" class="playhead"></div>
             </div>
             <div id="timelineScale" class="timeline-scale"></div>
@@ -61,6 +63,21 @@
           </div>
         </div>
         <div id="warningList" class="warning-list"></div>
+        <section class="annotation-editor" aria-label="gold boundary annotation">
+          <div class="annotation-head">
+            <div>
+              <p class="eyebrow">Gold Chapters</p>
+              <h3>章节段标注</h3>
+            </div>
+            <span id="annotationCount" class="count-pill">0 boundaries</span>
+          </div>
+          <div class="annotation-actions">
+            <button id="addBoundaryButton" type="button" class="primary-action">添加当前点</button>
+            <button id="saveAnnotationButton" type="button" class="secondary-action">保存</button>
+          </div>
+          <div id="annotationStatus" class="annotation-status"></div>
+          <div id="boundaryList" class="boundary-list"></div>
+        </section>
         <div id="chapterList" class="chapter-list"></div>
       </aside>
     </div>

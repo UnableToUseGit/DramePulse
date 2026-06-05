@@ -14,6 +14,7 @@ from urllib.parse import unquote, urlparse
 
 
 DEFAULT_DATASET_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
+DEFAULT_ANNOTATION_ROOT = Path("data/annotations/story_chapter_gold")
 STATIC_ROOT = Path(__file__).resolve().parents[1] / "apps" / "story-chapter-viewer"
 
 
@@ -27,7 +28,9 @@ class EpisodeIndexEntry:
     video_path: Path
     scene_path: Path
     chapter_path: Path | None
+    annotation_path: Path | None
     has_chapters: bool
+    has_annotation: bool
     duration: float | None
     scene_count: int
 
@@ -62,7 +65,21 @@ def _find_chapter_path(
     return None
 
 
-def discover_episodes(dataset_root: Path, chapter_output_root: Path | None = None) -> list[EpisodeIndexEntry]:
+def _annotation_path_for(annotation_root: Path | None, video_id: str, episode_id: str) -> Path | None:
+    if annotation_root is None:
+        return None
+    candidate = annotation_root / f"{video_id}.annotation.json"
+    if candidate.exists() or video_id == episode_id:
+        return candidate
+    fallback = annotation_root / f"{episode_id}.annotation.json"
+    return fallback if fallback.exists() else candidate
+
+
+def discover_episodes(
+    dataset_root: Path,
+    chapter_output_root: Path | None = None,
+    annotation_root: Path | None = DEFAULT_ANNOTATION_ROOT,
+) -> list[EpisodeIndexEntry]:
     entries: list[EpisodeIndexEntry] = []
     if not dataset_root.exists():
         raise FileNotFoundError(dataset_root)
@@ -92,6 +109,7 @@ def discover_episodes(dataset_root: Path, chapter_output_root: Path | None = Non
                 episode_id=episode_id,
                 chapter_output_root=chapter_output_root,
             )
+            annotation_path = _annotation_path_for(annotation_root, video_id, episode_id)
             entries.append(
                 EpisodeIndexEntry(
                     episode_id=episode_id,
@@ -102,7 +120,9 @@ def discover_episodes(dataset_root: Path, chapter_output_root: Path | None = Non
                     video_path=video_path,
                     scene_path=scene_path,
                     chapter_path=chapter_path,
+                    annotation_path=annotation_path,
                     has_chapters=chapter_path is not None,
+                    has_annotation=annotation_path is not None and annotation_path.exists(),
                     duration=duration,
                     scene_count=len(scenes),
                 )
@@ -145,6 +165,91 @@ def _normalize_chapter(chapter: dict[str, Any], index: int) -> dict[str, Any] | 
     }
 
 
+def _normalize_boundary(boundary: dict[str, Any], duration_seconds: float) -> dict[str, Any] | None:
+    try:
+        time = round(float(boundary["time"]), 3)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if not 0.0 < time < duration_seconds:
+        return None
+    summary = (
+        boundary.get("ending_chapter_summary")
+        if boundary.get("ending_chapter_summary") is not None
+        else boundary.get("summary", boundary.get("reason", ""))
+    )
+    return {
+        "time": time,
+        "ending_chapter_summary": str(summary or "").strip(),
+    }
+
+
+def build_story_chapter_annotation(
+    *,
+    video_id: str,
+    duration_seconds: float,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    if duration_seconds <= 0:
+        raise ValueError("duration_seconds must be positive")
+    final_chapter_summary = str(payload.get("final_chapter_summary") or "").strip()
+    raw_boundaries = payload.get("boundaries") if isinstance(payload.get("boundaries"), list) else []
+    boundaries_by_time: dict[float, dict[str, Any]] = {}
+    for item in raw_boundaries:
+        if not isinstance(item, dict):
+            continue
+        boundary = _normalize_boundary(item, duration_seconds)
+        if boundary is not None:
+            boundaries_by_time[float(boundary["time"])] = boundary
+    boundaries = [boundaries_by_time[time] for time in sorted(boundaries_by_time)]
+    points = [0.0, *(float(boundary["time"]) for boundary in boundaries), round(duration_seconds, 3)]
+    chapters: list[dict[str, Any]] = []
+    for index, (start_time, end_time) in enumerate(zip(points, points[1:]), start=1):
+        ending_chapter_summary = (
+            boundaries[index - 1]["ending_chapter_summary"]
+            if index - 1 < len(boundaries)
+            else final_chapter_summary
+        )
+        chapters.append(
+            {
+                "chapter_id": f"gold_{video_id}_{index:03d}",
+                "video_id": video_id,
+                "start_time": round(start_time, 3),
+                "end_time": round(end_time, 3),
+                "summary": ending_chapter_summary,
+            }
+        )
+    return {
+        "video_id": video_id,
+        "duration_seconds": round(duration_seconds, 3),
+        "annotation_type": "story_chapter_boundaries",
+        "boundaries": boundaries,
+        "final_chapter_summary": final_chapter_summary,
+        "chapters": chapters,
+    }
+
+
+def save_story_chapter_annotation(
+    entry: EpisodeIndexEntry,
+    annotation_root: Path,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    detail = load_episode_detail(entry)
+    annotation = build_story_chapter_annotation(
+        video_id=entry.video_id,
+        duration_seconds=float(detail["duration"]),
+        payload=payload,
+    )
+    annotation_path = _annotation_path_for(annotation_root, entry.video_id, entry.episode_id)
+    if annotation_path is None:
+        annotation_path = annotation_root / f"{entry.video_id}.annotation.json"
+    annotation_path.parent.mkdir(parents=True, exist_ok=True)
+    annotation_path.write_text(json.dumps(annotation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return {
+        "path": str(annotation_path),
+        "annotation": annotation,
+    }
+
+
 def load_episode_detail(entry: EpisodeIndexEntry) -> dict[str, Any]:
     scene_payload = _safe_read_json(entry.scene_path)
     raw_scenes = scene_payload.get("scenes") if isinstance(scene_payload.get("scenes"), list) else []
@@ -170,6 +275,9 @@ def load_episode_detail(entry: EpisodeIndexEntry) -> dict[str, Any]:
         raw_warnings = chapter_payload.get("warnings")
         if isinstance(raw_warnings, list):
             warnings = [str(warning) for warning in raw_warnings]
+    gold_annotation = {}
+    if entry.annotation_path is not None and entry.annotation_path.exists():
+        gold_annotation = _safe_read_json(entry.annotation_path)
 
     duration_candidates = [entry.duration or 0.0]
     duration_candidates.extend(scene["end_time"] for scene in scenes)
@@ -186,6 +294,8 @@ def load_episode_detail(entry: EpisodeIndexEntry) -> dict[str, Any]:
         "chapter_count": len(chapters),
         "has_chapters": entry.has_chapters,
         "chapter_source": str(entry.chapter_path) if entry.chapter_path is not None else None,
+        "annotation_source": str(entry.annotation_path) if entry.annotation_path is not None else None,
+        "gold_annotation": gold_annotation,
         "scenes": scenes,
         "chapters": chapters,
         "warnings": warnings,
@@ -210,10 +320,12 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
         *args,
         episodes: Sequence[EpisodeIndexEntry],
         static_root: Path,
+        annotation_root: Path,
         **kwargs,
     ) -> None:
         self.episodes_by_id = {entry.episode_id: entry for entry in episodes}
         self.static_root = static_root
+        self.annotation_root = annotation_root
         super().__init__(*args, directory=str(static_root), **kwargs)
 
     def log_message(self, format: str, *args: Any) -> None:
@@ -224,6 +336,15 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
 
     def do_HEAD(self) -> None:
         self._handle_request(include_body=False)
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        path = unquote(parsed.path)
+        match = re.fullmatch(r"/api/episodes/([^/]+)/story-chapter-annotation", path)
+        if not match:
+            self._send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+            return
+        self._save_episode_annotation(match.group(1))
 
     def _handle_request(self, *, include_body: bool) -> None:
         parsed = urlparse(self.path)
@@ -255,6 +376,7 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
             "duration": entry.duration,
             "scene_count": entry.scene_count,
             "has_chapters": entry.has_chapters,
+            "has_annotation": entry.annotation_path is not None and entry.annotation_path.exists(),
         }
 
     def _send_json(self, payload: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
@@ -271,6 +393,33 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
             self._send_json({"error": "episode not found"}, HTTPStatus.NOT_FOUND)
             return
         self._send_json(load_episode_detail(entry))
+
+    def _read_json_body(self) -> dict[str, Any] | None:
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            return None
+        try:
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _save_episode_annotation(self, episode_id: str) -> None:
+        entry = self.episodes_by_id.get(episode_id)
+        if entry is None:
+            self._send_json({"error": "episode not found"}, HTTPStatus.NOT_FOUND)
+            return
+        payload = self._read_json_body()
+        if payload is None:
+            self._send_json({"error": "invalid json body"}, HTTPStatus.BAD_REQUEST)
+            return
+        try:
+            result = save_story_chapter_annotation(entry, self.annotation_root, payload)
+        except ValueError as exc:
+            self._send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            return
+        self._send_json({"status": "saved", **result})
 
     def _send_video(self, episode_id: str, *, include_body: bool) -> None:
         entry = self.episodes_by_id.get(episode_id)
@@ -320,9 +469,10 @@ class StoryChapterViewerHandler(SimpleHTTPRequestHandler):
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Serve a local read-only Story Chapter validation viewer.")
+    parser = argparse.ArgumentParser(description="Serve a local Story Chapter validation and annotation viewer.")
     parser.add_argument("--dataset-root", type=Path, default=DEFAULT_DATASET_ROOT)
     parser.add_argument("--chapter-output-root", type=Path)
+    parser.add_argument("--annotation-root", type=Path, default=DEFAULT_ANNOTATION_ROOT)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     return parser
@@ -330,12 +480,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
-    episodes = discover_episodes(args.dataset_root, chapter_output_root=args.chapter_output_root)
-    handler = partial(StoryChapterViewerHandler, episodes=episodes, static_root=STATIC_ROOT)
+    episodes = discover_episodes(
+        args.dataset_root,
+        chapter_output_root=args.chapter_output_root,
+        annotation_root=args.annotation_root,
+    )
+    handler = partial(
+        StoryChapterViewerHandler,
+        episodes=episodes,
+        static_root=STATIC_ROOT,
+        annotation_root=args.annotation_root,
+    )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     url = f"http://{args.host}:{args.port}"
     print(f"Story Chapter Viewer: {url}")
     print(f"Dataset root: {args.dataset_root}")
+    print(f"Annotation root: {args.annotation_root}")
     print(f"Episodes indexed: {len(episodes)}")
     try:
         server.serve_forever()

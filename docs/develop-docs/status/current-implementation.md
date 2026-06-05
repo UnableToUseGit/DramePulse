@@ -24,13 +24,17 @@ pipelines/inner_voice_danmaku/
 - `scripts/run_story_chapter_generation_batch.py`
 - `scripts/run_story_chapter_generation_multimodal.py`
 - `scripts/run_story_chapter_generation_multimodal_batch.py`
+- `scripts/evaluate_story_chapter_workflow.py`
 - `scripts/run_inner_voice_danmaku_generation.py`
 
 ## 2.1 当前应用入口
 
 - `apps/player-demo/`
+- `apps/story-chapter-viewer/`
 
-该目录是 React Native + Expo 移动端播放器 Demo。当前版本只包含单个竖屏短剧播放页，使用本地 fixture 展示普通弹幕、中间弹幕投票条、比例反馈、共鸣弹幕、debug 面板和端内事件统计。
+`apps/player-demo/` 是 React Native + Expo 移动端播放器 Demo。当前版本只包含单个竖屏短剧播放页，使用本地 fixture 展示普通弹幕、中间弹幕投票条、比例反馈、共鸣弹幕、debug 面板和端内事件统计。
+
+`apps/story-chapter-viewer/` 是 Story Chapter 本地检查与标注工具，由 `scripts/story_chapter_viewer_server.py` 提供数据和视频服务。当前版本支持查看算法生成的 `story_chapters.json`，并标注人工 gold chapter boundary。人工标注只记录内部边界点，不手工填写 `start_time` 和 `end_time`；保存时服务端自动按 `[0.0, boundaries..., duration]` 生成 non-gap、non-overlap 的 gold chapters。`boundaries[].ending_chapter_summary` 表示以该 boundary 为 `end_time` 的章节摘要；最后一个以视频 `duration` 为 `end_time` 的章节摘要单独保存在 `final_chapter_summary`，不通过接近 `duration` 的伪 boundary 表达。导出的 `chapters[].summary` 使用这些摘要，boundary 本身不再保存 `reason`。
 
 ## 3. 当前样例数据
 
@@ -64,6 +68,7 @@ Doubao-Seed-2.0-pro
 - 旧交互方案生成 pipeline 已移除；
 - `example_output/` 中保存可直接查看的样例结果；
 - `data/case1/` 中保存当前协作样例短剧数据；
+- Story Chapter gold 标注默认写入 `data/annotations/story_chapter_gold/<video_id>.annotation.json`；
 - 移动端播放器 Demo 当前使用本地 fixture 和端内统计，不接真实后端 API；
 - 移动端播放器 Demo 当前通过 Expo Go 预览，尚未配置 EAS Build 安装包；
 - Expo CLI 建议使用 Node 22 LTS；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。

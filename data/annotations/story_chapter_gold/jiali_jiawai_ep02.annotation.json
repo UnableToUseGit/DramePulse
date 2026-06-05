@@ -1,0 +1,50 @@
+{
+  "video_id": "jiali_jiawai_ep02",
+  "duration_seconds": 265.64,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 70.6,
+      "ending_chapter_summary": "嫂子乱牵红线，女主气的掀桌"
+    },
+    {
+      "time": 106.9,
+      "ending_chapter_summary": "女主带着家具和儿子离家出走，走之气还和嫂子吵了一架"
+    },
+    {
+      "time": 162.2,
+      "ending_chapter_summary": "女主和儿子半夜在路上无家可归，非常悲情，母子二人互相安慰"
+    }
+  ],
+  "final_chapter_summary": "男主竟然出现了，向女主表达心意，女主显示觉得他神经病，再听到他有房有好工作之后又答应了男主",
+  "chapters": [
+    {
+      "chapter_id": "gold_jiali_jiawai_ep02_001",
+      "video_id": "jiali_jiawai_ep02",
+      "start_time": 0.0,
+      "end_time": 70.6,
+      "summary": "嫂子乱牵红线，女主气的掀桌"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep02_002",
+      "video_id": "jiali_jiawai_ep02",
+      "start_time": 70.6,
+      "end_time": 106.9,
+      "summary": "女主带着家具和儿子离家出走，走之气还和嫂子吵了一架"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep02_003",
+      "video_id": "jiali_jiawai_ep02",
+      "start_time": 106.9,
+      "end_time": 162.2,
+      "summary": "女主和儿子半夜在路上无家可归，非常悲情，母子二人互相安慰"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep02_004",
+      "video_id": "jiali_jiawai_ep02",
+      "start_time": 162.2,
+      "end_time": 265.64,
+      "summary": "男主竟然出现了，向女主表达心意，女主显示觉得他神经病，再听到他有房有好工作之后又答应了男主"
+    }
+  ]
+}
