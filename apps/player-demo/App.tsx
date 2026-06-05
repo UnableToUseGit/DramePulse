@@ -2,8 +2,9 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "./src/config";
+import { loadHomeFeedVideos } from "./src/domain/playerDataApi";
 import { getSeriesResumeTarget, groupVideosBySeries, SeriesGroup } from "./src/domain/playerFeed";
-import { loadPlayerVideos, PlayerVideo } from "./src/domain/playerApi";
+import type { PlayerVideo } from "./src/domain/playerApi";
 import { HomeFeedScreen } from "./src/screens/HomeFeedScreen";
 import { SeriesPlayerScreen } from "./src/screens/SeriesPlayerScreen";
 import { TheaterScreen } from "./src/screens/TheaterScreen";
@@ -27,7 +28,7 @@ export default function App() {
     setLoadState("loading");
     setLoadError(undefined);
     try {
-      const nextVideos = await loadPlayerVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
+      const nextVideos = await loadHomeFeedVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
       setVideos(nextVideos);
       setLoadState("ready");
     } catch (error: unknown) {
@@ -69,7 +70,7 @@ export default function App() {
       <View style={[styles.root, styles.centerState]}>
         <StatusBar style="light" hidden />
         <Text style={styles.stateTitle}>正在连接后端视频源</Text>
-        <Text style={styles.stateText}>GET {API_BASE_URL}/api/videos</Text>
+        <Text style={styles.stateText}>GET {API_BASE_URL}/api/feed/home</Text>
       </View>
     );
   }
