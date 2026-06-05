@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, playerOverlay, spacing } from "../theme";
 
 const TABS = ["首页", "剧场", "商城", "福利", "我的"];
 
@@ -41,17 +41,20 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 74,
+    height: 70,
     paddingHorizontal: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(18,18,18,0.94)"
+    backgroundColor: "rgba(10,10,10,0.9)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)"
   },
   text: {
-    color: "rgba(255,255,255,0.52)",
-    fontSize: 20,
-    fontWeight: "900"
+    color: "rgba(255,255,255,0.46)",
+    fontSize: 19,
+    fontWeight: "900",
+    ...playerOverlay.textShadow
   },
   active: {
     color: colors.text

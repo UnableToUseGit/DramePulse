@@ -39,7 +39,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginBottom: 5,
+    marginBottom: 12,
     overflow: "visible",
     zIndex: 12
   }

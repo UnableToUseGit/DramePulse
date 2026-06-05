@@ -6,6 +6,8 @@ declare const process: {
   env?: {
     EXPO_PUBLIC_API_BASE_URL?: string;
     EXPO_PUBLIC_API_REQUEST_TIMEOUT_MS?: string;
+    EXPO_PUBLIC_ENABLE_INTERACTION_LAB?: string;
+    EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL?: string;
   };
 };
 
@@ -40,4 +42,5 @@ function getRequestTimeoutMs() {
 
 export const API_BASE_URL = process.env?.EXPO_PUBLIC_API_BASE_URL?.trim() || getDefaultApiBaseUrl();
 export const API_REQUEST_TIMEOUT_MS = getRequestTimeoutMs();
-export const ENABLE_INTERACTION_LAB = true;
+export const ENABLE_INTERACTION_LAB = process.env?.EXPO_PUBLIC_ENABLE_INTERACTION_LAB === "true";
+export const ENABLE_PLAYBACK_DEBUG_PANEL = process.env?.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL === "true";

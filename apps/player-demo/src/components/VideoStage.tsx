@@ -247,6 +247,7 @@ export const VideoStage = memo(function VideoStage({
         contentFit="cover"
         fullscreenOptions={DISABLED_FULLSCREEN_OPTIONS}
         allowsPictureInPicture={false}
+        allowsVideoFrameAnalysis={false}
         surfaceType={VIDEO_SURFACE_TYPE}
         onFirstFrameRender={() => recordObservation("first_frame_render")}
       />

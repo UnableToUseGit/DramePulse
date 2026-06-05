@@ -19,4 +19,11 @@ describe("VideoStage render safety", () => {
     expect(renderSiteCount).toBe(1);
     expect(source).not.toContain(":preload");
   });
+
+  it("disables iOS Live Text frame analysis controls over the custom player chrome", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/VideoStage.tsx", "utf8");
+
+    expect(source).toContain("allowsVideoFrameAnalysis={false}");
+  });
 });

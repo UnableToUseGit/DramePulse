@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, playerOverlay } from "../theme";
 
 export function LikeReactionButton({
   count,
@@ -20,7 +20,7 @@ export function LikeReactionButton({
       onPress={onToggle}
     >
       <View style={styles.iconWrap}>
-        <Ionicons name="heart" size={34} color={liked ? "#FF335F" : "#fff"} />
+        <Ionicons name="heart" size={35} color={liked ? "#FF335F" : "#fff"} />
       </View>
       <Text style={styles.railText}>{count}</Text>
     </Pressable>
@@ -30,20 +30,19 @@ export function LikeReactionButton({
 const styles = StyleSheet.create({
   root: {
     alignItems: "center",
-    width: 58,
-    gap: 0
+    width: 56,
+    gap: 1
   },
   iconWrap: {
-    width: 54,
-    height: 46,
+    width: 48,
+    height: 40,
     alignItems: "center",
     justifyContent: "center"
   },
   railText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.68)",
-    textShadowRadius: 4
+    fontWeight: "400",
+    fontVariant: ["tabular-nums"],
   }
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../theme";
+import { colors, playerOverlay, radii, spacing } from "../theme";
 
 export const PLAYBACK_RATES = [0.5, 0.75, 1, 1.5, 2] as const;
 export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
@@ -62,17 +62,15 @@ const styles = StyleSheet.create({
     zIndex: 30
   },
   button: {
-    minWidth: 50,
-    height: 34,
-    paddingHorizontal: spacing.sm,
+    minWidth: 56,
+    height: playerOverlay.topButtonHeight,
+    paddingHorizontal: 11,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 2,
+    gap: 3,
     borderRadius: radii.pill,
-    backgroundColor: "rgba(0,0,0,0.42)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)"
+    ...playerOverlay.strongPanel
   },
   buttonOpen: {
     borderColor: "rgba(255,213,138,0.74)",
@@ -80,8 +78,9 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "900"
+    fontSize: 15,
+    fontWeight: "900",
+    ...playerOverlay.textShadow
   },
   menu: {
     position: "absolute",

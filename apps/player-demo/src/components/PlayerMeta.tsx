@@ -15,6 +15,8 @@ export function PlayerMeta({
   isActive,
   showInnerVoice,
   showDanmakuEntry = true,
+  showTags = true,
+  summaryPresentation = "card",
   reserveActionRail = true,
   bottomOffset = 118,
   preTitleAccessory,
@@ -29,6 +31,8 @@ export function PlayerMeta({
   isActive: boolean;
   showInnerVoice: boolean;
   showDanmakuEntry?: boolean;
+  showTags?: boolean;
+  summaryPresentation?: "card" | "inline";
   reserveActionRail?: boolean;
   bottomOffset?: number;
   preTitleAccessory?: ReactNode;
@@ -76,30 +80,54 @@ export function PlayerMeta({
           />
         ) : null}
       </Pressable>
-      <View style={styles.tags}>
-        {resolvedTags.map((tag) => (
-          <Text key={tag} numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-            {tag}
-          </Text>
-        ))}
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={isSummaryExpanded ? "收起剧情简介" : "展开剧情简介"}
-        style={styles.summaryCard}
-        onPress={() => setIsSummaryExpanded((expanded) => !expanded)}
-      >
-        <Text numberOfLines={isSummaryExpanded ? undefined : 2} style={styles.summaryText}>
-          {plotSummary}
-        </Text>
-        <View style={styles.summaryArrow}>
-          <Ionicons
-            name={isSummaryExpanded ? "chevron-up" : "chevron-down"}
-            size={16}
-            color="rgba(255,255,255,0.56)"
-          />
+      {showTags ? (
+        <View style={styles.tags}>
+          {resolvedTags.map((tag) => (
+            <Text key={tag} numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+              {tag}
+            </Text>
+          ))}
         </View>
-      </Pressable>
+      ) : null}
+      {summaryPresentation === "inline" ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isSummaryExpanded ? "收起剧情简介" : "展开剧情简介"}
+          style={styles.inlineSummary}
+          onPress={() => setIsSummaryExpanded((expanded) => !expanded)}
+        >
+          {isSummaryExpanded ? (
+            <Text style={styles.inlineSummaryText}>
+              {plotSummary} <Text style={styles.inlineSummaryAction}>收起</Text>
+            </Text>
+          ) : (
+            <View style={styles.inlineSummaryCollapsed}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={styles.inlineSummaryText}>
+                {plotSummary}
+              </Text>
+              <Text style={styles.inlineSummaryAction}> 展开</Text>
+            </View>
+          )}
+        </Pressable>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isSummaryExpanded ? "收起剧情简介" : "展开剧情简介"}
+          style={styles.summaryCard}
+          onPress={() => setIsSummaryExpanded((expanded) => !expanded)}
+        >
+          <Text numberOfLines={isSummaryExpanded ? undefined : 2} style={styles.summaryText}>
+            {plotSummary}
+          </Text>
+          <View style={styles.summaryArrow}>
+            <Ionicons
+              name={isSummaryExpanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color="rgba(255,255,255,0.56)"
+            />
+          </View>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -119,12 +147,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 18,
     color: colors.text,
-    fontSize: 20,
-    fontWeight: "900"
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.2
   },
   titleRow: {
     alignSelf: "stretch",
-    minHeight: 28,
+    minHeight: 30,
     flexDirection: "row",
     alignItems: "flex-start"
   },
@@ -139,43 +168,64 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     alignSelf: "stretch",
-    marginTop: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.small,
-    backgroundColor: "rgba(0,0,0,0.38)",
+    marginTop: spacing.sm,
+    minHeight: 40,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.28)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)"
+    borderColor: "rgba(255,255,255,0.1)"
   },
   summaryText: {
     paddingRight: 18,
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 12,
-    fontWeight: "700",
-    lineHeight: 17
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18
   },
   summaryArrow: {
     position: "absolute",
     right: 7,
     bottom: 4
   },
+  inlineSummary: {
+    alignSelf: "stretch",
+    marginTop: 2
+  },
+  inlineSummaryCollapsed: {
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  inlineSummaryText: {
+    flexShrink: 1,
+    color: "rgba(255,255,255,0.84)",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20
+  },
+  inlineSummaryAction: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 14,
+    fontWeight: "900"
+  },
   tags: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: spacing.xs,
-    maxHeight: 28,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    maxHeight: 30,
     overflow: "hidden"
   },
   tag: {
     overflow: "hidden",
-    maxWidth: 76,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    maxWidth: 92,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: radii.small,
     color: colors.text,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    fontSize: 12,
-    fontWeight: "700"
+    backgroundColor: "rgba(255,255,255,0.2)",
+    fontSize: 13,
+    fontWeight: "800"
   }
 });

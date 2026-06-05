@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { colors } from "../theme";
+import { colors, playerOverlay } from "../theme";
 import { CandyResonanceIcon } from "./CandyResonanceIcon";
 import { SmileResonanceIcon } from "./SmileResonanceIcon";
 import { TearResonanceIcon } from "./TearResonanceIcon";
@@ -192,18 +192,18 @@ export function ActionRailResonanceButton({
 const styles = StyleSheet.create({
   root: {
     alignItems: "center",
-    width: 58,
+    width: 56,
     gap: 1
   },
   iconShell: {
-    width: 54,
-    height: 50,
+    width: 48,
+    height: 42,
     alignItems: "center",
     justifyContent: "center"
   },
   plainIconWrap: {
-    width: 54,
-    height: 46,
+    width: 48,
+    height: 40,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -234,9 +234,9 @@ const styles = StyleSheet.create({
   },
   count: {
     color: colors.text,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
-    textShadowColor: "rgba(0,0,0,0.72)",
-    textShadowRadius: 4
+    fontVariant: ["tabular-nums"],
+    ...playerOverlay.textShadow
   },
 });

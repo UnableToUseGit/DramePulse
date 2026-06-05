@@ -1,5 +1,7 @@
 describe("config", () => {
   const originalValue = process.env.EXPO_PUBLIC_API_BASE_URL;
+  const originalInteractionLabValue = process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB;
+  const originalPlaybackDebugValue = process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL;
 
   function loadConfig() {
     return require("../config") as typeof import("../config");
@@ -11,6 +13,16 @@ describe("config", () => {
       delete process.env.EXPO_PUBLIC_API_BASE_URL;
     } else {
       process.env.EXPO_PUBLIC_API_BASE_URL = originalValue;
+    }
+    if (originalInteractionLabValue === undefined) {
+      delete process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB;
+    } else {
+      process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB = originalInteractionLabValue;
+    }
+    if (originalPlaybackDebugValue === undefined) {
+      delete process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL;
+    } else {
+      process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL = originalPlaybackDebugValue;
     }
   });
 
@@ -28,5 +40,27 @@ describe("config", () => {
     const config = loadConfig();
 
     expect(config.API_BASE_URL).toBe("http://127.0.0.1:8000");
+  });
+
+  it("keeps the interaction lab hidden unless explicitly enabled", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB;
+
+    expect(loadConfig().ENABLE_INTERACTION_LAB).toBe(false);
+
+    jest.resetModules();
+    process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB = "true";
+
+    expect(loadConfig().ENABLE_INTERACTION_LAB).toBe(true);
+  });
+
+  it("keeps the playback debug panel hidden unless explicitly enabled", () => {
+    delete process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL;
+
+    expect(loadConfig().ENABLE_PLAYBACK_DEBUG_PANEL).toBe(false);
+
+    jest.resetModules();
+    process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL = "true";
+
+    expect(loadConfig().ENABLE_PLAYBACK_DEBUG_PANEL).toBe(true);
   });
 });

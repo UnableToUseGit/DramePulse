@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions, View } from "react-native";
-import { API_BASE_URL } from "../config";
+import { API_BASE_URL, ENABLE_PLAYBACK_DEBUG_PANEL } from "../config";
 import { createHomeFeedPlaybackFileLogger } from "../domain/homeFeedPlaybackFileLogger";
 import {
   type BufferedPlaybackPosition,
@@ -87,12 +87,13 @@ export function PlayerFeed({
   const previousObservedActiveItemIdRef = useRef<string | undefined>(undefined);
   const previousObservedPlaybackOwnerItemIdRef = useRef<string | undefined>(undefined);
   const homeFeedPlaybackObserverRef = useRef<HomeFeedPlaybackObserver | undefined>(undefined);
-  if (__DEV__ && mode === "home" && homeFeedPlaybackObserverRef.current === undefined) {
+  if (__DEV__ && ENABLE_PLAYBACK_DEBUG_PANEL && mode === "home" && homeFeedPlaybackObserverRef.current === undefined) {
     homeFeedPlaybackObserverRef.current = createHomeFeedPlaybackObserver({
       log: createHomeFeedPlaybackFileLogger({ apiBaseUrl: API_BASE_URL })
     });
   }
-  const playbackObserver = __DEV__ && mode === "home" ? homeFeedPlaybackObserverRef.current : undefined;
+  const playbackObserver =
+    __DEV__ && ENABLE_PLAYBACK_DEBUG_PANEL && mode === "home" ? homeFeedPlaybackObserverRef.current : undefined;
   const viewport = useWindowDimensions();
   const resolvedPageHeight = pageHeight > 0 ? pageHeight : viewport.height;
   const feedVisualLayout = getFeedVisualLayout({

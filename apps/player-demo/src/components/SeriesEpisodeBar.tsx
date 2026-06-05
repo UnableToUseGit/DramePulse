@@ -1,6 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, radii, spacing } from "../theme";
+import { colors, playerOverlay } from "../theme";
+
+export const SERIES_EPISODE_BAR_STYLE_SPEC = {
+  left: 20,
+  right: 20,
+  bottom: 14,
+  height: 44,
+  backgroundColor: "rgba(36, 36, 40, 0.94)"
+};
 
 export function SeriesEpisodeBar({
   episodeCount,
@@ -14,7 +22,7 @@ export function SeriesEpisodeBar({
       <Text numberOfLines={1} style={styles.text}>
         选集 · 全{episodeCount}集 · 免费观看
       </Text>
-      <Ionicons name="chevron-up" size={22} color={colors.text} />
+      <Ionicons name="chevron-up" size={20} color={colors.text} />
     </Pressable>
   );
 }
@@ -22,15 +30,15 @@ export function SeriesEpisodeBar({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    left: spacing.lg,
-    right: 72,
-    bottom: 24,
-    height: 56,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radii.small,
-    backgroundColor: "rgba(18,18,18,0.94)",
+    left: SERIES_EPISODE_BAR_STYLE_SPEC.left,
+    right: SERIES_EPISODE_BAR_STYLE_SPEC.right,
+    bottom: SERIES_EPISODE_BAR_STYLE_SPEC.bottom,
+    height: SERIES_EPISODE_BAR_STYLE_SPEC.height,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: SERIES_EPISODE_BAR_STYLE_SPEC.backgroundColor,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between"
@@ -38,7 +46,9 @@ const styles = StyleSheet.create({
   text: {
     flex: 1,
     color: colors.text,
-    fontSize: 20,
-    fontWeight: "900"
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: 0,
+    ...playerOverlay.textShadow
   }
 });

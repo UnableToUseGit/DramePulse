@@ -4,7 +4,7 @@ import { ActionRailResonanceButton } from "../action-rail-resonance/ActionRailRe
 import { ActionRailResonanceSlot } from "../action-rail-resonance/ActionRailResonanceSlot";
 import type { ResonanceTapState } from "../action-rail-resonance/tapState";
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
-import { colors, spacing } from "../theme";
+import { colors, playerOverlay } from "../theme";
 import { LikeReactionButton } from "./LikeReactionButton";
 
 export function PlayerActionRail({
@@ -57,7 +57,7 @@ function RailIcon({
   const content = (
     <>
       <View style={styles.iconWrap}>
-        <Ionicons name={icon} size={34} color="#fff" />
+        <Ionicons name={icon} size={35} color="#fff" />
       </View>
       <Text style={styles.text}>{count}</Text>
     </>
@@ -79,26 +79,25 @@ function RailIcon({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    right: 2,
+    right: 8,
     alignItems: "center",
-    gap: 24
+    gap: 15
   },
   item: {
     alignItems: "center",
-    width: 58,
-    gap: 0
+    width: 56,
+    gap: 1
   },
   iconWrap: {
-    width: 54,
-    height: 46,
+    width: 48,
+    height: 40,
     alignItems: "center",
     justifyContent: "center"
   },
   text: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.68)",
-    textShadowRadius: 4
+    fontWeight: "400",
+    fontVariant: ["tabular-nums"],
   }
 });

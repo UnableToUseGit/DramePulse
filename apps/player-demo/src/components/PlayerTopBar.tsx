@@ -1,7 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "../theme";
+import { colors, playerOverlay, radii, spacing } from "../theme";
 import { PlaybackRate, SpeedSelector } from "./SpeedSelector";
+
+export function formatEpisodeDisplayLabel(episodeLabel: string | undefined) {
+  if (!episodeLabel) {
+    return "返回";
+  }
+  const episodeMatch = episodeLabel.match(/^ep0*(\d+)$/i);
+  if (!episodeMatch) {
+    return episodeLabel;
+  }
+  return `第${Number(episodeMatch[1])}集`;
+}
 
 export function PlayerTopBar({
   playbackRate,
@@ -24,13 +35,15 @@ export function PlayerTopBar({
     <View style={styles.root}>
       {mode === "series" ? (
         <Pressable accessibilityRole="button" style={styles.backButton} hitSlop={10} onPress={onBack}>
-          <Ionicons name="chevron-back" size={30} color="#fff" />
+          <Ionicons name="chevron-back" size={31} color="#fff" />
           <Text numberOfLines={1} style={styles.backText}>
-            {episodeLabel ?? "返回"}
+            {formatEpisodeDisplayLabel(episodeLabel)}
           </Text>
         </Pressable>
       ) : (
-        <Ionicons name="menu" size={30} color="#fff" />
+        <View style={styles.iconButton}>
+          <Ionicons name="menu" size={28} color="#fff" />
+        </View>
       )}
       <View style={styles.actions}>
         <SpeedSelector
@@ -39,7 +52,13 @@ export function PlayerTopBar({
           onToggle={onToggleSpeedMenu}
           onSelect={onSelectPlaybackRate}
         />
-        {mode === "home" ? <Ionicons name="search" size={27} color="#fff" /> : <Ionicons name="ellipsis-vertical" size={25} color="#fff" />}
+        <View style={mode === "home" ? styles.iconButtonGhost : styles.iconButtonGhostNarrow}>
+          {mode === "home" ? (
+            <Ionicons name="search" size={27} color="#fff" />
+          ) : (
+            <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+          )}
+        </View>
       </View>
     </View>
   );
@@ -48,7 +67,7 @@ export function PlayerTopBar({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    top: 48,
+    top: 50,
     left: spacing.lg,
     right: spacing.lg,
     flexDirection: "row",
@@ -58,18 +77,41 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md
+    gap: spacing.sm
   },
   backButton: {
-    maxWidth: "52%",
-    minHeight: 36,
+    maxWidth: "56%",
+    minHeight: playerOverlay.topButtonHeight,
     flexDirection: "row",
-    alignItems: "center"
+    alignItems: "center",
+    paddingRight: spacing.sm
   },
   backText: {
     flexShrink: 1,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900"
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.2
+  },
+  iconButton: {
+    width: playerOverlay.iconButtonSize,
+    height: playerOverlay.iconButtonSize,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    ...playerOverlay.softPanel
+  },
+  iconButtonGhost: {
+    width: playerOverlay.iconButtonSize,
+    height: playerOverlay.iconButtonSize,
+    borderRadius: radii.pill,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  iconButtonGhostNarrow: {
+    width: 34,
+    height: playerOverlay.iconButtonSize,
+    alignItems: "center",
+    justifyContent: "center"
   }
 });

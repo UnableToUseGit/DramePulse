@@ -123,18 +123,18 @@ describe("playerFeed", () => {
 
   it("keeps video above the bottom dock while preserving full-page feed height", () => {
     expect(getFeedVisualLayout({ pageHeight: 800, mode: "home" })).toEqual({
-      bottomDockHeight: 74,
-      controlsBottomOffset: 72,
-      metaBottomOffset: 118,
-      actionRailBottomOffset: 124,
-      videoHeight: 726
+      bottomDockHeight: 70,
+      controlsBottomOffset: 56,
+      metaBottomOffset: 90,
+      actionRailBottomOffset: 90,
+      videoHeight: 730
     });
     expect(getFeedVisualLayout({ pageHeight: 800, mode: "series", hasSeriesEpisodeBar: true })).toEqual({
-      bottomDockHeight: 96,
-      controlsBottomOffset: 94,
-      metaBottomOffset: 140,
-      actionRailBottomOffset: 146,
-      videoHeight: 704
+      bottomDockHeight: 70,
+      controlsBottomOffset: 56,
+      metaBottomOffset: 90,
+      actionRailBottomOffset: 90,
+      videoHeight: 730
     });
     expect(getFeedVisualLayout({ pageHeight: 60, mode: "home" }).videoHeight).toBe(1);
   });
