@@ -1,7 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { InnerVoiceDanmakuExample } from "../inner-voice-danmaku/InnerVoiceDanmakuExample";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
-import { spacing } from "../theme";
 import { DanmakuEntryButton } from "./DanmakuEntryButton";
 
 export function DanmakuEntryArea({
@@ -21,14 +20,16 @@ export function DanmakuEntryArea({
     <View pointerEvents="box-none" style={styles.root}>
       <DanmakuEntryButton />
       {showInnerVoice ? (
-        <InnerVoiceDanmakuExample
-          currentTime={currentTime}
-          isActive={isActive}
-          showImmediately
-          onDismiss={() => undefined}
-          onGestureActiveChange={onInnerVoiceGestureActiveChange}
-          onSend={onSendInnerVoiceDanmaku}
-        />
+        <View pointerEvents="box-none" style={styles.innerVoiceSlot}>
+          <InnerVoiceDanmakuExample
+            currentTime={currentTime}
+            isActive={isActive}
+            showImmediately
+            onDismiss={() => undefined}
+            onGestureActiveChange={onInnerVoiceGestureActiveChange}
+            onSend={onSendInnerVoiceDanmaku}
+          />
+        </View>
       ) : null}
     </View>
   );
@@ -36,11 +37,19 @@ export function DanmakuEntryArea({
 
 const styles = StyleSheet.create({
   root: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+    width: 34,
+    height: 34,
     marginBottom: 12,
     overflow: "visible",
     zIndex: 12
+  },
+  innerVoiceSlot: {
+    position: "absolute",
+    left: 42,
+    top: 0,
+    width: 220,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "flex-start"
   }
 });

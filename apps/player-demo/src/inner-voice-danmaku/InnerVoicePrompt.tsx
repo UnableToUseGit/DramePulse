@@ -25,6 +25,8 @@ import type { InnerVoiceDanmakuCue } from "./types";
 const LAUNCH_DECELERATION = 0.994;
 const LAUNCH_X_CLAMP: [number, number] = [-180, 180];
 const LAUNCH_Y_CLAMP: [number, number] = [-520, 60];
+const ENTRY_OFFSET_X = -18;
+const ENTRY_OFFSET_Y = 10;
 
 export function InnerVoicePrompt({
   cue,
@@ -38,6 +40,8 @@ export function InnerVoicePrompt({
   onExitComplete: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   const appear = useSharedValue(0);
+  const entryTranslateX = useSharedValue(ENTRY_OFFSET_X);
+  const entryTranslateY = useSharedValue(ENTRY_OFFSET_Y);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const launchScale = useSharedValue(1);
@@ -45,20 +49,32 @@ export function InnerVoicePrompt({
 
   useEffect(() => {
     appear.value = 0;
+    entryTranslateX.value = ENTRY_OFFSET_X;
+    entryTranslateY.value = ENTRY_OFFSET_Y;
     dragX.value = 0;
     dragY.value = 0;
     launchScale.value = 1;
     didSendRef.current = false;
-    appear.value = withSpring(1, {
-      damping: 16,
-      stiffness: 180,
-      mass: 0.8
+    appear.value = withTiming(1, {
+      duration: 220,
+      easing: Easing.out(Easing.quad)
     });
-  }, [appear, cue.cueId, dragX, dragY, launchScale]);
+    entryTranslateX.value = withTiming(0, {
+      duration: 260,
+      easing: Easing.out(Easing.cubic)
+    });
+    entryTranslateY.value = withSpring(0, {
+      damping: 18,
+      stiffness: 180,
+      mass: 0.75
+    });
+  }, [appear, cue.cueId, dragX, dragY, entryTranslateX, entryTranslateY, launchScale]);
 
   const animatedDraftStyle = useAnimatedStyle(() => ({
     opacity: appear.value,
     transform: [
+      { translateX: entryTranslateX.value },
+      { translateY: entryTranslateY.value },
       { translateX: dragX.value },
       { translateY: dragY.value },
       { scale: launchScale.value * (0.96 + appear.value * 0.04) }
@@ -168,11 +184,13 @@ export function InnerVoicePrompt({
 
 const styles = StyleSheet.create({
   root: {
+    alignSelf: "flex-start",
     flexShrink: 1,
     minWidth: 0,
     overflow: "visible"
   },
   draft: {
+    alignSelf: "flex-start",
     maxWidth: 220,
     height: 36,
     flexDirection: "row",
