@@ -130,11 +130,11 @@ describe("playerFeed", () => {
       videoHeight: 730
     });
     expect(getFeedVisualLayout({ pageHeight: 800, mode: "series", hasSeriesEpisodeBar: true })).toEqual({
-      bottomDockHeight: 70,
-      controlsBottomOffset: 56,
-      metaBottomOffset: 90,
-      actionRailBottomOffset: 90,
-      videoHeight: 730
+      bottomDockHeight: 82,
+      controlsBottomOffset: 68,
+      metaBottomOffset: 102,
+      actionRailBottomOffset: 102,
+      videoHeight: 718
     });
     expect(getFeedVisualLayout({ pageHeight: 60, mode: "home" }).videoHeight).toBe(1);
   });

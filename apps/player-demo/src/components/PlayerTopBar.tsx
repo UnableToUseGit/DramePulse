@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, playerOverlay, radii, spacing } from "../theme";
+import { colors, playerOverlay, spacing } from "../theme";
 import { PlaybackRate, SpeedSelector } from "./SpeedSelector";
 
 export function formatEpisodeDisplayLabel(episodeLabel: string | undefined) {
@@ -41,7 +41,7 @@ export function PlayerTopBar({
           </Text>
         </Pressable>
       ) : (
-        <View style={styles.iconButton}>
+        <View style={styles.menuButton}>
           <Ionicons name="menu" size={28} color="#fff" />
         </View>
       )}
@@ -93,18 +93,15 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.2
   },
-  iconButton: {
+  menuButton: {
     width: playerOverlay.iconButtonSize,
     height: playerOverlay.iconButtonSize,
-    borderRadius: radii.pill,
     alignItems: "center",
-    justifyContent: "center",
-    ...playerOverlay.softPanel
+    justifyContent: "center"
   },
   iconButtonGhost: {
     width: playerOverlay.iconButtonSize,
     height: playerOverlay.iconButtonSize,
-    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center"
   },

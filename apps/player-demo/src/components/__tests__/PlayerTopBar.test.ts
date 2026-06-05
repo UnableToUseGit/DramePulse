@@ -12,4 +12,12 @@ describe("formatEpisodeDisplayLabel", () => {
     expect(formatEpisodeDisplayLabel("广告")).toBe("广告");
     expect(formatEpisodeDisplayLabel(undefined)).toBe("返回");
   });
+
+  it("renders the home menu icon without the soft circular panel", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerTopBar.tsx", "utf8");
+
+    expect(source).toContain("<View style={styles.menuButton}>");
+    expect(source).not.toContain("...playerOverlay.softPanel");
+  });
 });

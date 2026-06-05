@@ -42,7 +42,7 @@ export function PlayerMeta({
   const titleCanExpand = Array.from(title).length > 9;
   const [isTitleExpanded, setIsTitleExpanded] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
-  const resolvedTags = metaTags ?? [episodeLabel ?? "短剧", "都市爱情", "真实弹幕"];
+  const resolvedTags = metaTags ?? ["9.3分", "热榜第一", "演员·张伟"];
 
   useEffect(() => {
     setIsTitleExpanded(false);
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   inlineSummary: {
     alignSelf: "stretch",
-    marginTop: 2
+    marginTop: 12
   },
   inlineSummaryCollapsed: {
     flexDirection: "row",

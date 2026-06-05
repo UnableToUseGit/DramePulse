@@ -105,7 +105,7 @@ export function PlayerChrome({
           showInnerVoice={showInnerVoice}
           showDanmakuEntry={showDanmakuEntry}
           showTags={mode !== "series"}
-          summaryPresentation={mode === "series" ? "inline" : "card"}
+          summaryPresentation="inline"
           reserveActionRail={showActionRail}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
