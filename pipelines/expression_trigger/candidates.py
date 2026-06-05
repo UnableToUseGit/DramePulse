@@ -254,7 +254,7 @@ def _build_candidate_generation_prompt(
             "- Include enough setup and release context inside the interval; do not isolate a single line or a single frame when the emotion depends on surrounding context.",
             "- A candidate interval may be slightly wider than the actual emotional peak.",
             "- `primary_expression` must be exactly one value from `## PRIMARY_EXPRESSIONS`.",
-            "- If subtitles alone support the judgment, use `subtitle` in `evidence_sources`; if video frames provide important evidence, also include `frame`.",
+            "- Choose exactly one most important evidence source for `evidence_sources`: use `subtitle` when dialogue/subtitles are the decisive evidence, or `frame` when visual frames are the decisive evidence.",
             "",
             "## PRIMARY_EXPRESSIONS",
             *_expression_definitions_block(),
@@ -269,13 +269,13 @@ def _build_candidate_generation_prompt(
             "Each candidate object must contain exactly these keys: `start_time`, `end_time`, `primary_expression`, `summary`, `setup`, `turning_point`, `expression_release`, `candidate_reason`, `evidence_sources`.",
             "`setup`, `turning_point`, and `expression_release` are candidate-level hypotheses. The later review may correct or reject them.",
             "Output shape:",
-            '{"expression_candidates":[{"start_time":48.0,"end_time":66.0,"primary_expression":"泪点","summary":"陈哥卖房凑钱给工人发工程款。","setup":"工人一直等不到钱，陈哥此前承受资金压力。","turning_point":"陈哥卖房筹钱，把钱发给工人。","expression_release":"前面的压力和承诺在这里兑现，可能让观众感动。","candidate_reason":"该片段具备善意兑现的情绪释放结构。","evidence_sources":["subtitle","frame"]}]}',
+            '{"expression_candidates":[{"start_time":48.0,"end_time":66.0,"primary_expression":"泪点","summary":"陈哥卖房凑钱给工人发工程款。","setup":"工人一直等不到钱，陈哥此前承受资金压力。","turning_point":"陈哥卖房筹钱，把钱发给工人。","expression_release":"前面的压力和承诺在这里兑现，可能让观众感动。","candidate_reason":"该片段具备善意兑现的情绪释放结构。","evidence_sources":["subtitle"]}]}',
             "Field constraints:",
             "- `start_time` and `end_time` are numbers in seconds.",
             "- `start_time` must be >= 0.0.",
             "- `end_time` must be greater than `start_time` and <= VIDEO_DURATION_SECONDS.",
-            "- `evidence_sources` is an array containing one or both of: `subtitle`, `frame`.",
-            "- Use `frame` for visual-only candidates in low-dialogue windows, even if nearby subtitles are sparse.",
+            "- `evidence_sources` must be an array with exactly one string: either `subtitle` or `frame`.",
+            "- Use `frame` for visual-only candidates in low-dialogue windows when the frame evidence is more important than nearby subtitles.",
             "- Do not include any extra keys.",
             "",
             "## SUBTITLE_TIMELINE",
@@ -292,11 +292,46 @@ def _iter_candidate_items(raw: Any) -> list[Any]:
     return []
 
 
+def _normalize_evidence_source(value: Any) -> str:
+    source = str(value).strip().lower()
+    if source == "frames":
+        source = "frame"
+    return source if source in {"subtitle", "frame"} else ""
+
+
+def _select_primary_evidence_source(value: Any) -> list[str]:
+    if isinstance(value, list):
+        for item in value:
+            source = _normalize_evidence_source(item)
+            if source:
+                return [source]
+    source = _normalize_evidence_source(value)
+    return [source] if source else ["subtitle"]
+
+
+def _candidate_overlaps_visual_window(
+    *,
+    start_time: float,
+    end_time: float,
+    visual_candidate_windows: list[dict[str, Any]] | None,
+) -> bool:
+    for window in visual_candidate_windows or []:
+        try:
+            window_start = float(window["start_time"])
+            window_end = float(window["end_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if _overlap_seconds(start_time, end_time, window_start, window_end) > 0:
+            return True
+    return False
+
+
 def parse_expression_trigger_candidates(
     raw: Any,
     *,
     video_id: str,
     duration_sec: float,
+    visual_candidate_windows: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for item in _iter_candidate_items(raw):
@@ -314,10 +349,6 @@ def parse_expression_trigger_candidates(
         primary_expression = normalize_plot_primary_expression(item.get("primary_expression"))
         if primary_expression not in SUPPORTED_PLOT_PRIMARY_EXPRESSIONS:
             continue
-        evidence_sources = item.get("evidence_sources")
-        if not isinstance(evidence_sources, list):
-            evidence_sources = []
-        normalized_sources = [str(source) for source in evidence_sources if str(source) in {"subtitle", "frame"}]
         raw_candidate_id = item.get("candidate_id")
         candidate_id = _clean_text(raw_candidate_id) if raw_candidate_id is not None else ""
         candidates.append(
@@ -332,7 +363,12 @@ def parse_expression_trigger_candidates(
                 "turning_point": _clean_text(item.get("turning_point") or ""),
                 "expression_release": _clean_text(item.get("expression_release") or ""),
                 "candidate_reason": _clean_text(item.get("candidate_reason")),
-                "evidence_sources": normalized_sources or ["subtitle"],
+                "evidence_sources": _select_primary_evidence_source(item.get("evidence_sources")),
+                "is_low_dialogue_window": _candidate_overlaps_visual_window(
+                    start_time=start_time,
+                    end_time=end_time,
+                    visual_candidate_windows=visual_candidate_windows,
+                ),
             }
         )
     return candidates

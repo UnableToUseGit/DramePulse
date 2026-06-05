@@ -259,7 +259,12 @@ class WorkflowExpressionTriggerPipeline:
                     "candidate_filtering": filter_llm_call,
                 }
 
-            candidates = parse_expression_trigger_candidates(raw_candidates, video_id=video_id, duration_sec=duration_sec)
+            candidates = parse_expression_trigger_candidates(
+                raw_candidates,
+                video_id=video_id,
+                duration_sec=duration_sec,
+                visual_candidate_windows=visual_candidate_windows,
+            )
             self._emit_progress(
                 "candidate_generation_done",
                 {

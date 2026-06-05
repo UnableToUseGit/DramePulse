@@ -71,6 +71,9 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn('"setup"', prompt)
         self.assertIn('"turning_point"', prompt)
         self.assertIn('"expression_release"', prompt)
+        self.assertIn("Choose exactly one most important evidence source", prompt)
+        self.assertIn('`evidence_sources` must be an array with exactly one string', prompt)
+        self.assertNotIn("one or both of", prompt)
         self.assertIn("[5.000-8.000] 你终于输了", prompt)
 
     def test_candidate_filter_prompt_only_evaluates_given_candidates(self) -> None:
@@ -146,6 +149,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
                         "turning_point": "女主开始反击。",
                         "expression_release": "压抑后的反击可能让观众感到解气。",
                         "candidate_reason": "可能是压抑后的反击。",
+                        "evidence_sources": ["subtitle", "frame"],
                     },
                     {
                         "start_time": 18.0,
@@ -163,6 +167,9 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
             },
             video_id="demo_ep01",
             duration_sec=60.0,
+            visual_candidate_windows=[
+                {"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"},
+            ],
         )
 
         self.assertEqual(len(candidates), 1)
@@ -171,6 +178,32 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(candidates[0]["setup"], "女主此前被压制。")
         self.assertEqual(candidates[0]["turning_point"], "女主开始反击。")
         self.assertEqual(candidates[0]["expression_release"], "压抑后的反击可能让观众感到解气。")
+        self.assertEqual(candidates[0]["evidence_sources"], ["subtitle"])
+        self.assertTrue(candidates[0]["is_low_dialogue_window"])
+
+    def test_parse_expression_trigger_candidates_marks_non_low_dialogue_and_normalizes_frame_alias(self) -> None:
+        candidates = parse_expression_trigger_candidates(
+            {
+                "expression_candidates": [
+                    {
+                        "start_time": 21.0,
+                        "end_time": 24.0,
+                        "primary_expression": "笑点",
+                        "summary": "角色说错话。",
+                        "candidate_reason": "可能形成笑点。",
+                        "evidence_sources": ["frames", "subtitle"],
+                    }
+                ]
+            },
+            video_id="demo_ep01",
+            duration_sec=60.0,
+            visual_candidate_windows=[
+                {"start_time": 10.0, "end_time": 20.0, "reason": "low_dialogue_density"},
+            ],
+        )
+
+        self.assertEqual(candidates[0]["evidence_sources"], ["frame"])
+        self.assertFalse(candidates[0]["is_low_dialogue_window"])
 
     def test_parse_expression_trigger_candidates_allows_empty_structure_fields(self) -> None:
         candidates = parse_expression_trigger_candidates(
@@ -518,6 +551,8 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual(len(result.expression_candidates), 1)
         self.assertEqual(result.candidate_decisions[0]["decision"], "keep")
         self.assertEqual(result.expression_candidates[0]["setup"], "女主此前被压制。")
+        self.assertEqual(result.expression_candidates[0]["evidence_sources"], ["subtitle"])
+        self.assertTrue(result.expression_candidates[0]["is_low_dialogue_window"])
         self.assertEqual(result.expression_triggers[0]["primary_expression"], "爽点")
         self.assertEqual(result.expression_triggers[0]["candidate_id"], "cand_demo_ep01_001")
         self.assertEqual(result.expression_triggers[0]["payoff_time"], 8.0)
