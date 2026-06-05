@@ -8,13 +8,13 @@
 
 ```bash
 cd apps/player-demo
-npm run ios:dev-build
+EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 npm run ios:dev-build
 ```
 
 2. 启动 dev client 的 Metro server：
 
 ```bash
-EXPO_PUBLIC_API_BASE_URL=http://39.96.219.88:8000 npm run start:dev-client
+EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:8000 npm run start:dev-client -- --clear
 ```
 
 当前 development build 的 iOS app id 是：
