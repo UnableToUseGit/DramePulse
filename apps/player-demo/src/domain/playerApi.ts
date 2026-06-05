@@ -55,7 +55,7 @@ export interface FetchLike {
   }>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
@@ -72,7 +72,7 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function joinUrl(baseUrl: string, path: string): string {
+export function joinUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
@@ -165,7 +165,11 @@ export function normalizeDanmakuResponse(value: unknown): DanmakuItem[] {
   return sampleMobileDanmaku(items);
 }
 
-async function fetchJson(fetcher: FetchLike, url: string, timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS): Promise<unknown> {
+export async function fetchJson(
+  fetcher: FetchLike,
+  url: string,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+): Promise<unknown> {
   const abortController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
   const timeoutId =
     abortController && timeoutMs > 0
