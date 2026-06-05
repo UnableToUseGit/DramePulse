@@ -19,6 +19,24 @@ def _int(value: Any) -> int:
     return int(value or 0)
 
 
+def _table_exists(cursor: Any, table_name: str) -> bool:
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    if settings.mode == "local":
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type = 'table' AND name = {placeholder}", (table_name,))
+    else:
+        cursor.execute(
+            f"""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = {placeholder}
+            """,
+            (table_name,),
+        )
+    return cursor.fetchone() is not None
+
+
 def get_admin_dashboard() -> dict[str, Any]:
     settings = get_settings()
     try:
@@ -54,6 +72,8 @@ def _empty_dashboard() -> dict[str, Any]:
 
 def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
     placeholder = sql_placeholder(get_settings())
+    has_series_assets = _table_exists(cursor, "series_assets")
+    has_video_storyboards = _table_exists(cursor, "video_storyboards")
     cursor.execute(
         f"""
         SELECT
@@ -164,6 +184,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
             COALESCE(votes.vote_count, 0) AS vote_count,
             COALESCE(danmaku.danmaku_count, 0) AS danmaku_count,
             CASE WHEN v.douyin_json_path IS NOT NULL AND v.douyin_json_path <> '' THEN 1 ELSE 0 END AS has_danmaku
+            {", CASE WHEN storyboards.video_id IS NOT NULL THEN 1 ELSE 0 END AS has_storyboard" if has_video_storyboards else ""}
         FROM videos v
         LEFT JOIN (
             SELECT video_id, COUNT(*) AS interaction_count
@@ -194,6 +215,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
             GROUP BY video_id
         ) danmaku
           ON danmaku.video_id = v.video_id
+        {"LEFT JOIN video_storyboards storyboards ON storyboards.video_id = v.video_id AND storyboards.status = 'active'" if has_video_storyboards else ""}
         WHERE v.status IN ({placeholder}, {placeholder})
           AND v.oss_object_key LIKE {placeholder}
         ORDER BY v.series_id IS NULL, v.series_id, v.episode_no IS NULL, v.episode_no, v.video_id
@@ -218,6 +240,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
             COALESCE(SUM(interactions.interaction_count), 0) AS interaction_count,
             COALESCE(SUM(events.event_count), 0) AS event_count,
             COALESCE(SUM(votes.vote_count), 0) AS vote_count
+            {", MAX(series_assets.cover_url) AS cover_url" if has_series_assets else ""}
         FROM videos v
         LEFT JOIN (
             SELECT video_id, COUNT(*) AS danmaku_count
@@ -248,6 +271,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
             GROUP BY p.video_id
         ) votes
           ON votes.video_id = v.video_id
+        {"LEFT JOIN series_assets ON series_assets.series_id = COALESCE(NULLIF(v.series_id, ''), v.video_id) AND series_assets.status = 'active'" if has_series_assets else ""}
         WHERE v.status IN ({placeholder}, {placeholder})
           AND v.oss_object_key LIKE {placeholder}
         GROUP BY COALESCE(NULLIF(v.series_id, ''), v.video_id)
@@ -366,6 +390,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
         video["vote_count"] = _int(video.get("vote_count"))
         video["danmaku_count"] = _int(video.get("danmaku_count"))
         video["has_danmaku"] = bool(video.get("has_danmaku"))
+        video["has_storyboard"] = bool(video.get("has_storyboard")) if has_video_storyboards else False
         if video.get("status") == "deleted":
             video["asset_status"] = "deleted"
         elif not video["has_danmaku"]:
@@ -383,6 +408,8 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
         row["interaction_count"] = _int(row.get("interaction_count"))
         row["event_count"] = _int(row.get("event_count"))
         row["vote_count"] = _int(row.get("vote_count"))
+        row["cover_url"] = row.get("cover_url") if has_series_assets else None
+        row["has_cover"] = bool(row.get("cover_url"))
         if row.get("status") == "deleted":
             row["asset_status"] = "deleted"
         elif row["video_ready_count"] < row["episode_count"]:

@@ -11,6 +11,7 @@ from fastapi import HTTPException, UploadFile, status
 from ..config import Settings, get_settings
 from ..db import db_cursor, sql_placeholder, utc_now_sql
 from ..oss_client import get_bucket
+from ..oss_client import read_object_range
 
 
 SERIES_ID_PATTERN = re.compile(r"^[a-z0-9_-]+$")
@@ -130,6 +131,37 @@ def _series_keys(series_id: str) -> dict[str, str]:
         "name_object_key": f"dramas/{series_id}/name.txt",
         "cover_object_key": f"dramas/{series_id}/cover.jpg",
     }
+
+
+def get_series_cover_storage(series_id: str) -> dict[str, Any] | None:
+    clean_series_id = _validate_series_id(series_id)
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    with db_cursor(settings) as cursor:
+        cursor.execute(
+            f"""
+            SELECT cover_object_key, cover_content_type
+            FROM series_assets
+            WHERE series_id = {placeholder}
+              AND status = 'active'
+              AND cover_object_key IS NOT NULL
+              AND cover_object_key <> ''
+            """,
+            (clean_series_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return dict(row)
+
+
+def read_series_cover(series_id: str) -> tuple[bytes, str] | None:
+    storage = get_series_cover_storage(series_id)
+    if storage is None:
+        return None
+    object_key = str(storage["cover_object_key"])
+    content_type = str(storage.get("cover_content_type") or "image/jpeg")
+    return read_object_range(object_key), content_type
 
 
 def _update_series_name(series_id: str, series_name: str) -> None:

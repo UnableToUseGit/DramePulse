@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import {
   Activity,
   BarChart3,
+  ChevronDown,
   CircleAlert,
   Eye,
   FileImage,
@@ -42,6 +43,8 @@ interface DashboardSeries {
   interaction_count: number;
   event_count: number;
   vote_count: number;
+  has_cover: boolean;
+  cover_url?: string | null;
   asset_status: string;
 }
 
@@ -58,6 +61,7 @@ interface DashboardVideo {
   vote_count: number;
   danmaku_count: number;
   has_danmaku: boolean;
+  has_storyboard: boolean;
   asset_status: string;
 }
 
@@ -148,21 +152,14 @@ function formatCoverage(done: number, total: number): string {
 }
 
 function assetStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    deleted: "已下架",
-    ready: "完整",
-    missing_video: "缺视频",
-    missing_danmaku: "缺弹幕",
-    missing_interaction: "缺互动"
-  };
-  return labels[status] || status;
+  return status === "deleted" ? "下架" : "正常";
 }
 
 function assetStatusClass(status: string): string {
   if (status === "deleted") {
     return "status-deleted";
   }
-  return status === "ready" ? "status-ready" : "status-warning";
+  return "status-ready";
 }
 
 function episodeLabel(video: DashboardVideo): string {
@@ -368,6 +365,7 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
   const [seriesSearch, setSeriesSearch] = React.useState("");
   const [busySeriesId, setBusySeriesId] = React.useState<string | null>(null);
   const [message, setMessage] = React.useState<string | null>(null);
+  const [previewCover, setPreviewCover] = React.useState<DashboardSeries | null>(null);
   const filteredSeries = data.series.filter((series) => {
     const keyword = seriesSearch.trim().toLowerCase();
     if (!keyword) {
@@ -412,7 +410,6 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
       <section className="stats-grid" aria-label="全局指标">
         <StatCard icon={<FolderPlus size={20} />} label="短剧" value={String(data.summary.series_count)} hint="series" />
         <StatCard icon={<Video size={20} />} label="剧集" value={String(data.summary.episode_count)} hint={`${data.summary.video_ready_count} 集有视频`} />
-        <StatCard icon={<MessageSquareText size={20} />} label="弹幕覆盖" value={formatCoverage(data.summary.danmaku_episode_count, data.summary.episode_count)} hint={`${data.summary.danmaku_count} 条弹幕`} />
         <StatCard icon={<Activity size={20} />} label="互动方案" value={String(data.summary.interaction_count)} hint="danmaku poll" />
         <StatCard icon={<BarChart3 size={20} />} label="用户事件" value={String(data.summary.event_count)} hint={`${data.summary.vote_count} votes`} />
       </section>
@@ -432,12 +429,11 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
               <span />
               <span>短剧</span>
               <span>视频</span>
-              <span>弹幕</span>
               <span>弹幕数</span>
               <span>互动</span>
-              <span>事件</span>
+              <span>封面</span>
               <span>状态</span>
-                          <span>Action</span>
+              <span>Action</span>
             </div>
             {filteredSeries.map((series) => {
               const isExpanded = expandedSeriesIds.has(series.series_id);
@@ -445,18 +441,30 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
               return (
                 <React.Fragment key={series.series_id}>
                   <div className="table-row series-health-row">
-                    <button className="expand-button" type="button" onClick={() => toggleSeries(series.series_id)} aria-label={isExpanded ? "收起剧集" : "展开剧集"}>
-                      {isExpanded ? "⌄" : "›"}
+                    <button
+                      className={isExpanded ? "expand-button expanded" : "expand-button"}
+                      type="button"
+                      onClick={() => toggleSeries(series.series_id)}
+                      aria-label={isExpanded ? "收起剧集" : "展开剧集"}
+                    >
+                      <ChevronDown size={16} strokeWidth={2.4} />
                     </button>
                     <span>
                       <strong>{series.series_name || series.series_id}</strong>
                       <em>{series.series_id}</em>
                     </span>
                     <span>{formatCoverage(series.video_ready_count, series.episode_count)}</span>
-                    <span>{formatCoverage(series.danmaku_episode_count, series.episode_count)}</span>
                     <span>{series.danmaku_count}</span>
                     <span>{series.interaction_count}</span>
-                    <span>{series.event_count}</span>
+                    <span>
+                      {series.has_cover ? (
+                        <button className="cover-link-button" type="button" onClick={() => setPreviewCover(series)}>
+                          有
+                        </button>
+                      ) : (
+                        <span className="muted">无</span>
+                      )}
+                    </span>
                     <span className={assetStatusClass(series.asset_status)}>{assetStatusLabel(series.asset_status)}</span>
                     <button className="text-action-button" disabled={busySeriesId === series.series_id} onClick={() => void toggleSeriesStatus(series)} type="button">
                       {series.status === "deleted" ? "恢复上架" : "下架"}
@@ -468,7 +476,7 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
                         <span>剧集</span>
                         <span>弹幕</span>
                         <span>互动</span>
-                        <span>事件</span>
+                        <span>雪碧图</span>
                         <span>状态</span>
                       </div>
                       {episodes.map((video) => (
@@ -479,7 +487,9 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
                           </span>
                           <span>{video.danmaku_count}</span>
                           <span>{video.interaction_count}</span>
-                          <span>{video.event_count}</span>
+                          <span className={video.has_storyboard ? "status-ready" : "status-deleted"}>
+                            {video.has_storyboard ? "正常" : "异常"}
+                          </span>
                           <span className={assetStatusClass(video.asset_status)}>{assetStatusLabel(video.asset_status)}</span>
                         </div>
                       ))}
@@ -518,6 +528,24 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
           </div>
         </section>
       </section>
+
+      {previewCover ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setPreviewCover(null)}>
+          <section className="cover-modal" role="dialog" aria-modal="true" aria-label="封面预览" onClick={(event) => event.stopPropagation()}>
+            <div className="panel-title">
+              <h2>{previewCover.series_name || previewCover.series_id}</h2>
+              <button className="secondary-button" type="button" onClick={() => setPreviewCover(null)}>
+                关闭
+              </button>
+            </div>
+            <img
+              alt={`${previewCover.series_name || previewCover.series_id} 封面`}
+              className="cover-preview-image"
+              src={`/api/admin/series/${previewCover.series_id}/cover`}
+            />
+          </section>
+        </div>
+      ) : null}
 
       <section className="content-grid secondary-grid">
         <section className="panel events-panel">

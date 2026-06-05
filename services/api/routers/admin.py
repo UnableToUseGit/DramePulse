@@ -15,6 +15,7 @@ from ..repositories.admin_content import (
     create_series,
     delete_series,
     get_series_detail,
+    read_series_cover,
     list_series,
     restore_series,
     upload_episode_danmaku,
@@ -74,6 +75,15 @@ def list_admin_series(_: None = Depends(require_admin)) -> AdminSeriesListRespon
 @router.get("/admin/series/{series_id}", response_model=AdminSeriesDetail)
 def retrieve_admin_series(series_id: str, _: None = Depends(require_admin)) -> AdminSeriesDetail:
     return AdminSeriesDetail(**get_series_detail(series_id))
+
+
+@router.get("/admin/series/{series_id}/cover")
+def retrieve_admin_series_cover(series_id: str, _: None = Depends(require_admin)) -> Response:
+    cover = read_series_cover(series_id)
+    if cover is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Series cover not found")
+    body, content_type = cover
+    return Response(content=body, media_type=content_type)
 
 
 @router.delete("/admin/series/{series_id}", response_model=AdminSeriesDeleteResponse)

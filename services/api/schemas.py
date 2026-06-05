@@ -24,6 +24,30 @@ class VideoListResponse(BaseModel):
     videos: list[VideoResponse]
 
 
+class HomeFeedResponse(BaseModel):
+    videos: list[VideoResponse]
+
+
+class SeriesSummaryResponse(BaseModel):
+    series_id: str
+    title: str
+    cover_url: str | None = None
+    summary: str | None = None
+    episode_count: int
+    first_video_id: str | None = None
+    status: str = "active"
+
+
+class SeriesListResponse(BaseModel):
+    series: list[SeriesSummaryResponse]
+
+
+class SeriesEpisodesResponse(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    episodes: list[VideoResponse]
+
+
 class DanmakuItemResponse(BaseModel):
     danmaku_id: str | None = None
     time_sec: float
@@ -117,6 +141,25 @@ class InteractionPlansResponse(BaseModel):
     interaction_plans: list[InteractionPlan]
 
 
+class StoryboardResponse(BaseModel):
+    video_id: str
+    available: bool = False
+    interval_seconds: float | None = None
+    frame_width: int | None = None
+    frame_height: int | None = None
+    columns: int | None = None
+    rows: int | None = None
+    sheets: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PlaybackAssetsResponse(BaseModel):
+    video: VideoResponse
+    danmaku: DanmakuResponse
+    storyboard: StoryboardResponse
+    story_chapters: list[dict[str, Any]] = Field(default_factory=list)
+    interaction_plans: list[InteractionPlan] = Field(default_factory=list)
+
+
 UserEventType = Literal[
     "interaction_exposure",
     "option_click",
@@ -189,6 +232,8 @@ class AdminDashboardSeries(BaseModel):
     interaction_count: int
     event_count: int
     vote_count: int
+    has_cover: bool = False
+    cover_url: str | None = None
     asset_status: str
 
 
@@ -205,6 +250,7 @@ class AdminDashboardVideo(BaseModel):
     vote_count: int
     danmaku_count: int = 0
     has_danmaku: bool = False
+    has_storyboard: bool = False
     asset_status: str = "missing_danmaku"
 
 
