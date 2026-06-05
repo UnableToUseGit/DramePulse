@@ -8,7 +8,7 @@ import {
   normalizeVideo,
   PlayerVideo
 } from "./playerApi";
-import { groupVideosBySeries } from "./playerFeed";
+import { groupVideosBySeries, SeriesGroup } from "./playerFeed";
 
 function extractVideosPayload(payload: unknown) {
   return isRecord(payload) && Array.isArray(payload.videos) ? payload.videos : [];
@@ -157,6 +157,84 @@ export async function loadSeriesEpisodes({
   return series?.episodes ?? [];
 }
 
+async function loadLegacySeriesGroups({
+  apiBaseUrl,
+  fetcher,
+  timeoutMs
+}: {
+  apiBaseUrl: string;
+  fetcher: FetchLike;
+  timeoutMs: number;
+}) {
+  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher, timeoutMs });
+  return groupVideosBySeries(videos);
+}
+
+export async function loadTheaterSeriesGroups({
+  apiBaseUrl,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<SeriesGroup[]> {
+  try {
+    const seriesSummaries = await loadTheaterSeries({ apiBaseUrl, fetcher, timeoutMs });
+    const groups = (
+      await Promise.all(
+        seriesSummaries.map(async (series) => {
+          if (!series.seriesId) {
+            return undefined;
+          }
+          const episodes = await loadSeriesEpisodes({
+            apiBaseUrl,
+            seriesId: series.seriesId,
+            fetcher,
+            timeoutMs
+          });
+          return groupVideosBySeries(episodes)[0];
+        })
+      )
+    ).filter((series): series is SeriesGroup => series !== undefined);
+    if (groups.length > 0) {
+      return groups;
+    }
+  } catch {
+    // Fall back to grouping the legacy all-video list.
+  }
+  return loadLegacySeriesGroups({ apiBaseUrl, fetcher, timeoutMs });
+}
+
+async function loadPlaybackVideo({
+  apiBaseUrl,
+  videoId,
+  fetcher,
+  timeoutMs
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher: FetchLike;
+  timeoutMs: number;
+}) {
+  try {
+    const videoPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}`), timeoutMs);
+    const video = normalizeVideo(videoPayload, apiBaseUrl);
+    if (video) {
+      return video;
+    }
+  } catch {
+    // Fall back to the legacy video list when the detail endpoint is unavailable or unstable.
+  }
+
+  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher, timeoutMs });
+  const video = videos.find((item) => item.videoId === videoId);
+  if (!video) {
+    throw new Error(`No playable video returned by API: ${videoId}`);
+  }
+  return video;
+}
+
 export interface PlaybackAssets {
   video: PlayerVideo;
   storyChapters: NonNullable<PlayerVideo["storyChapters"]>;
@@ -175,11 +253,7 @@ export async function loadPlaybackAssets({
   fetcher?: FetchLike;
   timeoutMs?: number;
 }): Promise<PlaybackAssets> {
-  const videoPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}`), timeoutMs);
-  const video = normalizeVideo(videoPayload, apiBaseUrl);
-  if (!video) {
-    throw new Error(`No playable video returned by API: ${videoId}`);
-  }
+  const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
 
   let interactionPlans: unknown[] = [];
   try {

@@ -1,9 +1,9 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "./src/config";
-import { loadHomeFeedVideos } from "./src/domain/playerDataApi";
-import { getSeriesResumeTarget, groupVideosBySeries, SeriesGroup } from "./src/domain/playerFeed";
+import { loadHomeFeedVideos, loadTheaterSeriesGroups } from "./src/domain/playerDataApi";
+import { getSeriesResumeTarget, SeriesGroup } from "./src/domain/playerFeed";
 import type { PlayerVideo } from "./src/domain/playerApi";
 import { HomeFeedScreen } from "./src/screens/HomeFeedScreen";
 import { SeriesPlayerScreen } from "./src/screens/SeriesPlayerScreen";
@@ -14,22 +14,26 @@ type AppRoute = "home" | "theater" | "series-player";
 
 export default function App() {
   const [route, setRoute] = useState<AppRoute>("home");
-  const [videos, setVideos] = useState<PlayerVideo[]>([]);
+  const [homeVideos, setHomeVideos] = useState<PlayerVideo[]>([]);
+  const [theaterSeries, setTheaterSeries] = useState<SeriesGroup[]>([]);
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | undefined>();
   const [playbackPositions, setPlaybackPositions] = useState<Record<string, number>>({});
   const [seriesResumeVideoIds, setSeriesResumeVideoIds] = useState<Record<string, string>>({});
   const [theaterScrollOffset, setTheaterScrollOffset] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | undefined>();
-  const seriesList = useMemo(() => groupVideosBySeries(videos), [videos]);
-  const selectedSeries = seriesList.find((item) => item.seriesKey === selectedSeriesKey);
+  const selectedSeries = theaterSeries.find((item) => item.seriesKey === selectedSeriesKey);
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
     setLoadError(undefined);
     try {
-      const nextVideos = await loadHomeFeedVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS });
-      setVideos(nextVideos);
+      const [nextHomeVideos, nextTheaterSeries] = await Promise.all([
+        loadHomeFeedVideos({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS }),
+        loadTheaterSeriesGroups({ apiBaseUrl: API_BASE_URL, timeoutMs: API_REQUEST_TIMEOUT_MS })
+      ]);
+      setHomeVideos(nextHomeVideos);
+      setTheaterSeries(nextTheaterSeries);
       setLoadState("ready");
     } catch (error: unknown) {
       setLoadError(error instanceof Error ? error.message : "无法连接后端服务");
@@ -70,7 +74,7 @@ export default function App() {
       <View style={[styles.root, styles.centerState]}>
         <StatusBar style="light" hidden />
         <Text style={styles.stateTitle}>正在连接后端视频源</Text>
-        <Text style={styles.stateText}>GET {API_BASE_URL}/api/feed/home</Text>
+        <Text style={styles.stateText}>GET {API_BASE_URL}/api/feed/home + /api/series</Text>
       </View>
     );
   }
@@ -95,7 +99,7 @@ export default function App() {
       <StatusBar style="light" hidden />
       {route === "theater" ? (
         <TheaterScreen
-          series={seriesList}
+          series={theaterSeries}
           resumeVideoIds={seriesResumeVideoIds}
           initialScrollOffset={theaterScrollOffset}
           onSelectSeries={handleSelectSeries}
@@ -113,7 +117,7 @@ export default function App() {
         />
       ) : (
         <HomeFeedScreen
-          videos={videos}
+          videos={homeVideos}
           playbackPositions={playbackPositions}
           onPlaybackPositionsChange={setPlaybackPositions}
           onOpenTheater={() => setRoute("theater")}
