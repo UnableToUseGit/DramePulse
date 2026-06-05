@@ -420,6 +420,11 @@ def build_selector_user_prompt(
             "Return JSON only with keys: chapters, rejected_candidates, warnings.",
             "Each chapter must contain start_time, end_time, end_boundary_candidate_id, title, summary, importance.",
             "The first chapter must start at 0.0. The final chapter must end at VIDEO_DURATION_SECONDS.",
+            "Do not create chapters shorter than MIN_CHAPTER_SECONDS unless the whole video is shorter than that.",
+            "Prefer 3 to 6 chapters for a normal short-drama episode; use fewer only when the story is very simple.",
+            "importance must be a number from 0 to 1. Do not use labels such as high, medium, or low.",
+            "title should be short Chinese, preferably 4 to 10 Chinese characters, and suitable for a video timeline.",
+            "summary should be one concise factual Chinese sentence.",
         ]
     )
     return "\n".join(lines)
@@ -442,9 +447,28 @@ def _chapter_from_raw(
     try:
         start_time = _round_time(float(raw_chapter["start_time"]))
         end_time = _round_time(float(raw_chapter["end_time"]))
-        importance = _clamp_score(float(raw_chapter["importance"]))
     except (KeyError, TypeError, ValueError):
         return None
+    importance_raw = raw_chapter.get("importance")
+    if isinstance(importance_raw, str):
+        importance = {
+            "high": 0.85,
+            "medium": 0.6,
+            "low": 0.35,
+            "重要": 0.85,
+            "中等": 0.6,
+            "较低": 0.35,
+        }.get(importance_raw.strip().lower())
+        if importance is None:
+            try:
+                importance = _clamp_score(float(importance_raw))
+            except ValueError:
+                return None
+    else:
+        try:
+            importance = _clamp_score(float(importance_raw))
+        except (TypeError, ValueError):
+            return None
     title = str(raw_chapter.get("title") or "").strip()
     summary = str(raw_chapter.get("summary") or "").strip()
     if not title or not summary or end_time <= start_time:

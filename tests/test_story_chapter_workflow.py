@@ -8,7 +8,9 @@ import unittest
 from pipelines.story_chapter.baseline_text import Utterance
 from pipelines.story_chapter.workflow import (
     BoundaryCandidate,
+    ChapterSelectionConstraints,
     StoryChapterWorkflowPipeline,
+    build_selector_user_prompt,
     parse_and_validate_selector_result,
     recall_boundary_candidates,
     score_topic_shifts_with_llm,
@@ -142,6 +144,55 @@ class StoryChapterWorkflowTest(unittest.TestCase):
         self.assertEqual(chapters[0]["start_time"], 0.0)
         self.assertEqual(chapters[-1]["end_time"], 10.0)
         self.assertEqual(chapters[0]["title"], "身份遭疑")
+
+    def test_parse_selector_result_accepts_string_importance_labels(self) -> None:
+        candidates = [
+            BoundaryCandidate("bc_001", 5.0, 0.8, 0.8, ["scene_boundary"], {}),
+        ]
+
+        chapters, warnings = parse_and_validate_selector_result(
+            raw={
+                "chapters": [
+                    {
+                        "start_time": 0.0,
+                        "end_time": 5.0,
+                        "end_boundary_candidate_id": "bc_001",
+                        "title": "身份遭疑",
+                        "summary": "众人质疑身份。",
+                        "importance": "high",
+                    },
+                    {
+                        "start_time": 5.0,
+                        "end_time": 10.0,
+                        "end_boundary_candidate_id": None,
+                        "title": "身份揭露",
+                        "summary": "身份揭开。",
+                        "importance": "medium",
+                    },
+                ]
+            },
+            video_id="demo_ep01",
+            video_duration_seconds=10.0,
+            candidates=candidates,
+        )
+
+        self.assertEqual(warnings, [])
+        self.assertEqual(chapters[0]["importance"], 0.85)
+        self.assertEqual(chapters[1]["importance"], 0.6)
+
+    def test_selector_prompt_enforces_duration_and_numeric_importance(self) -> None:
+        prompt = build_selector_user_prompt(
+            video_id="demo_ep01",
+            video_duration_seconds=60.0,
+            utterances=[Utterance("u_001", 1.0, 2.0, "开场。")],
+            candidates=[BoundaryCandidate("bc_001", 20.0, 0.8, 0.8, ["scene_boundary"], {})],
+            frame_timestamps_by_candidate={"bc_001": [19.0, 20.0, 21.0]},
+            constraints=ChapterSelectionConstraints(min_chapter_seconds=12.0, max_chapters=8),
+        )
+
+        self.assertIn("Do not create chapters shorter than MIN_CHAPTER_SECONDS", prompt)
+        self.assertIn("importance must be a number from 0 to 1", prompt)
+        self.assertIn("Prefer 3 to 6 chapters", prompt)
 
     def test_workflow_pipeline_writes_candidate_selector_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
