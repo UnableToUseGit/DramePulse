@@ -234,9 +234,8 @@ const styles = StyleSheet.create({
   },
   count: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
-    ...playerOverlay.textShadow
   },
 });

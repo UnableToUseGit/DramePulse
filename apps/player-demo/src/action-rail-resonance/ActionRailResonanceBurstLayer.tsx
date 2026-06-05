@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     top: -52,
     width: 42,
     height: 92,
-    color: "#ffd166",
+    color: "#ff6a1a",
     fontSize: 84,
     fontWeight: "900",
     lineHeight: 92,

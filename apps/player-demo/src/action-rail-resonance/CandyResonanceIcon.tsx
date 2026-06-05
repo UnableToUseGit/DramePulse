@@ -6,7 +6,7 @@ const CANDY_WRAPPER_PATH =
 const CANDY_BODY_PATH =
   "M9.31,7.93,7,10.28l8,4.63,2.34-2.35-8-4.63Zm8.93,3.58a2.55,2.55,0,0,0-.42-3L15.11,5.75a2.55,2.55,0,0,0-3.61,0h0L10.31,6.94ZM6.08,14.78a2.56,2.56,0,0,1-.1-3.5l8,4.62L12.4,17.49a2.57,2.57,0,0,1-3.61,0h0Z";
 
-export function CandyResonanceIcon({ isLit, size = 38 }: { isLit: boolean; size?: number }) {
+export function CandyResonanceIcon({ isLit, size = 45 }: { isLit: boolean; size?: number }) {
   const fills = isLit
     ? {
         wrapper: "#ff91b0",
