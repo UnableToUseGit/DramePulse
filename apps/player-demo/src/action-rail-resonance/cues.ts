@@ -26,6 +26,18 @@ export const ACTION_RAIL_RESONANCE_CUES: ActionRailResonanceCue[] = [
     feedbackText: "甜到了"
   },
   {
+    cueId: "resonance_case1_ep01_004",
+    videoId: "case1_ep01",
+    highlightId: "h_case1_ep01_004",
+    triggerTime: 82,
+    durationSec: 6,
+    emotionType: "笑点",
+    label: "笑到了",
+    icon: "happy",
+    baseCount: 94000,
+    feedbackText: "笑到了"
+  },
+  {
     cueId: "resonance_case1_ep01_003",
     videoId: "case1_ep01",
     highlightId: "h_case1_ep01_003",

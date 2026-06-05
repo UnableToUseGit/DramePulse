@@ -11,6 +11,7 @@ export function PlayerActionRail({
   liked,
   onToggleLike,
   onOpenStoryQa,
+  bottomOffset = 124,
   resonanceCue,
   resonanceTapState,
   onParticipateResonance
@@ -18,12 +19,13 @@ export function PlayerActionRail({
   liked: boolean;
   onToggleLike: () => void;
   onOpenStoryQa: () => void;
+  bottomOffset?: number;
   resonanceCue?: ActionRailResonanceCue;
   resonanceTapState: ResonanceTapState;
   onParticipateResonance: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
 }) {
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { bottom: bottomOffset }]}>
       <ActionRailResonanceSlot cueId={resonanceCue?.cueId}>
         {resonanceCue ? (
           <ActionRailResonanceButton
@@ -78,7 +80,6 @@ const styles = StyleSheet.create({
   root: {
     position: "absolute",
     right: 2,
-    bottom: 124,
     alignItems: "center",
     gap: 24
   },

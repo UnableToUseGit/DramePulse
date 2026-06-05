@@ -1,8 +1,13 @@
 import {
+  buildPlayerFeedItems,
   findNextEpisodeIndex,
+  flushBufferedPlaybackPosition,
   getFeedPageIndex,
+  getFeedReleaseTargetIndex,
+  getFeedVisualLayout,
   getFeedScrollEnabled,
   getNextEpisodeInfoByIndex,
+  getRequestedVideoFeedIndex,
   getResumePlaybackTime,
   getTimelineChromeVisibility,
   getVideoPlaybackState,
@@ -12,9 +17,11 @@ import {
   groupVideosBySeries,
   shouldRestoreScrollOffset,
   shouldStartEdgeBackSwipe,
-  shouldPreloadFeedPage
+  shouldPreloadFeedPage,
+  stagePlaybackPositionUpdate
 } from "../playerFeed";
 import type { PlayerVideo } from "../playerApi";
+import type { RoleCommerceFeedAd } from "../roleCommerceAds";
 
 function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
   return {
@@ -28,6 +35,25 @@ function makeVideo(overrides: Partial<PlayerVideo>): PlayerVideo {
   };
 }
 
+function makeAd(overrides: Partial<RoleCommerceFeedAd> = {}): RoleCommerceFeedAd {
+  return {
+    adId: "rc1",
+    campaignId: "campaign1",
+    placement: "after_first_video",
+    sponsorLabel: "广告",
+    characterName: "太奶奶",
+    productName: "云雾哑光口红",
+    title: "太奶奶亲自挑的气色口红",
+    hook: "别让气色输在第一眼。",
+    productDescription: "太奶奶同款短剧番外推荐。",
+    voiceoverLines: ["这支颜色，提气色，不张扬。"],
+    sellingPoints: ["显气色"],
+    priceText: "到手价 99 元",
+    ctaText: "查看同款",
+    ...overrides
+  };
+}
+
 describe("playerFeed", () => {
   it("rounds vertical scroll offset to the nearest feed page", () => {
     expect(getFeedPageIndex({ offsetY: 0, pageHeight: 800, itemCount: 3 })).toBe(0);
@@ -35,10 +61,82 @@ describe("playerFeed", () => {
     expect(getFeedPageIndex({ offsetY: 1601, pageHeight: 800, itemCount: 3 })).toBe(2);
   });
 
+  it("predicts the release target page from native target offset when available", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 0,
+        itemCount: 4,
+        offsetY: 460,
+        pageHeight: 800,
+        targetOffsetY: 800
+      })
+    ).toBe(1);
+  });
+
+  it("falls back to the current release offset when native target offset is unavailable", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 0,
+        itemCount: 4,
+        offsetY: 560,
+        pageHeight: 800
+      })
+    ).toBe(1);
+
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 970,
+        pageHeight: 800
+      })
+    ).toBe(1);
+  });
+
+  it("uses release velocity to predict the next page when target offset is unavailable", () => {
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 930,
+        pageHeight: 800,
+        velocityY: 1.2
+      })
+    ).toBe(2);
+
+    expect(
+      getFeedReleaseTargetIndex({
+        activeIndex: 1,
+        itemCount: 4,
+        offsetY: 1460,
+        pageHeight: 800,
+        velocityY: -1.2
+      })
+    ).toBe(0);
+  });
+
   it("clamps feed page index to available videos", () => {
     expect(getFeedPageIndex({ offsetY: -120, pageHeight: 800, itemCount: 3 })).toBe(0);
     expect(getFeedPageIndex({ offsetY: 2600, pageHeight: 800, itemCount: 3 })).toBe(2);
     expect(getFeedPageIndex({ offsetY: 400, pageHeight: 800, itemCount: 0 })).toBe(0);
+  });
+
+  it("keeps video above the bottom dock while preserving full-page feed height", () => {
+    expect(getFeedVisualLayout({ pageHeight: 800, mode: "home" })).toEqual({
+      bottomDockHeight: 74,
+      controlsBottomOffset: 72,
+      metaBottomOffset: 118,
+      actionRailBottomOffset: 124,
+      videoHeight: 726
+    });
+    expect(getFeedVisualLayout({ pageHeight: 800, mode: "series", hasSeriesEpisodeBar: true })).toEqual({
+      bottomDockHeight: 96,
+      controlsBottomOffset: 94,
+      metaBottomOffset: 140,
+      actionRailBottomOffset: 146,
+      videoHeight: 704
+    });
+    expect(getFeedVisualLayout({ pageHeight: 60, mode: "home" }).videoHeight).toBe(1);
   });
 
   it("derives video commands from user intent without treating inactive pages as user pauses", () => {
@@ -80,6 +178,59 @@ describe("playerFeed", () => {
     expect(findNextEpisodeIndex(videos, 0)).toBe(2);
     expect(findNextEpisodeIndex(videos, 1)).toBeUndefined();
     expect(findNextEpisodeIndex(videos, 99)).toBeUndefined();
+  });
+
+  it("builds role commerce ads only for a series feed", () => {
+    const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" })];
+    const ad = makeAd();
+
+    expect(buildPlayerFeedItems({ videos, roleCommerceAds: [ad], mode: "home" }).map((item) => item.itemId)).toEqual([
+      "video:s1e1",
+      "video:s1e2"
+    ]);
+    expect(buildPlayerFeedItems({ videos, roleCommerceAds: [ad], mode: "series" }).map((item) => item.itemId)).toEqual([
+      "video:s1e1",
+      "role-commerce:rc1",
+      "video:s1e2"
+    ]);
+  });
+
+  it("requests feed navigation only when a new target video differs from the active item", () => {
+    const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" })];
+    const items = buildPlayerFeedItems({ videos, roleCommerceAds: [makeAd()], mode: "series" });
+
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e2",
+        activeIndex: 0
+      })
+    ).toBe(2);
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e2",
+        activeIndex: 2
+      })
+    ).toBeUndefined();
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "s1e1",
+        activeIndex: 1
+      })
+    ).toBeUndefined();
+    expect(
+      getRequestedVideoFeedIndex({
+        items,
+        previousRequestedVideoId: "s1e1",
+        requestedVideoId: "missing",
+        activeIndex: 0
+      })
+    ).toBeUndefined();
   });
 
   it("precomputes next episode labels for each feed item", () => {
@@ -199,5 +350,33 @@ describe("playerFeed", () => {
   it("disables feed scrolling while timeline dragging is active", () => {
     expect(getFeedScrollEnabled({ isTimelineDragging: false })).toBe(true);
     expect(getFeedScrollEnabled({ isTimelineDragging: true })).toBe(false);
+  });
+
+  it("buffers playback position updates while the feed is dragging", () => {
+    expect(
+      stagePlaybackPositionUpdate({
+        isFeedDragging: true,
+        playbackPositions: { ep01: 8 },
+        videoId: "ep01",
+        time: 9
+      })
+    ).toEqual({
+      bufferedPosition: { videoId: "ep01", time: 9 },
+      nextPlaybackPositions: { ep01: 8 },
+      shouldPublish: false
+    });
+  });
+
+  it("flushes a buffered playback position after feed dragging ends", () => {
+    expect(
+      flushBufferedPlaybackPosition({
+        bufferedPosition: { videoId: "ep01", time: 9 },
+        playbackPositions: { ep01: 8, ep02: 3 }
+      })
+    ).toEqual({
+      bufferedPosition: undefined,
+      nextPlaybackPositions: { ep01: 9, ep02: 3 },
+      shouldPublish: true
+    });
   });
 });

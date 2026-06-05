@@ -106,6 +106,7 @@ data/downloads/
 !demo_video.mp4
 !apps/player-demo/assets/video/
 !apps/player-demo/assets/video/ep01.mp4
+!apps/player-demo/assets/video/ads.mp4
 
 # Generated data outputs
 output/

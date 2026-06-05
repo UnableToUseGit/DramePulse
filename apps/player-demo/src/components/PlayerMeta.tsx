@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
@@ -9,24 +10,35 @@ export function PlayerMeta({
   title,
   plotSummary,
   episodeLabel,
+  metaTags,
   currentTime,
   isActive,
   showInnerVoice,
+  showDanmakuEntry = true,
+  reserveActionRail = true,
+  bottomOffset = 118,
+  preTitleAccessory,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku
 }: {
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  metaTags?: string[];
   currentTime: number;
   isActive: boolean;
   showInnerVoice: boolean;
+  showDanmakuEntry?: boolean;
+  reserveActionRail?: boolean;
+  bottomOffset?: number;
+  preTitleAccessory?: ReactNode;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   const titleCanExpand = Array.from(title).length > 9;
   const [isTitleExpanded, setIsTitleExpanded] = useState(false);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+  const resolvedTags = metaTags ?? [episodeLabel ?? "短剧", "都市爱情", "真实弹幕"];
 
   useEffect(() => {
     setIsTitleExpanded(false);
@@ -34,14 +46,17 @@ export function PlayerMeta({
   }, [title, plotSummary]);
 
   return (
-    <View style={styles.root}>
-      <DanmakuEntryArea
-        currentTime={currentTime}
-        isActive={isActive}
-        showInnerVoice={showInnerVoice}
-        onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
-        onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
-      />
+    <View style={[styles.root, reserveActionRail ? styles.withActionRail : styles.fullWidth, { bottom: bottomOffset }]}>
+      {showDanmakuEntry ? (
+        <DanmakuEntryArea
+          currentTime={currentTime}
+          isActive={isActive}
+          showInnerVoice={showInnerVoice}
+          onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+          onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+        />
+      ) : null}
+      {preTitleAccessory ? <View style={styles.preTitleAccessory}>{preTitleAccessory}</View> : null}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isTitleExpanded ? "收起完整标题" : "展开完整标题"}
@@ -62,15 +77,11 @@ export function PlayerMeta({
         ) : null}
       </Pressable>
       <View style={styles.tags}>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          {episodeLabel ?? "短剧"}
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          都市爱情
-        </Text>
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
-          真实弹幕
-        </Text>
+        {resolvedTags.map((tag) => (
+          <Text key={tag} numberOfLines={1} ellipsizeMode="tail" style={styles.tag}>
+            {tag}
+          </Text>
+        ))}
       </View>
       <Pressable
         accessibilityRole="button"
@@ -96,9 +107,13 @@ export function PlayerMeta({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    left: spacing.lg,
-    right: 100,
-    bottom: 118
+    left: spacing.lg
+  },
+  withActionRail: {
+    right: 100
+  },
+  fullWidth: {
+    right: spacing.lg
   },
   title: {
     flex: 1,
@@ -112,6 +127,10 @@ const styles = StyleSheet.create({
     minHeight: 28,
     flexDirection: "row",
     alignItems: "flex-start"
+  },
+  preTitleAccessory: {
+    alignSelf: "flex-start",
+    marginBottom: spacing.sm
   },
   titleArrow: {
     position: "absolute",

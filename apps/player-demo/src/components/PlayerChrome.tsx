@@ -22,8 +22,13 @@ export function PlayerChrome({
   title,
   plotSummary,
   episodeLabel,
+  metaTags,
+  metaBottomOffset,
+  actionRailBottomOffset,
+  preTitleAccessory,
   showActionRail = true,
   showMeta = true,
+  showDanmakuEntry = true,
   mode = "home",
   currentTime,
   isActive,
@@ -47,8 +52,13 @@ export function PlayerChrome({
   title: string;
   plotSummary: string;
   episodeLabel?: string;
+  metaTags?: string[];
+  metaBottomOffset?: number;
+  actionRailBottomOffset?: number;
+  preTitleAccessory?: ReactNode;
   showActionRail?: boolean;
   showMeta?: boolean;
+  showDanmakuEntry?: boolean;
   mode?: "home" | "series";
   currentTime: number;
   isActive: boolean;
@@ -76,6 +86,7 @@ export function PlayerChrome({
           liked={liked}
           onToggleLike={onToggleLike}
           onOpenStoryQa={onOpenStoryQa}
+          bottomOffset={actionRailBottomOffset}
           resonanceCue={resonanceCue}
           resonanceTapState={resonanceTapState}
           onParticipateResonance={onParticipateResonance}
@@ -86,9 +97,14 @@ export function PlayerChrome({
           title={title}
           plotSummary={plotSummary}
           episodeLabel={episodeLabel}
+          metaTags={metaTags}
+          bottomOffset={metaBottomOffset}
+          preTitleAccessory={preTitleAccessory}
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}
+          showDanmakuEntry={showDanmakuEntry}
+          reserveActionRail={showActionRail}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
         />

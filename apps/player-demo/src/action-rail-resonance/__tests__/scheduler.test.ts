@@ -43,13 +43,13 @@ describe("action rail resonance scheduler", () => {
     expect(shouldResetActionRailResonanceCue({ previousTime: 20, currentTime: 10, firstTriggerTime: 8 })).toBe(false);
   });
 
-  it("keeps a participating cue visible after the active window ends", () => {
+  it("does not keep a participating cue visible after the button has been tapped", () => {
     expect(
       getVisibleActionRailResonanceCue({
         activeCue: undefined,
         participatingCue: cues[0]
       })?.cueId
-    ).toBe("resonance_1");
+    ).toBeUndefined();
     expect(
       getVisibleActionRailResonanceCue({
         activeCue: cues[0],

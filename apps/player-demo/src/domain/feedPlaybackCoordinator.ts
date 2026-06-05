@@ -1,0 +1,89 @@
+import type { PlayerFeedItem } from "./playerFeed";
+import { getResumePlaybackTime, shouldPreloadFeedPage } from "./playerFeed";
+
+export type FeedPlaybackPageRole = "active" | "preload" | "parked";
+
+export interface FeedPlaybackPageState {
+  pageRole: FeedPlaybackPageRole;
+  shouldPrepareVideo: boolean;
+  shouldOwnPlayback: boolean;
+  resumeTime: number;
+}
+
+export interface FeedPlaybackPageRenderState {
+  shouldRenderVideo: boolean;
+  shouldRenderInteractiveShell: boolean;
+  shouldRenderPlaybackControls: boolean;
+}
+
+export interface FeedPlaybackPagePresentationState {
+  shouldRenderVideo: boolean;
+  shouldRenderInteractiveShell: boolean;
+  shouldRenderPlaybackControls: boolean;
+}
+
+export function getFeedPlaybackPageRenderState(pageRole: FeedPlaybackPageRole): FeedPlaybackPageRenderState {
+  if (pageRole === "active") {
+    return {
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: true,
+      shouldRenderPlaybackControls: true
+    };
+  }
+  if (pageRole === "preload") {
+    return {
+      shouldRenderVideo: true,
+      shouldRenderInteractiveShell: false,
+      shouldRenderPlaybackControls: false
+    };
+  }
+  return {
+    shouldRenderVideo: false,
+    shouldRenderInteractiveShell: false,
+    shouldRenderPlaybackControls: false
+  };
+}
+
+export function getFeedPlaybackPagePresentationState({
+  playbackPageRole,
+  visualPageRole
+}: {
+  playbackPageRole: FeedPlaybackPageRole;
+  visualPageRole: FeedPlaybackPageRole;
+}): FeedPlaybackPagePresentationState {
+  const playbackRenderState = getFeedPlaybackPageRenderState(playbackPageRole);
+  const visualRenderState = getFeedPlaybackPageRenderState(visualPageRole);
+
+  return {
+    shouldRenderVideo: playbackRenderState.shouldRenderVideo || visualRenderState.shouldRenderVideo,
+    shouldRenderInteractiveShell: visualRenderState.shouldRenderInteractiveShell,
+    shouldRenderPlaybackControls: visualRenderState.shouldRenderPlaybackControls
+  };
+}
+
+export function getFeedPlaybackPageState({
+  item,
+  pageIndex,
+  activeIndex,
+  playbackPositions,
+  preloadDistance
+}: {
+  item: PlayerFeedItem;
+  pageIndex: number;
+  activeIndex: number;
+  playbackPositions: Record<string, number>;
+  preloadDistance?: number;
+}): FeedPlaybackPageState {
+  const isActive = pageIndex === activeIndex;
+  const shouldPrepareVideo = shouldPreloadFeedPage({ pageIndex, activeIndex, preloadDistance });
+  const pageRole: FeedPlaybackPageRole = isActive ? "active" : shouldPrepareVideo ? "preload" : "parked";
+  const savedTime = item.itemType === "video" ? playbackPositions[item.video.videoId] : undefined;
+  const duration = item.itemType === "video" ? item.video.duration : 0;
+
+  return {
+    pageRole,
+    shouldPrepareVideo,
+    shouldOwnPlayback: isActive,
+    resumeTime: getResumePlaybackTime({ savedTime, duration })
+  };
+}

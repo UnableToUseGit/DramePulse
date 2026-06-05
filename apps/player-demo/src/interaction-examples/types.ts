@@ -1,11 +1,11 @@
 export type InteractionPresentationType =
   | "none"
-  | "poll_bar"
   | "danmaku_poll"
-  | "emoji_hold"
-  | "emotion_aura"
   | "inner_voice_danmaku"
-  | "action_rail_resonance";
+  | "action_rail_thrill"
+  | "action_rail_candy"
+  | "action_rail_laugh"
+  | "action_rail_tear";
 
 export type InteractionReaction = {
   id: string;

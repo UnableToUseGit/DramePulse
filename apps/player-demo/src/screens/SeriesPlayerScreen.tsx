@@ -21,7 +21,7 @@ export function SeriesPlayerScreen({
   onBack: () => void;
   onResumeVideoChange: (seriesKey: string, videoId: string) => void;
 }) {
-  const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("poll_bar");
+  const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("action_rail_candy");
   const [isSeriesDetailVisible, setIsSeriesDetailVisible] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState(initialVideoId ?? series.episodes[0]?.videoId);
   const viewport = useWindowDimensions();
@@ -65,10 +65,9 @@ export function SeriesPlayerScreen({
   return (
     <View style={styles.root}>
       <PlayerFeed
-        key={`${series.seriesKey}:${currentVideoId ?? "first"}`}
         videos={series.episodes}
         mode="series"
-        initialVideoId={currentVideoId}
+        requestedVideoId={currentVideoId}
         playbackPositions={playbackPositions}
         selectedPresentationType={selectedPresentationType}
         seriesEpisodeCount={series.episodeCount}

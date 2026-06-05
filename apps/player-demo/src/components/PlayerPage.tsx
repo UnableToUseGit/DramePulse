@@ -14,26 +14,29 @@ import {
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
 import {
-  getResumePlaybackTime,
+  getFeedPlaybackPagePresentationState,
+  getFeedPlaybackPageRenderState,
+  type FeedPlaybackPageRole
+} from "../domain/feedPlaybackCoordinator";
+import {
   getTimelineChromeVisibility,
   getVideoPlaybackState,
   UserPlaybackIntent
 } from "../domain/playerFeed";
+import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
 import { PlayerVideo } from "../domain/playerApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
+import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
 import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
 import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
-import { EmotionAuraExample } from "../emotion-aura/EmotionAuraExample";
 import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
-import { EmojiHoldExample } from "../interaction-examples/EmojiHoldExample";
 import { InteractionLabControls } from "../interaction-examples/InteractionLabControls";
-import { PollBarExample } from "../interaction-examples/PollBarExample";
-import { shouldResetExample } from "../interaction-examples/trigger";
+import { isActionRailResonancePresentation, shouldResetExample } from "../interaction-examples/trigger";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { DanmakuLayer } from "./DanmakuLayer";
 import { FastForwardPressLayer } from "./FastForwardPressLayer";
@@ -45,33 +48,38 @@ import { SeekRequest, VideoStage } from "./VideoStage";
 import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
 const UI_TIME_UPDATE_INTERVAL_SEC = 1;
-const ACTION_RAIL_RESONANCE_PREVIEW_CUE =
-  ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "甜点") ?? ACTION_RAIL_RESONANCE_CUES[0];
+const ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS = 520;
+const ACTION_RAIL_RESONANCE_EFFECT_HOLD_MS = 1500;
 
-export function PlayerPage({
-  video,
-  isActive,
-  shouldMountVideo,
-  height,
-  initialPlaybackTime,
-  hasNextEpisode,
-  nextEpisodeLabel,
-  selectedPresentationType,
-  onChangePresentationType,
-  onPlaybackPositionChange,
-  onTimelineDragStateChange,
-  onPlayNextEpisode,
-  mode = "home",
-  seriesEpisodeCount,
-  onOpenTheater,
-  onBack,
-  onOpenSeriesDetail
-}: {
+function getActionRailPreviewCue(type: InteractionPresentationType) {
+  if (type === "action_rail_thrill") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "爽点");
+  }
+  if (type === "action_rail_candy") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "甜点");
+  }
+  if (type === "action_rail_laugh") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "笑点");
+  }
+  if (type === "action_rail_tear") {
+    return ACTION_RAIL_RESONANCE_CUES.find((cue) => cue.emotionType === "泪点");
+  }
+  return undefined;
+}
+
+interface PlayerPageProps {
   video: PlayerVideo;
+  pageIndex: number;
+  playbackObserver?: HomeFeedPlaybackObserver;
   isActive: boolean;
-  shouldMountVideo: boolean;
+  pageRole: FeedPlaybackPageRole;
+  visualPageRole: FeedPlaybackPageRole;
   height: number;
-  initialPlaybackTime?: number;
+  videoHeight: number;
+  controlsBottomOffset: number;
+  metaBottomOffset: number;
+  actionRailBottomOffset: number;
+  resumePlaybackTime: number;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
   selectedPresentationType: InteractionPresentationType;
@@ -84,7 +92,40 @@ export function PlayerPage({
   onOpenTheater?: () => void;
   onBack?: () => void;
   onOpenSeriesDetail?: () => void;
-}) {
+}
+
+interface VideoStageObservation {
+  observer: HomeFeedPlaybackObserver;
+  videoId: string;
+  pageIndex: number;
+}
+
+export function PlayerPage({
+  video,
+  pageIndex,
+  playbackObserver,
+  isActive,
+  pageRole,
+  visualPageRole,
+  height,
+  videoHeight,
+  controlsBottomOffset,
+  metaBottomOffset,
+  actionRailBottomOffset,
+  resumePlaybackTime,
+  hasNextEpisode,
+  nextEpisodeLabel,
+  selectedPresentationType,
+  onChangePresentationType,
+  onPlaybackPositionChange,
+  onTimelineDragStateChange,
+  onPlayNextEpisode,
+  mode = "home",
+  seriesEpisodeCount,
+  onOpenTheater,
+  onBack,
+  onOpenSeriesDetail
+}: PlayerPageProps) {
   const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
   const [userPlaybackIntent, setUserPlaybackIntent] = useState<UserPlaybackIntent>("playing");
@@ -107,16 +148,35 @@ export function PlayerPage({
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
   const storyQaRequestRef = useRef(0);
+  const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
+  const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
+  const renderState = getFeedPlaybackPagePresentationState({
+    playbackPageRole: pageRole,
+    visualPageRole
+  });
+  const videoBufferOptions = getFeedVideoBufferOptions(pageRole);
+  const videoObservation = useMemo(
+    () =>
+      playbackObserver
+        ? {
+            observer: playbackObserver,
+            videoId: video.videoId,
+            pageIndex
+          }
+        : undefined,
+    [pageIndex, playbackObserver, video.videoId]
+  );
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
   const activeActionRailResonanceCue = useMemo(
     () => {
-      if (selectedPresentationType !== "action_rail_resonance" || !isActive || !playbackState.isStarted) {
+      if (!isActionRailResonancePresentation(selectedPresentationType) || !isActive || !playbackState.isStarted) {
         return undefined;
       }
-      const previewCue = ACTION_RAIL_RESONANCE_PREVIEW_CUE;
-      if (previewCue && !completedResonanceCueIds.has(previewCue.cueId)) {
-        return previewCue;
+      const previewCue = getActionRailPreviewCue(selectedPresentationType);
+      if (previewCue) {
+        return completedResonanceCueIds.has(previewCue.cueId) ? undefined : previewCue;
       }
       return getActiveActionRailResonanceCue({
         cues: ACTION_RAIL_RESONANCE_CUES,
@@ -130,6 +190,53 @@ export function PlayerPage({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
   });
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "page_mount",
+      videoId: video.videoId,
+      pageIndex
+    });
+    return () => {
+      playbackObserver?.record({
+        eventType: "page_unmount",
+        videoId: video.videoId,
+        pageIndex
+      });
+    };
+  }, [pageIndex, playbackObserver, video.videoId]);
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "preload_state_change",
+      videoId: video.videoId,
+      pageIndex,
+      details: { isPreloaded: videoRenderState.shouldRenderVideo }
+    });
+  }, [pageIndex, playbackObserver, videoRenderState.shouldRenderVideo, video.videoId]);
+
+  useEffect(() => {
+    playbackObserver?.record({
+      eventType: "playback_ownership_change",
+      videoId: video.videoId,
+      pageIndex,
+      details: { hasPlaybackOwnership: isActive }
+    });
+  }, [isActive, pageIndex, playbackObserver, video.videoId]);
+
+  const clearResonanceTimers = useCallback(() => {
+    if (resonanceButtonDismissTimeoutRef.current) {
+      clearTimeout(resonanceButtonDismissTimeoutRef.current);
+      resonanceButtonDismissTimeoutRef.current = undefined;
+    }
+    if (resonanceEffectTimeoutRef.current) {
+      clearTimeout(resonanceEffectTimeoutRef.current);
+      resonanceEffectTimeoutRef.current = undefined;
+    }
+  }, []);
+
+  useEffect(() => clearResonanceTimers, [clearResonanceTimers]);
+
   const {
     dismiss: dismissInteractionExample,
     reset: resetInteractionExample,
@@ -180,14 +287,11 @@ export function PlayerPage({
     const becameActive = !wasActiveRef.current;
     const videoChanged = previousVideoIdRef.current !== video.videoId;
     if (becameActive || videoChanged) {
-      const resumeTime = getResumePlaybackTime({
-        savedTime: initialPlaybackTime,
-        duration: video.duration
-      });
+      const resumeTime = resumePlaybackTime;
       setCurrentTime(resumeTime);
       setResolvedDuration(video.duration);
       setUserPlaybackIntent("playing");
-      setSeekRequest(resumeTime > 0 ? { id: Date.now(), time: resumeTime } : undefined);
+      setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
@@ -203,17 +307,18 @@ export function PlayerPage({
       previousVideoIdRef.current = video.videoId;
     }
     wasActiveRef.current = true;
-  }, [initialPlaybackTime, isActive, resetInteractionExample, video.duration, video.videoId]);
+  }, [isActive, resetInteractionExample, resumePlaybackTime, video.duration, video.videoId]);
 
   useEffect(() => {
     setResolvedDuration(video.duration);
   }, [video.duration, video.videoId]);
 
   useEffect(() => {
+    clearResonanceTimers();
     setCompletedResonanceCueIds(new Set());
     setParticipatingResonanceCue(undefined);
     setResonanceTapState(createInitialResonanceTapState());
-  }, [selectedPresentationType, video.videoId]);
+  }, [clearResonanceTimers, selectedPresentationType, video.videoId]);
 
   const handleTimeChange = useCallback(
     (time: number) => {
@@ -234,6 +339,7 @@ export function PlayerPage({
             firstTriggerTime: ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0
           })
         ) {
+          clearResonanceTimers();
           setCompletedResonanceCueIds(new Set());
           setParticipatingResonanceCue(undefined);
           setResonanceTapState(createInitialResonanceTapState());
@@ -271,6 +377,7 @@ export function PlayerPage({
       playbackState.shouldPlay,
       resetInteractionExample,
       resolvedDuration,
+      clearResonanceTimers,
       video.videoId
     ]
   );
@@ -306,15 +413,16 @@ export function PlayerPage({
         resetInteractionExample();
       }
       if (time < (ACTION_RAIL_RESONANCE_CUES[0]?.triggerTime ?? 0)) {
+        clearResonanceTimers();
         setCompletedResonanceCueIds(new Set());
         setParticipatingResonanceCue(undefined);
         setResonanceTapState(createInitialResonanceTapState());
       }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
-      setSeekRequest({ id: Date.now(), time });
+      setSeekRequest({ id: Date.now(), time, reason: "user_seek" });
     },
-    [isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
+    [clearResonanceTimers, isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
   );
 
   const handleTimelineDragStateChange = useCallback(
@@ -346,17 +454,27 @@ export function PlayerPage({
   );
 
   const handleParticipateResonance = useCallback((cue: ActionRailResonanceCue, nextState: ResonanceTapState) => {
+    clearResonanceTimers();
     setParticipatingResonanceCue(cue);
     setResonanceTapState(nextState);
+    resonanceButtonDismissTimeoutRef.current = setTimeout(() => {
+      setCompletedResonanceCueIds((ids) => new Set(ids).add(cue.cueId));
+      resonanceButtonDismissTimeoutRef.current = undefined;
+    }, ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS);
+    resonanceEffectTimeoutRef.current = setTimeout(() => {
+      setParticipatingResonanceCue(undefined);
+      setResonanceTapState(createInitialResonanceTapState());
+      resonanceEffectTimeoutRef.current = undefined;
+    }, ACTION_RAIL_RESONANCE_EFFECT_HOLD_MS);
     // First version records locally. Future API wiring can report cueId/highlightId/tapCount here.
     void nextState;
-  }, []);
+  }, [clearResonanceTimers]);
 
   useEffect(() => {
     if (activeActionRailResonanceCue || participatingResonanceCue) {
       return;
     }
-    if (selectedPresentationType !== "action_rail_resonance") {
+    if (!isActionRailResonancePresentation(selectedPresentationType)) {
       return;
     }
     const expiredCue = ACTION_RAIL_RESONANCE_CUES.find(
@@ -424,118 +542,121 @@ export function PlayerPage({
 
   return (
     <View style={[styles.root, { height }]}>
-      {shouldMountVideo ? (
-        <VideoStage
-          key={`${video.videoId}:${video.streamUrl}`}
-          isStarted={playbackState.isStarted}
-          isPlaying={playbackState.shouldPlay}
-          seekRequest={seekRequest}
-          onStart={handleResume}
-          onTimeChange={handleTimeChange}
-          onDurationChange={handleDurationChange}
-          onPlayToEnd={handlePlayToEnd}
-          onSeekHandled={handleSeekHandled}
-          playbackRate={speedControls.effectivePlaybackRate}
-          showStartEntry={false}
-          streamUrl={video.streamUrl}
-        />
-      ) : (
-        <View style={styles.inactiveVideoPlaceholder} />
-      )}
-      {isActive && playbackState.isStarted && danmakuState === "ready" ? (
-        <DanmakuLayer
-          currentTime={currentTime}
-          danmaku={mergedDanmaku}
-          isPlaying={playbackState.shouldPlay}
-          seekVersion={seekVersion}
-        />
-      ) : null}
-      {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+      <View style={[styles.videoViewport, { height: videoHeight }]}>
+        {renderState.shouldRenderVideo ? (
+          <VideoStage
+            key={`${video.videoId}:${video.streamUrl}`}
+            observation={videoObservation}
+            isStarted={playbackState.isStarted}
+            isPlaying={playbackState.shouldPlay}
+            initialPlaybackTime={resumePlaybackTime}
+            seekRequest={seekRequest}
+            onStart={handleResume}
+            onTimeChange={handleTimeChange}
+            onDurationChange={handleDurationChange}
+            onPlayToEnd={handlePlayToEnd}
+            onSeekHandled={handleSeekHandled}
+            playbackRate={speedControls.effectivePlaybackRate}
+            bufferOptions={videoBufferOptions}
+            enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}
+            showStartEntry={false}
+            streamUrl={video.streamUrl}
+          />
+        ) : (
+          <View style={styles.inactiveVideoPlaceholder} />
+        )}
+        {isActive && playbackState.isStarted && danmakuState === "ready" ? (
+          <DanmakuLayer
+            currentTime={currentTime}
+            danmaku={mergedDanmaku}
+            isPlaying={playbackState.shouldPlay}
+            seekVersion={seekVersion}
+          />
+        ) : null}
+        {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
+        {renderState.shouldRenderInteractiveShell ? <PlaybackHint visible={playbackState.shouldShowPauseHint} /> : null}
+      </View>
       {isActive && playbackState.isStarted ? (
         <FastForwardPressLayer
           isHoldingFastForward={speedControls.isHoldingFastForward}
+          bottomOffset={metaBottomOffset}
           onPress={speedControls.handleRightPress}
           onLongPress={speedControls.handleRightLongPress}
           onPressOut={speedControls.handleRightPressOut}
         />
       ) : null}
       {isActive && danmakuState === "error" ? <Text style={styles.danmakuError}>弹幕暂不可用</Text> : null}
-      <PlaybackHint visible={playbackState.shouldShowPauseHint} />
-      <ActionRailResonanceBurstLayer
-        cue={participatingResonanceCue}
-        tapCount={resonanceTapState.tapCount}
-        releaseCount={resonanceTapState.releaseCount}
-      />
-      {isInteractionExampleVisible && selectedPresentationType === "emotion_aura" ? (
-        <EmotionAuraExample
-          currentTime={currentTime}
-          isActive={isActive}
-          showImmediately
-          onDismiss={() => undefined}
-          onTogglePlayback={handleTogglePlay}
+      {renderState.shouldRenderInteractiveShell ? (
+        <ActionRailResonanceBurstLayer
+          cue={participatingResonanceCue}
+          tapCount={resonanceTapState.tapCount}
+          releaseCount={resonanceTapState.releaseCount}
         />
-      ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "poll_bar" ? (
-        <PollBarExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
       ) : null}
       {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
         <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
       ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "emoji_hold" ? (
-        <EmojiHoldExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
+      {renderState.shouldRenderInteractiveShell ? (
+        <PlayerChrome
+          liked={liked}
+          onToggleLike={() => setLiked((current) => !current)}
+          onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
+          onOpenTheater={onOpenTheater}
+          onBack={onBack}
+          playbackRate={speedControls.playbackRate}
+          isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
+          onToggleSpeedMenu={speedControls.toggleSpeedMenu}
+          onSelectPlaybackRate={speedControls.selectPlaybackRate}
+          title={video.title}
+          plotSummary={video.plotSummary}
+          episodeLabel={video.episodeLabel}
+          metaBottomOffset={metaBottomOffset}
+          actionRailBottomOffset={actionRailBottomOffset}
+          showActionRail={timelineChromeVisibility.showActionRail}
+          showMeta={timelineChromeVisibility.showMeta}
+          mode={mode}
+          currentTime={currentTime}
+          isActive={isActive && playbackState.isStarted}
+          showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
+          onInnerVoiceGestureActiveChange={handleInnerVoiceGestureActiveChange}
+          onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
+          resonanceCue={actionRailResonanceCue}
+          resonanceTapState={resonanceTapState}
+          onParticipateResonance={handleParticipateResonance}
+        >
+          {mode === "series" && seriesEpisodeCount !== undefined && onOpenSeriesDetail ? (
+            <SeriesEpisodeBar episodeCount={seriesEpisodeCount} onPress={onOpenSeriesDetail} />
+          ) : null}
+        </PlayerChrome>
       ) : null}
-      <PlayerChrome
-        liked={liked}
-        onToggleLike={() => setLiked((current) => !current)}
-        onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
-        onOpenTheater={onOpenTheater}
-        onBack={onBack}
-        playbackRate={speedControls.playbackRate}
-        isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
-        onToggleSpeedMenu={speedControls.toggleSpeedMenu}
-        onSelectPlaybackRate={speedControls.selectPlaybackRate}
-        title={video.title}
-        plotSummary={video.plotSummary}
-        episodeLabel={video.episodeLabel}
-        showActionRail={timelineChromeVisibility.showActionRail}
-        showMeta={timelineChromeVisibility.showMeta}
-        mode={mode}
-        currentTime={currentTime}
-        isActive={isActive && playbackState.isStarted}
-        showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
-        onInnerVoiceGestureActiveChange={handleInnerVoiceGestureActiveChange}
-        onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
-        resonanceCue={actionRailResonanceCue}
-        resonanceTapState={resonanceTapState}
-        onParticipateResonance={handleParticipateResonance}
-      >
-        {mode === "series" && seriesEpisodeCount !== undefined && onOpenSeriesDetail ? (
-          <SeriesEpisodeBar episodeCount={seriesEpisodeCount} onPress={onOpenSeriesDetail} />
-        ) : null}
-      </PlayerChrome>
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
       ) : null}
-      <PlayerControls
-        currentTime={currentTime}
-        duration={resolvedDuration}
-        hasNextEpisode={hasNextEpisode}
-        nextEpisodeLabel={nextEpisodeLabel}
-        onSeekCommit={handleSeekCommit}
-        onDragStateChange={handleTimelineDragStateChange}
-        storyChapters={video.storyChapters}
-        storyboard={video.storyboard}
-      />
-      <StoryQaPanel
-        visible={storyQaState.isOpen}
-        question={storyQaState.question}
-        answer={storyQaState.answer}
-        error={storyQaState.error}
-        isLoading={storyQaState.isLoading}
-        onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
-        onSubmit={handleSubmitStoryQa}
-        onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
-      />
+      {renderState.shouldRenderPlaybackControls ? (
+        <PlayerControls
+          currentTime={currentTime}
+          duration={resolvedDuration}
+          hasNextEpisode={hasNextEpisode}
+          nextEpisodeLabel={nextEpisodeLabel}
+          bottomOffset={controlsBottomOffset}
+          onSeekCommit={handleSeekCommit}
+          onDragStateChange={handleTimelineDragStateChange}
+          storyChapters={video.storyChapters}
+          storyboard={video.storyboard}
+        />
+      ) : null}
+      {renderState.shouldRenderInteractiveShell ? (
+        <StoryQaPanel
+          visible={storyQaState.isOpen}
+          question={storyQaState.question}
+          answer={storyQaState.answer}
+          error={storyQaState.error}
+          isLoading={storyQaState.isLoading}
+          onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
+          onSubmit={handleSubmitStoryQa}
+          onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
+        />
+      ) : null}
     </View>
   );
 }
@@ -544,6 +665,14 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: "#050505",
     overflow: "hidden"
+  },
+  videoViewport: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+    backgroundColor: "#050505"
   },
   inactiveVideoPlaceholder: {
     ...StyleSheet.absoluteFillObject,
