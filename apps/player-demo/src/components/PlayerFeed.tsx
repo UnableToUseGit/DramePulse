@@ -400,6 +400,9 @@ export function PlayerFeed({
                   isActive={playbackPageState.shouldOwnPlayback}
                   hasNextItem={nextItem !== undefined}
                   nextItemLabel={nextItemLabel}
+                  seriesEpisodeCount={seriesEpisodeCount}
+                  onBack={onBack}
+                  onOpenSeriesDetail={onOpenSeriesDetail}
                 />
               );
             }

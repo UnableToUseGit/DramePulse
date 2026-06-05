@@ -1,12 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
-import { FlatList, Image, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  FlatList,
+  Image,
+  Modal,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View
+} from "react-native";
 import type { SeriesGroup } from "../domain/playerFeed";
 import type { PlayerVideo } from "../domain/playerApi";
 import { getSeriesCoverSource } from "../domain/seriesCovers";
 import { colors, radii, spacing } from "../theme";
 
 type DetailTab = "summary" | "episodes";
+
+const DRAG_DISMISS_DISTANCE_PX = 72;
+const DRAG_DISMISS_VELOCITY = 0.72;
+const SHEET_ENTER_DURATION_MS = 220;
+const SHEET_EXIT_DURATION_MS = 160;
 
 export function SeriesDetailSheet({
   visible,
@@ -22,6 +38,9 @@ export function SeriesDetailSheet({
   onSelectEpisode: (video: PlayerVideo) => void;
 }) {
   const [activeTab, setActiveTab] = useState<DetailTab>("summary");
+  const dragY = useRef(new Animated.Value(0)).current;
+  const viewport = useWindowDimensions();
+  const offscreenY = Math.max(1, viewport.height);
   const episodeRanges = useMemo(() => {
     if (!series) {
       return [];
@@ -32,6 +51,61 @@ export function SeriesDetailSheet({
     }
     return ranges;
   }, [series]);
+  const closeWithSheetAnimation = useCallback(() => {
+    Animated.timing(dragY, {
+      toValue: offscreenY,
+      duration: SHEET_EXIT_DURATION_MS,
+      useNativeDriver: true
+    }).start(({ finished }) => {
+      if (finished) {
+        onClose();
+        requestAnimationFrame(() => {
+          dragY.setValue(0);
+        });
+      }
+    });
+  }, [dragY, offscreenY, onClose]);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    dragY.setValue(offscreenY);
+    Animated.timing(dragY, {
+      toValue: 0,
+      duration: SHEET_ENTER_DURATION_MS,
+      useNativeDriver: true
+    }).start();
+  }, [dragY, offscreenY, visible]);
+
+  const topEdgePanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          gestureState.dy > 4 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+        onPanResponderMove: (_, gestureState) => {
+          dragY.setValue(Math.max(0, gestureState.dy));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy >= DRAG_DISMISS_DISTANCE_PX || gestureState.vy >= DRAG_DISMISS_VELOCITY) {
+            closeWithSheetAnimation();
+            return;
+          }
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: true
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(dragY, {
+            toValue: 0,
+            useNativeDriver: true
+          }).start();
+        }
+      }),
+    [closeWithSheetAnimation, dragY]
+  );
 
   if (!series) {
     return null;
@@ -39,10 +113,12 @@ export function SeriesDetailSheet({
   const coverSource = getSeriesCoverSource(series.coverVideo.seriesId) ?? { uri: series.coverVideo.streamUrl };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
+    <Modal visible={visible} transparent animationType="none" onRequestClose={closeWithSheetAnimation}>
+      <Pressable style={styles.backdrop} onPress={closeWithSheetAnimation} />
+      <Animated.View style={[styles.sheet, { transform: [{ translateY: dragY }] }]}>
+        <View style={styles.topDragArea} {...topEdgePanResponder.panHandlers}>
+          <View style={styles.handle} />
+        </View>
         <View style={styles.header}>
           <Image source={coverSource} style={styles.poster} />
           <View style={styles.headerText}>
@@ -51,9 +127,6 @@ export function SeriesDetailSheet({
             </Text>
             <Text style={styles.meta}>已完结 共{series.episodeCount}集</Text>
           </View>
-          <Pressable accessibilityRole="button" hitSlop={12} onPress={onClose}>
-            <Ionicons name="close" size={24} color="#7D7D7D" />
-          </Pressable>
         </View>
         <View style={styles.tabs}>
           <Pressable accessibilityRole="button" accessibilityLabel="查看简介" onPress={() => setActiveTab("summary")}>
@@ -66,13 +139,6 @@ export function SeriesDetailSheet({
         {activeTab === "summary" ? (
           <View accessible accessibilityLabel="剧情简介面板" style={styles.summaryPanel}>
             <Text style={styles.summary}>{series.summary}</Text>
-            <View style={styles.tags}>
-              {["短剧", "情绪高光", "真实弹幕"].map((tag) => (
-                <Text key={tag} style={styles.tag}>
-                  {tag} ›
-                </Text>
-              ))}
-            </View>
           </View>
         ) : (
           <View accessible accessibilityLabel="选集列表" style={styles.episodesPanel}>
@@ -106,123 +172,110 @@ export function SeriesDetailSheet({
             />
           </View>
         )}
-        <Pressable style={styles.favoriteButton}>
-          <Ionicons name="star-outline" size={24} color={colors.text} />
-          <Text style={styles.favoriteText}>收藏</Text>
-        </Pressable>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  scrim: {
+  backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.18)"
+    backgroundColor: "transparent"
   },
   sheet: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    minHeight: "58%",
-    maxHeight: "74%",
-    paddingTop: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: 32,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    minHeight: "54%",
+    maxHeight: "72%",
+    paddingTop: 10,
+    paddingHorizontal: 22,
+    paddingBottom: 26,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     backgroundColor: colors.text
   },
   handle: {
     alignSelf: "center",
-    width: 54,
-    height: 6,
+    width: 50,
+    height: 5,
     borderRadius: 3,
-    backgroundColor: "#E3E3E3"
+    backgroundColor: "#D8D8D8"
+  },
+  topDragArea: {
+    height: 28,
+    justifyContent: "flex-start"
   },
   header: {
-    marginTop: spacing.xl,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center"
   },
   poster: {
-    width: 66,
-    height: 86,
+    width: 62,
+    height: 82,
     borderRadius: radii.small,
     backgroundColor: "#E8E8E8"
   },
   headerText: {
     flex: 1,
-    marginLeft: spacing.md
+    marginLeft: 14
   },
   title: {
     color: "#111",
-    fontSize: 24,
-    fontWeight: "900"
+    fontSize: 20,
+    fontWeight: "800"
   },
   meta: {
-    marginTop: spacing.sm,
-    color: "#8A8A8A",
-    fontSize: 17,
-    fontWeight: "700"
+    marginTop: 7,
+    color: "#909090",
+    fontSize: 15,
+    fontWeight: "600"
   },
   tabs: {
-    marginTop: 34,
+    marginTop: 30,
     flexDirection: "row",
-    gap: 36
+    gap: 34
   },
   tab: {
     color: "#9A9A9A",
-    fontSize: 26,
-    fontWeight: "900"
+    fontSize: 21,
+    fontWeight: "700"
   },
   activeTab: {
-    color: "#111"
+    color: "#111",
+    fontWeight: "800"
   },
   summaryPanel: {
-    marginTop: spacing.lg
+    marginTop: 18
   },
   summary: {
     color: "#111",
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 34
-  },
-  tags: {
-    marginTop: spacing.lg,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  tag: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.small,
-    backgroundColor: "#F3F3F3",
-    color: "#6D6D6D",
-    fontSize: 17,
-    fontWeight: "800"
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 29
   },
   episodesPanel: {
     flex: 1,
-    marginTop: spacing.xl
+    marginTop: 22
   },
   ranges: {
     flexDirection: "row",
-    gap: 46,
-    marginBottom: spacing.lg
+    gap: 40,
+    marginBottom: 15
   },
   range: {
     color: "#999",
-    fontSize: 19,
-    fontWeight: "800"
+    fontSize: 16,
+    fontWeight: "600"
   },
   activeRange: {
-    color: "#111"
+    color: "#111",
+    fontWeight: "700"
   },
   episodeGrid: {
-    paddingBottom: 90
+    paddingBottom: 24
   },
   episodeCell: {
     width: "15.2%",
@@ -244,28 +297,10 @@ const styles = StyleSheet.create({
   },
   episodeText: {
     color: "#171717",
-    fontSize: 22,
-    fontWeight: "800"
+    fontSize: 18,
+    fontWeight: "700"
   },
   activeEpisodeText: {
     color: colors.accent
-  },
-  favoriteButton: {
-    position: "absolute",
-    left: "29%",
-    right: "29%",
-    bottom: 22,
-    height: 58,
-    borderRadius: radii.small,
-    backgroundColor: colors.accent,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm
-  },
-  favoriteText: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900"
   }
 });

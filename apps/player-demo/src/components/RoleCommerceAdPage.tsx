@@ -16,6 +16,7 @@ import { PlayerChrome } from "./PlayerChrome";
 import { PlayerControls } from "./PlayerControls";
 import { RoleCommerceProductCta } from "./RoleCommerceProductCta";
 import { RoleCommerceProductSheet } from "./RoleCommerceProductSheet";
+import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 import { SeekRequest, VideoStage } from "./VideoStage";
 
 declare const require: (path: string) => number;
@@ -30,7 +31,10 @@ export function RoleCommerceAdPage({
   metaBottomOffset,
   isActive,
   hasNextItem,
-  nextItemLabel
+  nextItemLabel,
+  seriesEpisodeCount,
+  onBack,
+  onOpenSeriesDetail
 }: {
   ad: RoleCommerceFeedAd;
   height: number;
@@ -40,6 +44,9 @@ export function RoleCommerceAdPage({
   isActive: boolean;
   hasNextItem: boolean;
   nextItemLabel?: string;
+  seriesEpisodeCount?: number;
+  onBack?: () => void;
+  onOpenSeriesDetail?: () => void;
 }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(1);
@@ -147,6 +154,7 @@ export function RoleCommerceAdPage({
         isSpeedMenuOpen={false}
         onToggleSpeedMenu={() => {}}
         onSelectPlaybackRate={() => {}}
+        onBack={onBack}
         title={ad.productName}
         plotSummary={ad.productDescription}
         episodeLabel="广告"
@@ -163,7 +171,11 @@ export function RoleCommerceAdPage({
         onSendInnerVoiceDanmaku={noopSendInnerVoice}
         resonanceTapState={createInitialResonanceTapState()}
         onParticipateResonance={noopParticipateResonance}
-      />
+      >
+        {seriesEpisodeCount !== undefined && onOpenSeriesDetail ? (
+          <SeriesEpisodeBar episodeCount={seriesEpisodeCount} onPress={onOpenSeriesDetail} />
+        ) : null}
+      </PlayerChrome>
       <PlayerControls
         currentTime={currentTime}
         duration={duration}
