@@ -4,7 +4,6 @@ import type { ResonanceTapState } from "../action-rail-resonance/tapState";
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { PlayerActionRail } from "./PlayerActionRail";
-import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerMeta } from "./PlayerMeta";
 import { PlaybackRate } from "./SpeedSelector";
 import { PlayerTopBar } from "./PlayerTopBar";
@@ -112,7 +111,6 @@ export function PlayerChrome({
         />
       ) : null}
       {showMeta ? children : null}
-      {mode === "home" ? <PlayerBottomTabs activeTab="首页" onPressTheater={onOpenTheater} /> : null}
     </View>
   );
 }

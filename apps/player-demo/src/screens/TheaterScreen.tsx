@@ -78,7 +78,12 @@ export function TheaterScreen({
           );
         }}
       />
-      <PlayerBottomTabs activeTab="剧场" onPressHome={onOpenHome} onPressTheater={() => undefined} />
+      <PlayerBottomTabs
+        activeTab="剧场"
+        presentation="docked"
+        onPressHome={onOpenHome}
+        onPressTheater={() => undefined}
+      />
     </View>
   );
 }
@@ -91,10 +96,10 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 54,
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.md
+    paddingBottom: 10
   },
   searchBox: {
-    height: 48,
+    height: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radii.small,
     backgroundColor: colors.text,
@@ -109,12 +114,12 @@ const styles = StyleSheet.create({
   searchText: {
     flex: 1,
     color: "#9A9A9A",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700"
   },
   listContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 104
+    paddingBottom: spacing.md
   },
   row: {
     gap: spacing.md
@@ -122,7 +127,7 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     minWidth: 0,
-    marginBottom: spacing.lg
+    marginBottom: spacing.md
   },
   cover: {
     aspectRatio: 0.72,
@@ -138,8 +143,8 @@ const styles = StyleSheet.create({
     minHeight: 48,
     marginTop: spacing.sm,
     color: "#151515",
-    fontSize: 18,
-    fontWeight: "900",
-    lineHeight: 24
+    fontSize: 17,
+    fontWeight: "800",
+    lineHeight: 23
   }
 });

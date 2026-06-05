@@ -42,6 +42,7 @@ import { DanmakuLayer } from "./DanmakuLayer";
 import { FastForwardPressLayer } from "./FastForwardPressLayer";
 import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
+import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerControls } from "./PlayerControls";
 import { StoryQaPanel } from "./StoryQaPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
@@ -576,6 +577,12 @@ export function PlayerPage({
         {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
         {renderState.shouldRenderInteractiveShell ? <PlaybackHint visible={playbackState.shouldShowPauseHint} /> : null}
       </View>
+      {mode === "home" ? (
+        <PlayerBottomTabs activeTab="首页" presentation="docked" onPressTheater={onOpenTheater} />
+      ) : null}
+      {mode === "series" ? (
+        <View style={[styles.seriesBottomDock, { height: Math.max(0, height - videoHeight) }]} />
+      ) : null}
       {isActive && playbackState.isStarted ? (
         <FastForwardPressLayer
           isHoldingFastForward={speedControls.isHoldingFastForward}
@@ -667,12 +674,11 @@ const styles = StyleSheet.create({
     overflow: "hidden"
   },
   videoViewport: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     overflow: "hidden",
     backgroundColor: "#050505"
+  },
+  seriesBottomDock: {
+    backgroundColor: "#1C1C1E"
   },
   inactiveVideoPlaceholder: {
     ...StyleSheet.absoluteFillObject,
