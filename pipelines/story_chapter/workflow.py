@@ -291,11 +291,16 @@ def build_topic_shift_user_prompt(
 
 
 def parse_topic_shift_reviews(raw: dict[str, Any]) -> tuple[dict[str, dict[str, Any]], list[str]]:
-    if not isinstance(raw, dict) or not isinstance(raw.get("topic_shift_reviews"), list):
+    if isinstance(raw, dict) and isinstance(raw.get("topic_shift_reviews"), list):
+        raw_reviews = raw["topic_shift_reviews"]
+        warnings: list[str] = []
+    elif isinstance(raw, dict) and raw.get("candidate_id") is not None:
+        raw_reviews = [raw]
+        warnings = ["LLM response used a single topic shift review object instead of topic_shift_reviews array."]
+    else:
         return {}, ["LLM response does not contain topic_shift_reviews array."]
     reviews: dict[str, dict[str, Any]] = {}
-    warnings: list[str] = []
-    for index, item in enumerate(raw["topic_shift_reviews"], start=1):
+    for index, item in enumerate(raw_reviews, start=1):
         if not isinstance(item, dict):
             warnings.append(f"Topic shift review #{index} is not an object.")
             continue
@@ -315,6 +320,10 @@ def parse_topic_shift_reviews(raw: dict[str, Any]) -> tuple[dict[str, dict[str, 
     return reviews, warnings
 
 
+def _missing_review_ids(candidates: Sequence[BoundaryCandidate], reviews: dict[str, dict[str, Any]]) -> list[str]:
+    return [candidate.candidate_id for candidate in candidates if candidate.candidate_id not in reviews]
+
+
 def score_topic_shifts_with_llm(
     *,
     llm_client: StoryChapterLlmClientProtocol,
@@ -327,18 +336,44 @@ def score_topic_shifts_with_llm(
 ) -> tuple[list[BoundaryCandidate], list[str], dict[str, Any]]:
     if not candidates:
         return [], [], {"topic_shift_reviews": []}
+    user_prompt = build_topic_shift_user_prompt(
+        video_id=video_id,
+        video_duration_seconds=video_duration_seconds,
+        utterances=utterances,
+        candidates=candidates,
+        context_utterance_count=context_utterance_count,
+    )
     raw = llm_client.generate_json_multimodal(
         system_prompt=build_topic_shift_system_prompt(),
-        user_prompt=build_topic_shift_user_prompt(
-            video_id=video_id,
-            video_duration_seconds=video_duration_seconds,
-            utterances=utterances,
-            candidates=candidates,
-            context_utterance_count=context_utterance_count,
-        ),
+        user_prompt=user_prompt,
         max_tokens=max_tokens,
     )
     reviews, warnings = parse_topic_shift_reviews(raw)
+    missing_ids = _missing_review_ids(candidates, reviews)
+    if missing_ids:
+        retry_prompt = "\n".join(
+            [
+                user_prompt,
+                "",
+                "## RETRY REQUIRED",
+                f"The previous response missed candidate ids: {', '.join(missing_ids)}.",
+                "Return topic_shift_reviews for every candidate id in the input.",
+                "The top-level JSON object must contain exactly one key: topic_shift_reviews.",
+            ]
+        )
+        retry_raw = llm_client.generate_json_multimodal(
+            system_prompt=build_topic_shift_system_prompt(),
+            user_prompt=retry_prompt,
+            max_tokens=max_tokens,
+        )
+        retry_reviews, retry_warnings = parse_topic_shift_reviews(retry_raw)
+        retry_missing_ids = _missing_review_ids(candidates, retry_reviews)
+        warnings.append(f"Topic shift LLM retry after missing reviews: {', '.join(missing_ids)}.")
+        warnings.extend(retry_warnings)
+        raw = retry_raw
+        reviews = retry_reviews
+        if retry_missing_ids:
+            warnings.append(f"Topic shift LLM still missed reviews: {', '.join(retry_missing_ids)}.")
     scored: list[BoundaryCandidate] = []
     for candidate in candidates:
         review = reviews.get(candidate.candidate_id)

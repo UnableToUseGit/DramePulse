@@ -18,13 +18,15 @@ from pipelines.story_chapter.workflow import (
 
 
 class FakeWorkflowClient:
-    def __init__(self, payload: dict[str, object]) -> None:
-        self.payload = payload
+    def __init__(self, payload: dict[str, object] | list[dict[str, object]]) -> None:
+        self.payloads = payload if isinstance(payload, list) else [payload]
+        self.payload = self.payloads[-1]
         self.calls: list[dict[str, object]] = []
 
     def generate_json_multimodal(self, *, system_prompt: str, user_prompt: str, **kwargs):
         self.calls.append({"system_prompt": system_prompt, "user_prompt": user_prompt, **kwargs})
-        return self.payload
+        index = min(len(self.calls) - 1, len(self.payloads) - 1)
+        return self.payloads[index]
 
 
 class StoryChapterWorkflowTest(unittest.TestCase):
@@ -99,6 +101,44 @@ class StoryChapterWorkflowTest(unittest.TestCase):
         self.assertGreater(scored[0].score, candidate.score)
         self.assertIn("bc_001", client.calls[0]["user_prompt"])
         self.assertIn("你是谁？", client.calls[0]["user_prompt"])
+
+    def test_score_topic_shifts_retries_when_response_misses_candidates(self) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "candidate_id": "bc_001",
+                    "topic_shift_score": 0.1,
+                    "reason": "仍是同一事件。",
+                },
+                {
+                    "topic_shift_reviews": [
+                        {"candidate_id": "bc_001", "topic_shift_score": 0.1, "reason": "仍是同一事件。"},
+                        {"candidate_id": "bc_002", "topic_shift_score": 0.9, "reason": "进入新事件。"},
+                    ]
+                },
+            ]
+        )
+        candidates = [
+            BoundaryCandidate("bc_001", 5.0, 0.4, 0.4, ["scene_boundary"], {}),
+            BoundaryCandidate("bc_002", 10.0, 0.4, 0.4, ["scene_boundary"], {}),
+        ]
+
+        scored, warnings, raw = score_topic_shifts_with_llm(
+            llm_client=client,
+            video_id="demo_ep01",
+            video_duration_seconds=20.0,
+            utterances=[
+                Utterance("u_001", 0.0, 1.0, "讨薪。"),
+                Utterance("u_002", 9.0, 10.0, "回家。"),
+            ],
+            candidates=candidates,
+        )
+
+        self.assertEqual(len(client.calls), 2)
+        self.assertIn("missed candidate ids: bc_002", client.calls[1]["user_prompt"])
+        self.assertEqual(raw, client.payloads[1])
+        self.assertEqual([candidate.topic_shift_score for candidate in scored], [0.1, 0.9])
+        self.assertTrue(any("retry" in warning.lower() for warning in warnings))
 
     def test_parse_selector_result_requires_candidate_boundaries_and_full_coverage(self) -> None:
         candidates = [
