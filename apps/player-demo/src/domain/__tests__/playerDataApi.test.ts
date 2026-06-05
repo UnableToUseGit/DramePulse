@@ -1,4 +1,9 @@
-import { loadHomeFeedVideos, loadSeriesEpisodes, loadTheaterSeries } from "../playerDataApi";
+import {
+  loadHomeFeedVideos,
+  loadPlaybackAssets,
+  loadSeriesEpisodes,
+  loadTheaterSeries
+} from "../playerDataApi";
 
 function createFetcher(responses: Record<string, unknown>) {
   const calls: string[] = [];
@@ -156,5 +161,34 @@ describe("playerDataApi", () => {
     });
 
     expect(episodes.map((video) => video.videoId)).toEqual(["beiwang_ep01"]);
+  });
+
+  it("loads playback assets with safe defaults when optional assets are missing", async () => {
+    const { fetcher } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01": {
+        video_id: "beiwang_ep01",
+        series_id: "beiwang",
+        series_name: "北往",
+        title: "北往 第1集",
+        episode_no: 1,
+        stream_url: "/api/videos/beiwang_ep01/stream",
+        danmaku_url: "/api/videos/beiwang_ep01/danmaku"
+      },
+      "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
+        video_id: "beiwang_ep01",
+        interaction_plans: []
+      }
+    });
+
+    const assets = await loadPlaybackAssets({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(assets.video.videoId).toBe("beiwang_ep01");
+    expect(assets.storyChapters).toEqual([]);
+    expect(assets.storyboard).toBeUndefined();
+    expect(assets.interactionPlans).toEqual([]);
   });
 });

@@ -156,3 +156,48 @@ export async function loadSeriesEpisodes({
   const series = groupVideosBySeries(videos).find((group) => group.coverVideo.seriesId === seriesId);
   return series?.episodes ?? [];
 }
+
+export interface PlaybackAssets {
+  video: PlayerVideo;
+  storyChapters: NonNullable<PlayerVideo["storyChapters"]>;
+  storyboard?: PlayerVideo["storyboard"];
+  interactionPlans: unknown[];
+}
+
+export async function loadPlaybackAssets({
+  apiBaseUrl,
+  videoId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<PlaybackAssets> {
+  const videoPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}`), timeoutMs);
+  const video = normalizeVideo(videoPayload, apiBaseUrl);
+  if (!video) {
+    throw new Error(`No playable video returned by API: ${videoId}`);
+  }
+
+  let interactionPlans: unknown[] = [];
+  try {
+    const plansPayload = await fetchJson(
+      fetcher,
+      joinUrl(apiBaseUrl, `/api/videos/${videoId}/interaction-plans`),
+      timeoutMs
+    );
+    interactionPlans =
+      isRecord(plansPayload) && Array.isArray(plansPayload.interaction_plans) ? plansPayload.interaction_plans : [];
+  } catch {
+    interactionPlans = [];
+  }
+
+  return {
+    video,
+    storyChapters: video.storyChapters ?? [],
+    storyboard: video.storyboard,
+    interactionPlans
+  };
+}
