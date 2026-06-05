@@ -1,7 +1,7 @@
 declare const require: (path: string) => any;
 
 describe("InnerVoicePrompt animation", () => {
-  it("enters as a soft slide from the danmaku entry instead of popping in place", () => {
+  it("enters as a bubble breathed out from the danmaku entry instead of popping in place", () => {
     const fs = require("fs");
     const source = fs.readFileSync("src/inner-voice-danmaku/InnerVoicePrompt.tsx", "utf8");
 
@@ -9,6 +9,13 @@ describe("InnerVoicePrompt animation", () => {
     expect(source).toContain("ENTRY_OFFSET_Y");
     expect(source).toContain("entryTranslateX");
     expect(source).toContain("entryTranslateY");
+    expect(source).toContain("BUBBLE_ENTRY_SCALE");
+    expect(source).toContain("bubbleScale");
+    expect(source).toContain("contentReveal");
+    expect(source).toContain("BUBBLE_BREATH_MS");
+    expect(source).toContain("CONTENT_REVEAL_DELAY_MS");
+    expect(source).toContain("withSequence");
+    expect(source).toContain("withDelay(CONTENT_REVEAL_DELAY_MS");
     expect(source).toContain("withTiming(0,");
   });
 

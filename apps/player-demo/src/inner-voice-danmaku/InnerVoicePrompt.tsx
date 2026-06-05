@@ -10,6 +10,7 @@ import Animated, {
   useSharedValue,
   withDecay,
   withDelay,
+  withSequence,
   withSpring,
   withTiming
 } from "react-native-reanimated";
@@ -25,8 +26,14 @@ import type { InnerVoiceDanmakuCue } from "./types";
 const LAUNCH_DECELERATION = 0.994;
 const LAUNCH_X_CLAMP: [number, number] = [-180, 180];
 const LAUNCH_Y_CLAMP: [number, number] = [-520, 60];
-const ENTRY_OFFSET_X = -18;
-const ENTRY_OFFSET_Y = 10;
+const ENTRY_OFFSET_X = -28;
+const ENTRY_OFFSET_Y = 8;
+const BUBBLE_ENTRY_SCALE = 0.34;
+const ENTRY_FADE_MS = 260;
+const ENTRY_TRAVEL_MS = 620;
+const BUBBLE_BREATH_MS = 680;
+const CONTENT_REVEAL_DELAY_MS = 260;
+const CONTENT_REVEAL_MS = 260;
 
 export function InnerVoicePrompt({
   cue,
@@ -42,6 +49,9 @@ export function InnerVoicePrompt({
   const appear = useSharedValue(0);
   const entryTranslateX = useSharedValue(ENTRY_OFFSET_X);
   const entryTranslateY = useSharedValue(ENTRY_OFFSET_Y);
+  const bubbleScale = useSharedValue(BUBBLE_ENTRY_SCALE);
+  const bubbleBreath = useSharedValue(0);
+  const contentReveal = useSharedValue(0);
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   const launchScale = useSharedValue(1);
@@ -51,24 +61,74 @@ export function InnerVoicePrompt({
     appear.value = 0;
     entryTranslateX.value = ENTRY_OFFSET_X;
     entryTranslateY.value = ENTRY_OFFSET_Y;
+    bubbleScale.value = BUBBLE_ENTRY_SCALE;
+    bubbleBreath.value = 0;
+    contentReveal.value = 0;
     dragX.value = 0;
     dragY.value = 0;
     launchScale.value = 1;
     didSendRef.current = false;
     appear.value = withTiming(1, {
-      duration: 220,
+      duration: ENTRY_FADE_MS,
       easing: Easing.out(Easing.quad)
     });
     entryTranslateX.value = withTiming(0, {
-      duration: 260,
+      duration: ENTRY_TRAVEL_MS,
       easing: Easing.out(Easing.cubic)
     });
     entryTranslateY.value = withSpring(0, {
-      damping: 18,
-      stiffness: 180,
-      mass: 0.75
+      damping: 14,
+      stiffness: 170,
+      mass: 0.8
     });
-  }, [appear, cue.cueId, dragX, dragY, entryTranslateX, entryTranslateY, launchScale]);
+    bubbleScale.value = withSequence(
+      withTiming(1.08, {
+        duration: BUBBLE_BREATH_MS,
+        easing: Easing.out(Easing.cubic)
+      }),
+      withSpring(1, {
+        damping: 18,
+        stiffness: 210,
+        mass: 0.7
+      })
+    );
+    bubbleBreath.value = withTiming(1, {
+      duration: BUBBLE_BREATH_MS,
+      easing: Easing.out(Easing.quad)
+    });
+    contentReveal.value = withDelay(CONTENT_REVEAL_DELAY_MS, withTiming(1, {
+      duration: CONTENT_REVEAL_MS,
+      easing: Easing.out(Easing.quad)
+    }));
+  }, [
+    appear,
+    bubbleBreath,
+    bubbleScale,
+    contentReveal,
+    cue.cueId,
+    dragX,
+    dragY,
+    entryTranslateX,
+    entryTranslateY,
+    launchScale
+  ]);
+
+  const bubbleBreathStyle = useAnimatedStyle(() => ({
+    opacity: (1 - bubbleBreath.value) * appear.value,
+    transform: [
+      { translateX: -12 + bubbleBreath.value * 7 },
+      { translateY: 4 - bubbleBreath.value * 5 },
+      { scale: 0.62 + bubbleBreath.value * 1.2 }
+    ]
+  }));
+
+  const contentRevealStyle = useAnimatedStyle(() => ({
+    opacity: contentReveal.value,
+    transform: [
+      { translateX: (1 - contentReveal.value) * -4 },
+      { scale: 0.98 + contentReveal.value * 0.02 }
+    ]
+  }));
 
   const animatedDraftStyle = useAnimatedStyle(() => ({
     opacity: appear.value,
@@ -77,7 +137,7 @@ export function InnerVoicePrompt({
       { translateY: entryTranslateY.value },
       { translateX: dragX.value },
       { translateY: dragY.value },
-      { scale: launchScale.value * (0.96 + appear.value * 0.04) }
+      { scale: bubbleScale.value * launchScale.value }
     ]
   }));
 
@@ -90,7 +150,13 @@ export function InnerVoicePrompt({
           cancelAnimation(dragX);
           cancelAnimation(dragY);
           cancelAnimation(appear);
+          cancelAnimation(bubbleScale);
+          cancelAnimation(bubbleBreath);
+          cancelAnimation(contentReveal);
           cancelAnimation(launchScale);
+          bubbleScale.value = 1;
+          bubbleBreath.value = 1;
+          contentReveal.value = 1;
           launchScale.value = 1;
           onGestureActiveChange(true);
         },
@@ -161,7 +227,19 @@ export function InnerVoicePrompt({
           onGestureActiveChange(false);
         }
       }),
-    [appear, cue, dragX, dragY, launchScale, onExitComplete, onGestureActiveChange, onSend]
+    [
+      appear,
+      bubbleBreath,
+      bubbleScale,
+      contentReveal,
+      cue,
+      dragX,
+      dragY,
+      launchScale,
+      onExitComplete,
+      onGestureActiveChange,
+      onSend
+    ]
   );
 
   return (
@@ -172,11 +250,14 @@ export function InnerVoicePrompt({
         accessibilityLabel={`发送心里话弹幕：${cue.text}`}
         style={[styles.draft, animatedDraftStyle]}
       >
-        <Ionicons name="chatbubble" size={14} color={colors.gold} />
-        <Text numberOfLines={1} style={styles.draftText}>
-          {cue.text}
-        </Text>
-        <Ionicons name="arrow-up" size={14} color="rgba(255,213,138,0.9)" />
+        <Animated.View pointerEvents="none" style={[styles.bubbleBreath, bubbleBreathStyle]} />
+        <Animated.View style={[styles.draftContent, contentRevealStyle]}>
+          <Ionicons name="chatbubble" size={14} color={colors.gold} />
+          <Text numberOfLines={1} style={styles.draftText}>
+            {cue.text}
+          </Text>
+          <Ionicons name="arrow-up" size={14} color="rgba(255,213,138,0.9)" />
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -193,9 +274,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     maxWidth: 220,
     height: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
+    justifyContent: "center",
     paddingHorizontal: spacing.md,
     borderRadius: radii.pill,
     backgroundColor: "rgba(8,8,10,0.76)",
@@ -206,6 +285,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
     overflow: "visible"
+  },
+  bubbleBreath: {
+    position: "absolute",
+    left: 3,
+    top: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,213,138,0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255,213,138,0.46)"
+  },
+  draftContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7
   },
   draftText: {
     flexShrink: 1,
