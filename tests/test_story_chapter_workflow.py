@@ -161,6 +161,7 @@ class StoryChapterWorkflowTest(unittest.TestCase):
                         "end_boundary_candidate_id": "bc_001",
                         "title": "身份遭疑",
                         "summary": "众人质疑身份。",
+                        "reason": "该边界后进入身份揭露的新章节。",
                         "importance": 0.7,
                     },
                     {
@@ -169,6 +170,7 @@ class StoryChapterWorkflowTest(unittest.TestCase):
                         "end_boundary_candidate_id": None,
                         "title": "身份揭露",
                         "summary": "身份揭开。",
+                        "reason": "最后一章覆盖剩余剧情。",
                         "importance": 0.9,
                     },
                 ]
@@ -184,6 +186,7 @@ class StoryChapterWorkflowTest(unittest.TestCase):
         self.assertEqual(chapters[0]["start_time"], 0.0)
         self.assertEqual(chapters[-1]["end_time"], 10.0)
         self.assertEqual(chapters[0]["title"], "身份遭疑")
+        self.assertEqual(chapters[0]["reason"], "该边界后进入身份揭露的新章节。")
 
     def test_parse_selector_result_accepts_string_importance_labels(self) -> None:
         candidates = [
@@ -232,7 +235,23 @@ class StoryChapterWorkflowTest(unittest.TestCase):
 
         self.assertIn("Do not create chapters shorter than MIN_CHAPTER_SECONDS", prompt)
         self.assertIn("importance must be a number from 0 to 1", prompt)
+        self.assertIn("reason", prompt)
         self.assertIn("Prefer 3 to 6 chapters", prompt)
+
+    def test_selector_prompt_defines_good_boundaries_and_same_event_non_boundaries(self) -> None:
+        prompt = build_selector_user_prompt(
+            video_id="demo_ep01",
+            video_duration_seconds=60.0,
+            utterances=[Utterance("u_001", 1.0, 2.0, "工人要钱。")],
+            candidates=[BoundaryCandidate("bc_001", 20.0, 0.8, 0.8, ["scene_boundary"], {})],
+            frame_timestamps_by_candidate={"bc_001": [19.0, 20.0, 21.0]},
+            constraints=ChapterSelectionConstraints(),
+        )
+
+        self.assertIn("A good chapter boundary", prompt)
+        self.assertIn("Do not split setup, conflict, reaction, and resolution of the same event", prompt)
+        self.assertIn("workers demand wages", prompt)
+        self.assertIn("fight over furniture", prompt)
 
     def test_workflow_pipeline_writes_candidate_selector_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

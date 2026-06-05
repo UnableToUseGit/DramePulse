@@ -431,6 +431,25 @@ def build_selector_user_prompt(
         f"MAX_CHAPTER_SECONDS: {constraints.max_chapter_seconds:.3f}",
         f"MAX_CHAPTERS: {constraints.max_chapters}",
         "",
+        "## CHAPTER_BOUNDARY_RUBRIC",
+        "A good chapter boundary is where a viewer would feel a new story unit begins.",
+        "Prefer boundaries where the main story objective, conflict, location purpose, relationship situation, or action direction changes.",
+        "A chapter should represent one complete macro event for timeline navigation, not a tiny beat-by-beat analysis.",
+        "Do not split setup, conflict, reaction, and resolution of the same event.",
+        "Do not split a character's immediate reaction, payoff, or consequence if it still completes the previous story objective.",
+        "Do not split short dialogue turns inside the same argument, negotiation, rescue, moving-out conflict, or family dispute.",
+        "Reject candidates that only mark a pause, camera cut, line delivery, or emotional reaction inside the same event.",
+        "",
+        "Good boundary examples:",
+        "- A wage-demand event ends, and the workers begin planning how to return home.",
+        "- A background discussion ends, and the story moves into a household housing conflict.",
+        "- A rescue decision/action ends, and the rescued person starts explaining the cause of the crisis.",
+        "",
+        "Non-boundary examples:",
+        "- Do not split workers demand wages and boss pays wages; payment is the resolution of the same wage-demand event.",
+        "- Do not split fight over furniture and being mocked for having nowhere to live; both belong to the same moving-out conflict.",
+        "- Do not split deciding to rescue someone and starting to persuade them; both belong to the same rescue event unless a new objective begins.",
+        "",
         "## FULL_UTTERANCE_TIMELINE",
         *(_format_utterance_line(utterance) for utterance in utterances),
         "",
@@ -453,13 +472,14 @@ def build_selector_user_prompt(
         [
             "## OUTPUT",
             "Return JSON only with keys: chapters, rejected_candidates, warnings.",
-            "Each chapter must contain start_time, end_time, end_boundary_candidate_id, title, summary, importance.",
+            "Each chapter must contain start_time, end_time, end_boundary_candidate_id, title, summary, reason, importance.",
             "The first chapter must start at 0.0. The final chapter must end at VIDEO_DURATION_SECONDS.",
             "Do not create chapters shorter than MIN_CHAPTER_SECONDS unless the whole video is shorter than that.",
             "Prefer 3 to 6 chapters for a normal short-drama episode; use fewer only when the story is very simple.",
             "importance must be a number from 0 to 1. Do not use labels such as high, medium, or low.",
             "title should be short Chinese, preferably 4 to 10 Chinese characters, and suitable for a video timeline.",
             "summary should be one concise factual Chinese sentence.",
+            "reason should briefly explain why this chapter boundary was selected or why the chapter is a complete macro event.",
         ]
     )
     return "\n".join(lines)
@@ -506,6 +526,7 @@ def _chapter_from_raw(
             return None
     title = str(raw_chapter.get("title") or "").strip()
     summary = str(raw_chapter.get("summary") or "").strip()
+    reason = str(raw_chapter.get("reason") or "").strip()
     if not title or not summary or end_time <= start_time:
         return None
     boundary_id = raw_chapter.get("end_boundary_candidate_id")
@@ -517,6 +538,7 @@ def _chapter_from_raw(
         "end_boundary_candidate_id": str(boundary_id) if boundary_id is not None else None,
         "title": title,
         "summary": summary,
+        "reason": reason or "MLLM selector did not provide a reason.",
         "importance": importance,
     }
 
@@ -605,6 +627,7 @@ def build_fallback_chapters(
                 "end_boundary_candidate_id": None,
                 "title": f"剧情片段{index}",
                 "summary": "该片段为自动兜底生成，需人工复核。",
+                "reason": "MLLM selector output was invalid, so this fallback chapter was generated from rule candidates.",
                 "importance": 0.3,
             }
         )
