@@ -1,4 +1,4 @@
-import { loadHomeFeedVideos } from "../playerDataApi";
+import { loadHomeFeedVideos, loadSeriesEpisodes, loadTheaterSeries } from "../playerDataApi";
 
 function createFetcher(responses: Record<string, unknown>) {
   const calls: string[] = [];
@@ -92,5 +92,69 @@ describe("playerDataApi", () => {
     const videos = await loadHomeFeedVideos({ apiBaseUrl: "http://api.test", fetcher });
 
     expect(videos.map((video) => video.videoId)).toEqual(["s1_ep01", "s2_ep01"]);
+  });
+
+  it("filters pseudo series rows from theater series", async () => {
+    const { fetcher } = createFetcher({
+      "http://api.test/api/series": {
+        series: [
+          {
+            series_id: "beiwang",
+            title: "北往",
+            cover_url: "/dramas/beiwang/cover.webp",
+            episode_count: 5,
+            first_video_id: "beiwang_ep01",
+            status: "active"
+          },
+          {
+            series_id: "ep_01",
+            title: "第1集",
+            cover_url: null,
+            episode_count: 1,
+            first_video_id: "ep_01",
+            status: "active"
+          }
+        ]
+      }
+    });
+
+    const series = await loadTheaterSeries({ apiBaseUrl: "http://api.test", fetcher });
+
+    expect(series).toHaveLength(1);
+    expect(series[0]).toMatchObject({
+      seriesId: "beiwang",
+      title: "北往",
+      coverUrl: "http://api.test/dramas/beiwang/cover.webp",
+      episodeCount: 5,
+      firstVideoId: "beiwang_ep01"
+    });
+  });
+
+  it("loads series episodes from /api/series/{series_id}/episodes", async () => {
+    const { fetcher } = createFetcher({
+      "http://api.test/api/series/beiwang/episodes": {
+        series_id: "beiwang",
+        series_name: "北往",
+        episodes: [
+          {
+            video_id: "beiwang_ep01",
+            series_id: "beiwang",
+            series_name: "北往",
+            title: "北往 第1集",
+            episode_no: 1,
+            stream_url: "/api/videos/beiwang_ep01/stream",
+            danmaku_url: "/api/videos/beiwang_ep01/danmaku"
+          }
+        ]
+      }
+    });
+
+    const episodes = await loadSeriesEpisodes({
+      apiBaseUrl: "http://api.test",
+      seriesId: "beiwang",
+      fetcher
+    });
+
+    expect(episodes.map((video) => video.videoId)).toEqual(["beiwang_ep01"]);
   });
 });
