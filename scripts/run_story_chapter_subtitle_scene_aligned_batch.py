@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from datetime import UTC, datetime
 import json
 from pathlib import Path
@@ -12,13 +13,60 @@ if __package__ is None or __package__ == "":
 
 from pipelines.story_chapter.subtitle_scene_aligned import StoryChapterSubtitleSceneAlignedPipeline
 from scripts.run_story_chapter_generation import load_video_metadata_from_scene_detection
-from scripts.run_story_chapter_generation_batch import DEFAULT_DATASET_ROOT
+from scripts.run_story_chapter_generation_batch import DEFAULT_DATASET_ROOT, _safe_video_id
 from scripts.run_story_chapter_subtitle_scene_aligned import build_pipeline
-from scripts.run_story_chapter_workflow_batch import discover_workflow_inputs
+
+
+@dataclass(frozen=True)
+class SubtitleSceneAlignedInput:
+    video_id: str
+    series_slug: str
+    episode_slug: str
+    video_path: Path
+    transcription_path: Path
+    scene_detection_path: Path
 
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def discover_subtitle_scene_aligned_inputs(
+    dataset_root: Path,
+    *,
+    series_ids: Sequence[str] | None = None,
+    episode_ids: Sequence[str] | None = None,
+) -> list[SubtitleSceneAlignedInput]:
+    if not dataset_root.exists():
+        raise FileNotFoundError(dataset_root)
+    allowed_series = set(series_ids or [])
+    allowed_episodes = set(episode_ids or [])
+    inputs: list[SubtitleSceneAlignedInput] = []
+    series_dirs = sorted(path for path in dataset_root.iterdir() if path.is_dir() and not path.name.startswith("."))
+    for series_dir in series_dirs:
+        if allowed_series and series_dir.name not in allowed_series:
+            continue
+        episode_dirs = sorted(path for path in series_dir.iterdir() if path.is_dir() and not path.name.startswith("."))
+        for episode_dir in episode_dirs:
+            if allowed_episodes and episode_dir.name not in allowed_episodes:
+                continue
+            video_path = episode_dir / "video.mp4"
+            transcription_path = episode_dir / "video.transcription.json"
+            scene_detection_path = episode_dir / "scene_detection.json"
+            if not video_path.exists() or not transcription_path.exists() or not scene_detection_path.exists():
+                continue
+            fallback_video_id = f"{series_dir.name}_{episode_dir.name}"
+            inputs.append(
+                SubtitleSceneAlignedInput(
+                    video_id=_safe_video_id(scene_detection_path, fallback_video_id),
+                    series_slug=series_dir.name,
+                    episode_slug=episode_dir.name,
+                    video_path=video_path,
+                    transcription_path=transcription_path,
+                    scene_detection_path=scene_detection_path,
+                )
+            )
+    return inputs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--only-missing", action="store_true")
     parser.add_argument("--series-id", action="append", default=[])
     parser.add_argument("--episode-id", action="append", default=[])
+    parser.add_argument("--draft-frame-interval-seconds", type=float, default=10.0, help="Sparse frame interval for the first draft LLM call. Use 0 to disable.")
     parser.add_argument("--max-alignment-window-seconds", type=float, default=10.0)
     parser.add_argument("--min-chapter-seconds", type=float, default=12.0)
     return parser
@@ -49,7 +98,7 @@ def main(
     pipeline: StoryChapterSubtitleSceneAlignedPipeline | None = None,
 ) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
-    inputs = discover_workflow_inputs(args.dataset_root, series_ids=args.series_id, episode_ids=args.episode_id)
+    inputs = discover_subtitle_scene_aligned_inputs(args.dataset_root, series_ids=args.series_id, episode_ids=args.episode_id)
     if args.limit is not None:
         inputs = inputs[: args.limit]
     args.output_root.mkdir(parents=True, exist_ok=True)

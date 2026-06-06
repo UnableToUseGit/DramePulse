@@ -12,6 +12,7 @@ from pipelines.story_chapter.subtitle_scene_aligned import (
     boundary_frame_timestamps,
     build_boundary_review_user_prompt,
     build_draft_chapter_user_prompt,
+    draft_frame_timestamps,
     parse_boundary_reviews,
     parse_draft_chapters,
     select_boundary_candidates,
@@ -66,6 +67,9 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(drafts[0].start_reason, "这是新冲突的第一句台词。")
         self.assertEqual(drafts[0].end_reason, "这句台词完成了本章冲突。")
+
+    def test_draft_llm_receives_sparse_frames_every_10_seconds(self) -> None:
+        self.assertEqual(draft_frame_timestamps(video_duration_seconds=12.0, interval_seconds=10.0), [0.0, 10.0])
 
     def test_boundary_review_prompt_uses_subtitles_and_frames_without_candidate_list(self) -> None:
         chapters = [
@@ -124,11 +128,19 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
             valid_boundary_ids={"br_001"},
             frame_times_by_boundary={"br_001": {9.0, 15.0}},
         )
+        rounded_reviews, rounded_warnings = parse_boundary_reviews(
+            {"boundary_reviews": [{"boundary_id": "br_002", "boundary_time": 164.5, "reason": "164.5 秒是视觉转场。"}]},
+            valid_boundary_ids={"br_002"},
+            frame_times_by_boundary={"br_002": {163.5, 164.5, 165.5}},
+        )
 
         self.assertEqual([candidate["time"] for candidate in candidates], [9.0, 11.0, 15.0])
         self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", prompt)
         self.assertIn("NEXT_CHAPTER_SUBTITLES", prompt)
         self.assertNotIn("CANDIDATE_BOUNDARIES", prompt)
+        self.assertIn("FRAME_TIMESTAMPS_SECONDS: 9.0, 15.0", prompt)
+        self.assertIn("Do not choose a timestamp only because a subtitle line starts there", prompt)
+        self.assertIn("visual state has already changed", prompt)
         self.assertNotIn("title:", prompt)
         self.assertNotIn("summary:", prompt)
         self.assertIn("BOUNDARY_SUBTITLE_CONTEXT", prompt)
@@ -137,6 +149,8 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(reviews[0]["boundary_time"], 15.0)
         self.assertEqual(reviews[0]["reason"], "15 秒是视觉转场。")
+        self.assertEqual(rounded_warnings, [])
+        self.assertEqual(rounded_reviews[0]["boundary_time"], 164.5)
         timestamps, by_boundary = boundary_frame_timestamps(
             [{"boundary_id": "br_001", "search_time_range": {"start_time": 2.0, "end_time": 5.0}}],
             video_duration_seconds=30.0,
@@ -308,6 +322,10 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(output["boundary_reviews"][0]["reason"], "6 秒是骑车过场结束并进入下一段冲突的转场。")
         self.assertEqual(output["subtitle_chapters"][0]["reason"], "第一句台词建立冲突。")
         self.assertEqual(len(client.calls), 2)
+        self.assertEqual(client.calls[0]["frame_timestamps_seconds"], [0.0, 10.0])
+        self.assertEqual(len(client.calls[0]["image_paths"]), 2)
+        self.assertIn("SPARSE_VIDEO_FRAMES", client.calls[0]["user_prompt"])
+        self.assertEqual(output["draft_frame_timestamps_seconds"], [0.0, 10.0])
         self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
         self.assertIn("NEXT_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
         self.assertNotIn("CANDIDATE_BOUNDARIES", client.calls[1]["user_prompt"])

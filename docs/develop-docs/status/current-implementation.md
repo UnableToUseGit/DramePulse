@@ -66,7 +66,7 @@ Doubao-Seed-2.0-pro
 ## 5. 当前约束
 
 - Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核；
-- Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕生成语义章节草稿，再对每个相邻章节边界单独调用 MLLM。边界搜索范围为两个粗字幕锚点组成区间的前后各 10 秒；MLLM 输入只包含前后章节字幕、搜索范围内字幕和按秒抽取的帧，不暴露 LLM 生成的标题/摘要，也不暴露候选 timestamp 列表，输出必须选择已看到帧的时间戳作为最终边界；
+- Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕和默认每 10 秒一帧的稀疏视频帧生成语义章节草稿，再对每个相邻章节边界单独调用 MLLM。边界搜索范围为两个粗字幕锚点组成区间的前后各 10 秒；MLLM 输入只包含前后章节字幕、搜索范围内字幕和按秒抽取的帧，不暴露 LLM 生成的标题/摘要，也不暴露候选 timestamp 列表，输出必须选择已看到帧的时间戳作为最终边界；
 - `thinking` 默认关闭；
 - 旧交互方案生成 pipeline 已移除；
 - `example_output/` 中保存可直接查看的样例结果；

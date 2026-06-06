@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--scene-detection", type=Path, required=True, help="Path to scene_detection.json.")
     parser.add_argument("--output-root", type=Path, default=Path("output/story_chapter_subtitle_scene_aligned_validation"))
     parser.add_argument("--env-file", type=Path, default=Path(".env"), help="Path to dotenv file. Defaults to .env.")
+    parser.add_argument("--draft-frame-interval-seconds", type=float, default=10.0, help="Sparse frame interval for the first draft LLM call. Use 0 to disable.")
     parser.add_argument("--max-alignment-window-seconds", type=float, default=10.0)
     parser.add_argument("--min-chapter-seconds", type=float, default=12.0)
     return parser
@@ -34,6 +35,7 @@ def build_pipeline(args: argparse.Namespace) -> StoryChapterSubtitleSceneAligned
     llm_client = build_llm_client(env_path=args.env_file)
     return StoryChapterSubtitleSceneAlignedPipeline(
         llm_client=llm_client,
+        draft_frame_interval_seconds=args.draft_frame_interval_seconds,
         max_alignment_window_seconds=args.max_alignment_window_seconds,
         min_chapter_seconds=args.min_chapter_seconds,
         progress_logger=print_progress,

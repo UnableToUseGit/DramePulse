@@ -52,6 +52,10 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
+def _round_frame_time(value: float) -> float:
+    return round(float(value), 1)
+
+
 def _clamp_importance(value: Any) -> float:
     number = _safe_float(value)
     if number is None:
@@ -85,12 +89,15 @@ def build_draft_chapter_user_prompt(
     video_id: str,
     video_duration_seconds: float,
     utterances: Sequence[Utterance],
+    frame_timestamps_seconds: Sequence[float] | None = None,
 ) -> str:
     utterance_lines = "\n".join(_format_utterance_line(utterance) for utterance in utterances)
+    frame_lines = ", ".join(f"{timestamp:.3f}" for timestamp in frame_timestamps_seconds or [])
     return "\n".join(
         [
             "## TASK",
             "Read the full subtitle transcript and decide the semantic story chapters.",
+            "Sparse video frames may be attached as visual anchors. Use them to avoid placing chapter starts/ends too early when visual action, location changes, or silent transitions continue after the nearest subtitle.",
             "Short dramas are dialogue-driven, so use story goal changes, conflict resolution, location/task changes, and new macro events.",
             "Do not split a single macro event into setup/result micro beats.",
             "",
@@ -123,6 +130,9 @@ def build_draft_chapter_user_prompt(
             "## INPUT",
             f"VIDEO_ID: {video_id}",
             f"VIDEO_DURATION_SECONDS: {video_duration_seconds:.3f}",
+            "",
+            "## SPARSE_VIDEO_FRAMES",
+            f"FRAME_TIMESTAMPS_SECONDS: {frame_lines or '(no frames attached)'}",
             "",
             "## FULL_SUBTITLES",
             utterance_lines or "(no subtitles)",
@@ -176,6 +186,21 @@ def parse_draft_chapters(raw: dict[str, Any]) -> tuple[list[DraftChapter], list[
             )
         )
     return drafts, warnings
+
+
+def draft_frame_timestamps(
+    *,
+    video_duration_seconds: float,
+    interval_seconds: float = 10.0,
+) -> list[float]:
+    if video_duration_seconds <= 0.0 or interval_seconds <= 0.0:
+        return []
+    timestamps: list[float] = []
+    current = 0.0
+    while current < video_duration_seconds:
+        timestamps.append(_round_time(current))
+        current += interval_seconds
+    return sorted(set(timestamps))
 
 
 def _scene_start_containing_time(time_sec: float, scenes: Sequence[dict[str, Any]]) -> float | None:
@@ -442,12 +467,12 @@ def boundary_frame_timestamps(
     by_boundary: dict[str, list[float]] = {}
     for review in boundary_reviews:
         search_range = review.get("search_time_range") or {}
-        start_time = _round_time(max(0.0, float(search_range.get("start_time", 0.0))))
-        end_time = _round_time(min(video_duration_seconds, float(search_range.get("end_time", video_duration_seconds))))
+        start_time = _round_frame_time(max(0.0, float(search_range.get("start_time", 0.0))))
+        end_time = _round_frame_time(min(video_duration_seconds, float(search_range.get("end_time", video_duration_seconds))))
         timestamps: list[float] = []
         current = start_time
         while current <= end_time + 1e-9:
-            timestamps.append(_round_time(current))
+            timestamps.append(_round_frame_time(current))
             current += 1.0
         if timestamps and timestamps[-1] != end_time:
             timestamps.append(end_time)
@@ -471,18 +496,22 @@ def build_boundary_review_user_prompt(
     boundary_review: dict[str, Any],
     frame_timestamps_seconds: list[float],
 ) -> str:
-    frame_times = ", ".join(f"{timestamp:.3f}" for timestamp in frame_timestamps_seconds)
+    frame_times = ", ".join(f"{timestamp:.1f}" for timestamp in frame_timestamps_seconds)
     lines = [
         "## TASK",
         "There is exactly one story chapter boundary inside the search time range below.",
         "You are given subtitles from the previous subtitle chapter, subtitles from the next subtitle chapter, nearby subtitles, and sampled video frames.",
-        "Choose the frame timestamp that best separates the two story events.",
-        "Focus on scene changes, location changes, character grouping changes, action goal changes, and subtitle semantic changes.",
+        "Use subtitles to understand story meaning, but choose the boundary by visual evidence in the frames.",
+        "Choose the earliest frame timestamp where the visual state has already changed into the next story event.",
+        "Focus on scene changes, location changes, character grouping changes, action goal changes, and visual transition timing.",
         "",
         "Boundary principle:",
         "- Everything before boundary_time belongs to the previous chapter.",
         "- Everything from boundary_time onward belongs to the next chapter.",
         "- The subtitle chapter ranges are rough semantic anchors, not hard timing constraints.",
+        "- Subtitles are semantic context, not timing targets.",
+        "- Do not choose a timestamp only because a subtitle line starts there.",
+        "- If the image changes before the first subtitle of the next story event, choose the visual change frame, not the subtitle start frame.",
         "- The true boundary may appear before the previous subtitle chapter's last line or after the next subtitle chapter's first line.",
         "- Prefer the frame where the visual/story state has clearly switched, not merely the first ambiguous transition frame.",
         "",
@@ -498,7 +527,7 @@ def build_boundary_review_user_prompt(
         "",
         "## BOUNDARY_TASK",
         f"BOUNDARY_ID: {boundary_review['boundary_id']}",
-        f"SEARCH_TIME_RANGE_SECONDS: {float(boundary_review.get('search_time_range', {}).get('start_time', 0.0)):.3f}-{float(boundary_review.get('search_time_range', {}).get('end_time', 0.0)):.3f}",
+        f"SEARCH_TIME_RANGE_SECONDS: {float(boundary_review.get('search_time_range', {}).get('start_time', 0.0)):.1f}-{float(boundary_review.get('search_time_range', {}).get('end_time', 0.0)):.1f}",
         f"FRAME_TIMESTAMPS_SECONDS: {frame_times}",
         "",
         "PREVIOUS_CHAPTER_SUBTITLES:",
@@ -519,6 +548,7 @@ def parse_boundary_reviews(
     *,
     valid_boundary_ids: set[str],
     frame_times_by_boundary: dict[str, set[float]],
+    frame_time_tolerance_seconds: float = 0.25,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     raw_reviews = raw.get("boundary_reviews") if isinstance(raw, dict) else None
     if not isinstance(raw_reviews, list):
@@ -539,8 +569,16 @@ def parse_boundary_reviews(
         if boundary_time is None:
             warnings.append(f"Boundary review #{index} has invalid boundary_time.")
             continue
-        rounded_time = _round_time(boundary_time)
-        if rounded_time not in frame_times_by_boundary.get(boundary_id, set()):
+        rounded_time = _round_frame_time(boundary_time)
+        valid_frame_times = frame_times_by_boundary.get(boundary_id, set())
+        if rounded_time not in valid_frame_times:
+            nearest_time = min(valid_frame_times, key=lambda time: abs(time - rounded_time)) if valid_frame_times else None
+            if nearest_time is not None and abs(nearest_time - rounded_time) <= frame_time_tolerance_seconds:
+                rounded_time = _round_frame_time(nearest_time)
+            else:
+                warnings.append(f"Boundary review #{index} boundary_time is not one of the sampled frame timestamps.")
+                continue
+        if rounded_time not in valid_frame_times:
             warnings.append(f"Boundary review #{index} boundary_time is not one of the sampled frame timestamps.")
             continue
         if not reason:
@@ -650,6 +688,7 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         llm_client: SubtitleSceneAlignedLlmClientProtocol,
         extract_frames: ExtractFrames = extract_frames_at_timestamps,
         frame_max_height: int = 512,
+        draft_frame_interval_seconds: float = 10.0,
         max_alignment_window_seconds: float = 10.0,
         min_chapter_seconds: float = 12.0,
         progress_logger: Callable[[str], None] | None = None,
@@ -657,6 +696,7 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         self.llm_client = llm_client
         self.extract_frames = extract_frames
         self.frame_max_height = frame_max_height
+        self.draft_frame_interval_seconds = draft_frame_interval_seconds
         self.max_alignment_window_seconds = max_alignment_window_seconds
         self.min_chapter_seconds = min_chapter_seconds
         self.progress_logger = progress_logger
@@ -686,16 +726,57 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         scene_boundaries = sorted({_round_time(float(scene["start_time"])) for scene in scenes if 0.0 < float(scene["start_time"]) < video_duration_seconds})
         self._log(video_id, f"load inputs done utterances={len(utterances)} scenes={len(scenes)} scene_boundaries={len(scene_boundaries)}")
 
-        self._log(video_id, "subtitle draft LLM start")
-        raw = self.llm_client.generate_json_multimodal(
-            system_prompt=build_draft_chapter_system_prompt(),
-            user_prompt=build_draft_chapter_user_prompt(
-                video_id=video_id,
-                video_duration_seconds=video_duration_seconds,
-                utterances=utterances,
-            ),
-            max_tokens=3200,
+        draft_frame_timestamps_seconds = draft_frame_timestamps(
+            video_duration_seconds=video_duration_seconds,
+            interval_seconds=self.draft_frame_interval_seconds,
         )
+        draft_frame_extraction: dict[str, Any] | None = None
+        draft_image_paths: list[Path] = []
+        self._log(video_id, "subtitle draft LLM start")
+        if draft_frame_timestamps_seconds:
+            self._log(
+                video_id,
+                f"subtitle draft frame extraction start input_frames={len(draft_frame_timestamps_seconds)} interval_seconds={self.draft_frame_interval_seconds:g} max_height={self.frame_max_height}",
+            )
+            with tempfile.TemporaryDirectory() as tmpdir:
+                draft_frame_dir = Path(tmpdir) / "draft_frames"
+                extraction_result = self.extract_frames(
+                    video_path=video_path,
+                    output_dir=draft_frame_dir,
+                    timestamps_seconds=draft_frame_timestamps_seconds,
+                    max_height=self.frame_max_height,
+                )
+                draft_frame_extraction = _frame_extraction_to_dict(extraction_result)
+                draft_image_paths = sorted(draft_frame_dir.glob("*.png"))
+                draft_frame_extraction["input_frame_count"] = len(draft_frame_timestamps_seconds)
+                draft_frame_extraction["extracted_image_count"] = len(draft_image_paths)
+                self._log(
+                    video_id,
+                    f"subtitle draft frame extraction done input_frames={len(draft_frame_timestamps_seconds)} extracted_images={len(draft_image_paths)}",
+                )
+                raw = self.llm_client.generate_json_multimodal(
+                    system_prompt=build_draft_chapter_system_prompt(),
+                    user_prompt=build_draft_chapter_user_prompt(
+                        video_id=video_id,
+                        video_duration_seconds=video_duration_seconds,
+                        utterances=utterances,
+                        frame_timestamps_seconds=draft_frame_timestamps_seconds,
+                    ),
+                    image_paths=draft_image_paths,
+                    frame_timestamps_seconds=draft_frame_timestamps_seconds,
+                    max_tokens=3200,
+                )
+        else:
+            raw = self.llm_client.generate_json_multimodal(
+                system_prompt=build_draft_chapter_system_prompt(),
+                user_prompt=build_draft_chapter_user_prompt(
+                    video_id=video_id,
+                    video_duration_seconds=video_duration_seconds,
+                    utterances=utterances,
+                    frame_timestamps_seconds=draft_frame_timestamps_seconds,
+                ),
+                max_tokens=3200,
+            )
         drafts, parse_warnings = parse_draft_chapters(raw)
         self._log(video_id, f"subtitle draft LLM done drafts={len(drafts)} warnings={len(parse_warnings)}")
         subtitle_chapters = subtitle_chapters_from_drafts(video_id=video_id, drafts=drafts)
@@ -817,6 +898,8 @@ class StoryChapterSubtitleSceneAlignedPipeline:
             "scene_boundaries": list(scene_boundaries),
             "subtitle_chapters": subtitle_chapters,
             "aligned_subtitle_chapters": aligned_chapters,
+            "draft_frame_timestamps_seconds": draft_frame_timestamps_seconds,
+            "draft_frame_extraction": draft_frame_extraction,
             "boundary_review_tasks": boundary_tasks,
             "frame_timestamps_seconds": frame_timestamps_seconds,
             "frame_timestamps_by_boundary": frame_timestamps_by_boundary,
@@ -843,6 +926,7 @@ __all__ = [
     "build_draft_chapter_user_prompt",
     "build_final_chapters_from_boundary_reviews",
     "boundary_frame_timestamps",
+    "draft_frame_timestamps",
     "parse_boundary_reviews",
     "parse_draft_chapters",
     "select_boundary_candidates",
