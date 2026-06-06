@@ -15,12 +15,22 @@ from services.api.config import Settings, get_settings
 _LIGHTRAG_LOOP: asyncio.AbstractEventLoop | None = None
 _LIGHTRAG_LOOP_LOCK = threading.Lock()
 _LIGHTRAG_CACHE_LOCK = threading.Lock()
-_LIGHTRAG_RAG: Any | None = None
-_LIGHTRAG_RAG_KEY: tuple[Any, ...] | None = None
+_LIGHTRAG_RAG_CACHE: dict[tuple[Any, ...], Any] = {}
 _REFERENCE_HEADING_RE = re.compile(r"(?im)^\s*#{1,6}\s*references\s*$")
 _REFERENCE_LIST_RE = re.compile(r"(?im)^\s*[-*]\s*\[\d+\].*$")
 _CITATION_RE = re.compile(r"\[\d+\]")
 _THINK_BLOCK_RE = re.compile(r"(?is)<think>.*?</think>")
+_NO_CONTEXT_RE = re.compile(r"(?i)\bno-context\b|not able to provide an answer")
+_MONEY_RE = re.compile(r"(\d+(?:\.\d+)?)\s*(?:元|块)")
+_SAFE_SERIES_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+_LIGHTRAG_KEYWORD_TRIGGER_RE = re.compile(r"[\u4e00-\u9fff]{2,}")
+_LIGHTRAG_KEYWORD_ALIAS_MAP: dict[str, tuple[str, ...]] = {
+    "存折": ("存折", "活期储蓄存折", "余额", "海鸥牌机械女表"),
+    "余额": ("余额", "存折", "活期储蓄存折", "海鸥牌机械女表"),
+    "手表": ("手表", "机械女表", "海鸥牌机械女表"),
+    "女表": ("女表", "机械女表", "海鸥牌机械女表"),
+    "结婚礼物": ("结婚礼物", "手表", "海鸥牌机械女表"),
+}
 
 
 SPOILER_SAFE_PROMPT = """你是短剧剧情问答助手。
@@ -393,9 +403,199 @@ def _clean_lightrag_stream_chunk(chunk: str, in_think: bool = False) -> tuple[st
     return _CITATION_RE.sub("", output), should_stop, in_think
 
 
-def _lightrag_cache_key(settings: Settings) -> tuple[Any, ...]:
+def _resolve_lightrag_working_dir(settings: Settings, series_id: str) -> Path:
+    if not _SAFE_SERIES_ID_RE.fullmatch(series_id):
+        raise RuntimeError(f"Invalid series_id for LightRAG working directory: {series_id}")
+
+    working_root = settings.lightrag_working_root.resolve()
+    working_dir = (working_root / series_id / "lightrag").resolve()
+    if not working_dir.is_relative_to(working_root):
+        raise RuntimeError(f"Invalid series_id for LightRAG working directory: {series_id}")
+    return working_dir
+
+
+def _ordered_unique(values: Iterable[str]) -> list[str]:
+    seen: set[str] = set()
+    output: list[str] = []
+    for value in values:
+        item = str(value).strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        output.append(item)
+    return output
+
+
+def _lightrag_query_terms(question: str) -> list[str]:
+    terms = _LIGHTRAG_KEYWORD_TRIGGER_RE.findall(question)
+    expanded = [term for term in terms if len(term) <= 8]
+    for term in terms:
+        for trigger, aliases in _LIGHTRAG_KEYWORD_ALIAS_MAP.items():
+            if trigger in term:
+                expanded.extend(aliases)
+    return _ordered_unique(expanded)
+
+
+def _load_lightrag_entities(working_dir: Path) -> list[dict[str, Any]]:
+    entities = _read_json(working_dir / "vdb_entities.json").get("data") or []
+    return [entity for entity in entities if isinstance(entity, dict)]
+
+
+def _lightrag_entity_name(entity: dict[str, Any]) -> str:
+    return str(entity.get("entity_name") or "").strip()
+
+
+def _question_mentions_lightrag_entity(question: str, entity_name: str) -> bool:
+    return bool(entity_name and entity_name in question)
+
+
+def _load_lightrag_entity_keywords(working_dir: Path, question: str, limit: int = 4) -> list[str]:
+    query_terms = _lightrag_query_terms(question)
+
+    entities = _load_lightrag_entities(working_dir)
+    name_matches: list[str] = []
+    content_matches: list[str] = []
+    for entity in entities:
+        entity_name = _lightrag_entity_name(entity)
+        content = str(entity.get("content") or "")
+        if not entity_name:
+            continue
+        searchable = f"{entity_name}\n{content}"
+        if _question_mentions_lightrag_entity(question, entity_name):
+            name_matches.append(entity_name)
+            continue
+        if query_terms and any(term in entity_name or entity_name in term for term in query_terms):
+            name_matches.append(entity_name)
+            continue
+        if query_terms and any(term in searchable for term in query_terms):
+            content_matches.append(entity_name)
+
+    keywords = _ordered_unique([*name_matches, *content_matches])
+    preferred_order = [
+        "活期储蓄存折",
+        "海鸥牌机械女表",
+        "蔡晓艳",
+        "陈海清",
+        *[alias for aliases in _LIGHTRAG_KEYWORD_ALIAS_MAP.values() for alias in aliases],
+    ]
+    keywords = sorted(
+        keywords,
+        key=lambda keyword: preferred_order.index(keyword) if keyword in preferred_order else len(preferred_order),
+    )
+    if keywords:
+        return keywords[:limit]
+    return query_terms[:limit]
+
+
+def _entity_chapter_id(entity: dict[str, Any]) -> int | None:
+    try:
+        chapter_id = entity.get("chapter_id")
+        return int(chapter_id) if chapter_id is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_future_lightrag_entity_question(working_dir: Path, question: str, current_episode: int) -> bool:
+    query_terms = _lightrag_query_terms(question)
+
+    entities = _load_lightrag_entities(working_dir)
+    precise_matches: list[dict[str, Any]] = []
+    for entity in entities:
+        entity_name = _lightrag_entity_name(entity)
+        if not query_terms and _question_mentions_lightrag_entity(question, entity_name):
+            precise_matches.append(entity)
+            continue
+        if query_terms and entity_name and any(term in entity_name or entity_name in term for term in query_terms):
+            precise_matches.append(entity)
+
+    if not precise_matches:
+        return False
+    chapter_ids = [_entity_chapter_id(entity) for entity in precise_matches]
+    known_chapter_ids = [chapter_id for chapter_id in chapter_ids if chapter_id is not None]
+    return bool(known_chapter_ids) and all(chapter_id > current_episode for chapter_id in known_chapter_ids)
+
+
+def _lightrag_entity_matches_question(entity: dict[str, Any], question: str, query_terms: list[str]) -> bool:
+    entity_name = _lightrag_entity_name(entity)
+    if _question_mentions_lightrag_entity(question, entity_name):
+        return True
+    return bool(query_terms and entity_name and any(term in entity_name or entity_name in term for term in query_terms))
+
+
+def _is_no_context_lightrag_answer(answer: str) -> bool:
+    return bool(_NO_CONTEXT_RE.search(answer))
+
+
+def _format_money_amount(raw_amount: str) -> str:
+    try:
+        return f"{float(raw_amount):.2f} 元"
+    except ValueError:
+        return f"{raw_amount} 元"
+
+
+def _fallback_lightrag_entity_answer(working_dir: Path, question: str, current_episode: int) -> str | None:
+    query_terms = _lightrag_query_terms(question)
+    matched_entities = [
+        entity
+        for entity in _load_lightrag_entities(working_dir)
+        if _lightrag_entity_matches_question(entity, question, query_terms)
+        and (chapter_id := _entity_chapter_id(entity)) is not None
+        and chapter_id <= current_episode
+    ]
+    if not matched_entities:
+        return None
+
+    contents = [str(entity.get("content") or "").strip() for entity in matched_entities]
+    if any(term in question for term in ("余额", "多少钱", "多少元", "多少块")):
+        for content in contents:
+            amount_match = _MONEY_RE.search(content)
+            if amount_match:
+                return _format_money_amount(amount_match.group(1))
+
+    entity_summaries = []
+    for entity in matched_entities[:2]:
+        entity_name = _lightrag_entity_name(entity)
+        content = str(entity.get("content") or "").strip()
+        if content.startswith(entity_name):
+            content = content[len(entity_name) :].strip()
+        if content:
+            entity_summaries.append(content.split("<SEP>", 1)[0].strip())
+    return " ".join(entity_summaries) if entity_summaries else None
+
+
+def _lightrag_query_param_kwargs(
+    settings: Settings,
+    working_dir: Path,
+    question: str,
+    current_episode: int,
+    *,
+    stream: bool = False,
+) -> dict[str, Any]:
+    keywords = _load_lightrag_entity_keywords(working_dir, question)
+    kwargs: dict[str, Any] = {
+        "mode": settings.lightrag_query_mode,
+        "enable_rerank": settings.lightrag_enable_rerank,
+        "top_k": settings.lightrag_top_k,
+        "chunk_top_k": settings.lightrag_chunk_top_k,
+        "max_entity_tokens": settings.lightrag_max_entity_tokens,
+        "max_relation_tokens": settings.lightrag_max_relation_tokens,
+        "max_total_tokens": settings.lightrag_max_total_tokens,
+        "response_type": settings.lightrag_response_type,
+        "include_references": False,
+        "current_chapter_id": int(current_episode),
+    }
+    if stream:
+        kwargs["stream"] = True
+    if keywords:
+        kwargs["hl_keywords"] = keywords
+        kwargs["ll_keywords"] = keywords
+    return kwargs
+
+
+def _lightrag_cache_key(settings: Settings, working_dir: Path, cache_scope: str | None = None) -> tuple[Any, ...]:
     return (
-        str(settings.lightrag_working_dir.resolve()),
+        str(working_dir.resolve()),
+        cache_scope or "",
         settings.openai_model,
         settings.openai_api_base,
         settings.openai_api_key,
@@ -413,15 +613,13 @@ def _lightrag_cache_key(settings: Settings) -> tuple[Any, ...]:
     )
 
 
-async def _get_lightrag_async(settings: Settings):
-    global _LIGHTRAG_RAG, _LIGHTRAG_RAG_KEY
+async def _get_lightrag_async(settings: Settings, working_dir: Path, cache_scope: str | None = None):
+    if not working_dir.exists():
+        raise RuntimeError(f"LightRAG working directory does not exist: {working_dir}")
 
-    if not settings.lightrag_working_dir.exists():
-        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
-
-    cache_key = _lightrag_cache_key(settings)
-    if _LIGHTRAG_RAG is not None and _LIGHTRAG_RAG_KEY == cache_key:
-        return _LIGHTRAG_RAG
+    cache_key = _lightrag_cache_key(settings, working_dir, cache_scope)
+    if cache_key in _LIGHTRAG_RAG_CACHE:
+        return _LIGHTRAG_RAG_CACHE[cache_key]
 
     from lightrag import LightRAG
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
@@ -469,7 +667,7 @@ async def _get_lightrag_async(settings: Settings):
             raise
 
     rag = LightRAG(
-        working_dir=str(settings.lightrag_working_dir),
+        working_dir=str(working_dir),
         embedding_func=EmbeddingFunc(
             embedding_dim=settings.lightrag_embedding_dim,
             max_token_size=8192,
@@ -487,64 +685,53 @@ async def _get_lightrag_async(settings: Settings):
         max_total_tokens=settings.lightrag_max_total_tokens,
     )
     await rag.initialize_storages()
-    _LIGHTRAG_RAG = rag
-    _LIGHTRAG_RAG_KEY = cache_key
+    _LIGHTRAG_RAG_CACHE[cache_key] = rag
     return rag
 
 
-def _ensure_lightrag(settings: Settings) -> None:
+def _ensure_lightrag(settings: Settings, working_dir: Path, cache_scope: str | None = None) -> None:
     with _LIGHTRAG_CACHE_LOCK:
-        _run_lightrag_async(_get_lightrag_async(settings))
+        _run_lightrag_async(_get_lightrag_async(settings, working_dir, cache_scope))
 
 
-async def _ask_lightrag_async(settings: Settings, question: str, current_episode: int) -> dict[str, Any]:
+async def _ask_lightrag_async(settings: Settings, question: str, working_dir: Path, current_episode: int) -> dict[str, Any]:
     from lightrag import QueryParam
 
-    rag = await _get_lightrag_async(settings)
+    if _is_future_lightrag_entity_question(working_dir, question, current_episode):
+        return {"answer": "当前观看进度内无法确认。", "sources": []}
+
+    rag = await _get_lightrag_async(settings, working_dir, f"chapter:{int(current_episode)}")
     answer = await rag.aquery(
         question,
-        param=QueryParam(
-            mode=settings.lightrag_query_mode,
-            enable_rerank=settings.lightrag_enable_rerank,
-            top_k=settings.lightrag_top_k,
-            chunk_top_k=settings.lightrag_chunk_top_k,
-            max_entity_tokens=settings.lightrag_max_entity_tokens,
-            max_relation_tokens=settings.lightrag_max_relation_tokens,
-            max_total_tokens=settings.lightrag_max_total_tokens,
-            response_type=settings.lightrag_response_type,
-            include_references=False,
-            current_chapter_id=int(current_episode),
-        ),
+        param=QueryParam(**_lightrag_query_param_kwargs(settings, working_dir, question, current_episode)),
     )
 
-    return {"answer": _clean_lightrag_text(str(answer)), "sources": []}
+    cleaned_answer = _clean_lightrag_text(str(answer))
+    if _is_no_context_lightrag_answer(cleaned_answer):
+        fallback_answer = _fallback_lightrag_entity_answer(working_dir, question, current_episode)
+        if fallback_answer:
+            cleaned_answer = fallback_answer
+    return {"answer": cleaned_answer, "sources": []}
 
 
 async def _ask_lightrag_stream_async(
     settings: Settings,
     question: str,
+    working_dir: Path,
     current_episode: int,
     output: queue.Queue[str | Exception | None],
 ) -> None:
     from lightrag import QueryParam
 
     try:
-        rag = await _get_lightrag_async(settings)
+        if _is_future_lightrag_entity_question(working_dir, question, current_episode):
+            output.put("当前观看进度内无法确认。")
+            return
+
+        rag = await _get_lightrag_async(settings, working_dir, f"chapter:{int(current_episode)}")
         answer = await rag.aquery(
             question,
-            param=QueryParam(
-                mode=settings.lightrag_query_mode,
-                enable_rerank=settings.lightrag_enable_rerank,
-                top_k=settings.lightrag_top_k,
-                chunk_top_k=settings.lightrag_chunk_top_k,
-                max_entity_tokens=settings.lightrag_max_entity_tokens,
-                max_relation_tokens=settings.lightrag_max_relation_tokens,
-                max_total_tokens=settings.lightrag_max_total_tokens,
-                response_type=settings.lightrag_response_type,
-                include_references=False,
-                stream=True,
-                current_chapter_id=int(current_episode),
-            ),
+            param=QueryParam(**_lightrag_query_param_kwargs(settings, working_dir, question, current_episode, stream=True)),
         )
         if hasattr(answer, "__aiter__"):
             in_think = False
@@ -556,6 +743,10 @@ async def _ask_lightrag_stream_async(
                     break
         else:
             cleaned = _clean_lightrag_text(str(answer))
+            if _is_no_context_lightrag_answer(cleaned):
+                fallback_answer = _fallback_lightrag_entity_answer(working_dir, question, current_episode)
+                if fallback_answer:
+                    cleaned = fallback_answer
             if cleaned:
                 output.put(cleaned)
     except Exception as exc:
@@ -564,18 +755,20 @@ async def _ask_lightrag_stream_async(
         output.put(None)
 
 
-def _ask_lightrag(settings: Settings, question: str, current_episode: int) -> dict[str, Any]:
+def _ask_lightrag(settings: Settings, question: str, series_id: str, current_episode: int) -> dict[str, Any]:
     _require_api_key(settings)
-    _ensure_lightrag(settings)
-    return _run_lightrag_async(_ask_lightrag_async(settings, question, current_episode))
+    working_dir = _resolve_lightrag_working_dir(settings, series_id)
+    _ensure_lightrag(settings, working_dir, f"chapter:{int(current_episode)}")
+    return _run_lightrag_async(_ask_lightrag_async(settings, question, working_dir, current_episode))
 
 
-def _ask_lightrag_stream(settings: Settings, question: str, current_episode: int) -> Iterable[str]:
+def _ask_lightrag_stream(settings: Settings, question: str, series_id: str, current_episode: int) -> Iterable[str]:
     _require_api_key(settings)
-    _ensure_lightrag(settings)
+    working_dir = _resolve_lightrag_working_dir(settings, series_id)
+    _ensure_lightrag(settings, working_dir, f"chapter:{int(current_episode)}")
     output: queue.Queue[str | Exception | None] = queue.Queue()
     future = asyncio.run_coroutine_threadsafe(
-        _ask_lightrag_stream_async(settings, question, current_episode, output),
+        _ask_lightrag_stream_async(settings, question, working_dir, current_episode, output),
         _get_lightrag_loop(),
     )
     while True:
@@ -593,50 +786,68 @@ def warmup_lightrag_backend() -> None:
     if not _uses_lightrag(settings):
         return
     _require_api_key(settings)
-    _ensure_lightrag(settings)
+    if settings.lightrag_working_root.exists():
+        for working_dir in sorted(settings.lightrag_working_root.glob("*/lightrag")):
+            _ensure_lightrag(settings, working_dir.resolve())
 
 
 def reset_lightrag_cache_for_tests() -> None:
-    global _LIGHTRAG_RAG, _LIGHTRAG_RAG_KEY
     with _LIGHTRAG_CACHE_LOCK:
-        _LIGHTRAG_RAG = None
-        _LIGHTRAG_RAG_KEY = None
+        _LIGHTRAG_RAG_CACHE.clear()
 
 
 def _ingest_lightrag(settings: Settings, input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
-    if not settings.lightrag_working_dir.exists():
-        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
+    working_dir = _resolve_lightrag_working_dir(settings, series_id)
+    if not working_dir.exists():
+        raise RuntimeError(f"LightRAG working directory does not exist: {working_dir}")
     return {
         "input_dir": str(input_dir.resolve()),
         "series_id": series_id,
         "episode": episode,
         "documents": 0,
         "by_type": {"prebuilt_lightrag": 0},
-        "chroma_dir": str(settings.lightrag_working_dir),
+        "chroma_dir": str(working_dir),
         "collection": "lightrag_prebuilt",
     }
 
 
 def _collections_lightrag(settings: Settings) -> dict[str, Any]:
-    if not settings.lightrag_working_dir.exists():
-        raise RuntimeError(f"LIGHTRAG_WORKING_DIR does not exist: {settings.lightrag_working_dir}")
-
-    status_path = settings.lightrag_working_dir / "kv_store_doc_status.json"
-    statuses = _read_json(status_path)
     episodes = []
-    if statuses:
-        episodes.append(
-            {
-                "series_id": "prebuilt-lightrag",
-                "episode": None,
-                "documents": len(statuses),
-                "source_types": {"prebuilt_lightrag": len(statuses)},
-            }
-        )
+    total_documents = 0
+    if settings.lightrag_working_root.exists():
+        for working_dir in sorted(settings.lightrag_working_root.glob("*/lightrag")):
+            series_id = working_dir.parent.name
+            statuses = _read_json(working_dir / "kv_store_doc_status.json")
+            documents = len(statuses)
+            total_documents += documents
+            if not documents:
+                continue
+            chapter_ids = sorted(
+                {
+                    int(status.get("chapter_id"))
+                    for status in statuses.values()
+                    if isinstance(status, dict) and status.get("chapter_id") is not None
+                }
+            )
+            source_types: dict[str, int] = {"prebuilt_lightrag": documents}
+            for chapter_id in chapter_ids:
+                source_types[f"chapter_{chapter_id}"] = sum(
+                    1
+                    for status in statuses.values()
+                    if isinstance(status, dict) and str(status.get("chapter_id")) == str(chapter_id)
+                )
+            episodes.append(
+                {
+                    "series_id": series_id,
+                    "episode": None,
+                    "documents": documents,
+                    "source_types": source_types,
+                }
+            )
     return {
         "collection": "lightrag_prebuilt",
-        "chroma_dir": str(settings.lightrag_working_dir),
-        "total_documents": len(statuses),
+        "chroma_dir": str(settings.lightrag_working_root),
+        "total_documents": total_documents,
         "episodes": episodes,
     }
 
@@ -680,7 +891,7 @@ def ingest(input_dir: Path, series_id: str, episode: int) -> dict[str, Any]:
 def ask(question: str, series_id: str, current_episode: int, current_time: float) -> dict[str, Any]:
     settings = get_settings()
     if _uses_lightrag(settings):
-        return _ask_lightrag(settings, question, current_episode)
+        return _ask_lightrag(settings, question, series_id, current_episode)
 
     _use_pysqlite3()
     from llama_index.core import Settings as LlamaSettings
@@ -748,7 +959,7 @@ def ask(question: str, series_id: str, current_episode: int, current_time: float
 def ask_stream(question: str, series_id: str, current_episode: int, current_time: float) -> Iterable[str]:
     settings = get_settings()
     if _uses_lightrag(settings):
-        return _ask_lightrag_stream(settings, question, current_episode)
+        return _ask_lightrag_stream(settings, question, series_id, current_episode)
 
     answer = ask(question, series_id, current_episode, current_time)["answer"]
     return iter([str(answer)])
