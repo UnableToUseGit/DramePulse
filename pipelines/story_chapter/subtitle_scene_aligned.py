@@ -38,15 +38,6 @@ class DraftChapter:
     end_utterance_id: str | None = None
 
 
-@dataclass(frozen=True)
-class VisualGap:
-    gap_id: str
-    start_time: float
-    end_time: float
-    previous_chapter_id: str | None
-    next_chapter_id: str | None
-
-
 ExtractFrames = Callable[..., FrameExtractionResult | dict[str, Any]]
 
 
@@ -69,6 +60,14 @@ def _clamp_importance(value: Any) -> float:
 
 
 def _format_utterance_line(utterance: Utterance) -> str:
+    if isinstance(utterance, dict):
+        speaker_id = utterance.get("speaker_id")
+        speaker = f" speaker={speaker_id}" if speaker_id is not None else ""
+        return (
+            f"{utterance['utterance_id']} "
+            f"[{float(utterance['start_time']):.3f}-{float(utterance['end_time']):.3f}]"
+            f"{speaker}: {utterance['text']}"
+        )
     speaker = f" speaker={utterance.speaker_id}" if utterance.speaker_id is not None else ""
     return f"{utterance.utterance_id} [{utterance.start_time:.3f}-{utterance.end_time:.3f}]{speaker}: {utterance.text}"
 
@@ -305,144 +304,333 @@ def normalize_aligned_chapters(chapters: Sequence[dict[str, Any]]) -> tuple[list
     return result, warnings
 
 
-def find_visual_gaps(
-    chapters: Sequence[dict[str, Any]],
+def subtitle_chapters_from_drafts(
+    *,
+    video_id: str,
+    drafts: Sequence[DraftChapter],
+) -> list[dict[str, Any]]:
+    chapters: list[dict[str, Any]] = []
+    for index, draft in enumerate(drafts, start=1):
+        chapters.append(
+            {
+                "chapter_id": f"ch_{video_id}_{index:03d}",
+                "video_id": video_id,
+                "start_time": draft.start_time,
+                "end_time": draft.end_time,
+                "title": draft.title,
+                "summary": draft.summary,
+                "reason": draft.reason,
+                "importance": draft.importance,
+                "alignment": {
+                    "start_utterance_id": draft.start_utterance_id,
+                    "end_utterance_id": draft.end_utterance_id,
+                    "start_reason": draft.start_reason,
+                    "end_reason": draft.end_reason,
+                    "subtitle_start_time": draft.start_time,
+                    "subtitle_end_time": draft.end_time,
+                },
+            }
+        )
+    return chapters
+
+
+def _boundary_search_time_range(
+    *,
+    previous_chapter: dict[str, Any],
+    next_chapter: dict[str, Any],
+    video_duration_seconds: float,
+    context_seconds: float = 10.0,
+) -> dict[str, float]:
+    rough_start = min(float(previous_chapter["end_time"]), float(next_chapter["start_time"]))
+    rough_end = max(float(previous_chapter["end_time"]), float(next_chapter["start_time"]))
+    return {
+        "start_time": _round_time(max(0.0, rough_start - context_seconds)),
+        "end_time": _round_time(min(video_duration_seconds, rough_end + context_seconds)),
+    }
+
+
+def select_boundary_candidates(
+    *,
+    previous_chapter: dict[str, Any],
+    next_chapter: dict[str, Any],
+    scenes: Sequence[dict[str, Any]],
+    video_duration_seconds: float,
+) -> list[dict[str, Any]]:
+    search_time_range = _boundary_search_time_range(
+        previous_chapter=previous_chapter,
+        next_chapter=next_chapter,
+        video_duration_seconds=video_duration_seconds,
+    )
+    rough_midpoint = _round_time((float(previous_chapter["end_time"]) + float(next_chapter["start_time"])) / 2.0)
+    candidates: list[dict[str, Any]] = []
+    for scene in scenes:
+        try:
+            start_time = float(scene["start_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0.0 < start_time < video_duration_seconds and search_time_range["start_time"] <= start_time <= search_time_range["end_time"]:
+            candidates.append(
+                {
+                    "time": _round_time(start_time),
+                    "scene_id": str(scene.get("scene_id") or ""),
+                    "source": "scene_start_in_boundary_search_window",
+                }
+            )
+    if 0.0 < rough_midpoint < video_duration_seconds:
+        candidates.append(
+            {
+                "time": rough_midpoint,
+                "scene_id": "",
+                "source": "rough_midpoint_between_chapters",
+            }
+        )
+    if candidates:
+        unique: dict[float, dict[str, Any]] = {}
+        for candidate in candidates:
+            unique[float(candidate["time"])] = candidate
+        return [unique[time] for time in sorted(unique)]
+
+    fallback_time = rough_midpoint
+    nearest: float | None = None
+    for scene in scenes:
+        try:
+            start_time = float(scene["start_time"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if 0.0 < start_time < video_duration_seconds and (nearest is None or abs(start_time - fallback_time) < abs(nearest - fallback_time)):
+            nearest = start_time
+    return [
+        {
+            "time": _round_time(nearest if nearest is not None else fallback_time),
+            "scene_id": "",
+            "source": "nearest_scene_start_fallback",
+        }
+    ]
+
+
+def boundary_subtitle_context(
+    *,
+    search_time_range: dict[str, float],
+    utterances: Sequence[Utterance],
+) -> tuple[list[Utterance], dict[str, float]]:
+    start_time = _round_time(float(search_time_range["start_time"]))
+    end_time = _round_time(float(search_time_range["end_time"]))
+    context = [
+        utterance
+        for utterance in utterances
+        if utterance.end_time >= start_time and utterance.start_time <= end_time
+    ]
+    return context, {"start_time": start_time, "end_time": end_time}
+
+
+def _chapter_subtitle_context(*, chapter: dict[str, Any], utterances: Sequence[Utterance]) -> list[Utterance]:
+    start_time = float(chapter["start_time"])
+    end_time = float(chapter["end_time"])
+    return [
+        utterance
+        for utterance in utterances
+        if utterance.end_time >= start_time and utterance.start_time <= end_time
+    ]
+
+
+def boundary_frame_timestamps(
+    boundary_reviews: Sequence[dict[str, Any]],
     *,
     video_duration_seconds: float,
-) -> list[VisualGap]:
-    gaps: list[VisualGap] = []
-    if not chapters:
-        return [
-            VisualGap(
-                gap_id="gap_001",
-                start_time=0.0,
-                end_time=_round_time(video_duration_seconds),
-                previous_chapter_id=None,
-                next_chapter_id=None,
-            )
-        ]
-    first = chapters[0]
-    first_start = float(first["start_time"])
-    if first_start > 0.0:
-        gaps.append(
-            VisualGap(
-                gap_id=f"gap_{len(gaps) + 1:03d}",
-                start_time=0.0,
-                end_time=_round_time(first_start),
-                previous_chapter_id=None,
-                next_chapter_id=str(first["chapter_id"]),
-            )
-        )
-    for previous, current in zip(chapters, chapters[1:]):
-        previous_end = float(previous["end_time"])
-        current_start = float(current["start_time"])
-        if current_start <= previous_end:
-            continue
-        gaps.append(
-            VisualGap(
-                gap_id=f"gap_{len(gaps) + 1:03d}",
-                start_time=_round_time(previous_end),
-                end_time=_round_time(current_start),
-                previous_chapter_id=str(previous["chapter_id"]),
-                next_chapter_id=str(current["chapter_id"]),
-            )
-        )
-    last = chapters[-1]
-    last_end = float(last["end_time"])
-    duration = _round_time(video_duration_seconds)
-    if duration > last_end:
-        gaps.append(
-            VisualGap(
-                gap_id=f"gap_{len(gaps) + 1:03d}",
-                start_time=_round_time(last_end),
-                end_time=duration,
-                previous_chapter_id=str(last["chapter_id"]),
-                next_chapter_id=None,
-            )
-        )
-    return gaps
+) -> tuple[list[float], dict[str, list[float]]]:
+    all_timestamps: list[float] = []
+    by_boundary: dict[str, list[float]] = {}
+    for review in boundary_reviews:
+        search_range = review.get("search_time_range") or {}
+        start_time = _round_time(max(0.0, float(search_range.get("start_time", 0.0))))
+        end_time = _round_time(min(video_duration_seconds, float(search_range.get("end_time", video_duration_seconds))))
+        timestamps: list[float] = []
+        current = start_time
+        while current <= end_time + 1e-9:
+            timestamps.append(_round_time(current))
+            current += 1.0
+        if timestamps and timestamps[-1] != end_time:
+            timestamps.append(end_time)
+        timestamps = sorted(set(timestamps))
+        by_boundary[str(review["boundary_id"])] = timestamps
+        all_timestamps.extend(timestamps)
+    return sorted(set(all_timestamps)), by_boundary
 
 
-def _format_chapter_context(chapter: dict[str, Any]) -> str:
-    return "\n".join(
-        [
-            f"chapter_id: {chapter['chapter_id']}",
-            f"time_range: {float(chapter['start_time']):.3f}-{float(chapter['end_time']):.3f}",
-            f"title: {chapter['title']}",
-            f"summary: {chapter['summary']}",
-            f"reason: {chapter['reason']}",
-        ]
-    )
-
-
-def build_gap_review_system_prompt() -> str:
+def build_boundary_review_system_prompt() -> str:
     return (
-        "You are a multimodal short-drama chapter gap reviewer. "
-        "Classify every visual gap between two subtitle-based story chapters. "
+        "You are a multimodal short-drama chapter boundary editor. "
+        "Find the exact frame timestamp that separates two adjacent story events. "
         "Return valid JSON only."
     )
 
 
-def build_gap_review_user_prompt(
+def build_boundary_review_user_prompt(
     *,
     video_id: str,
-    gaps: Sequence[VisualGap],
-    chapters_by_id: dict[str, dict[str, Any]],
-    frame_timestamps_by_gap: dict[str, list[float]],
+    boundary_review: dict[str, Any],
+    frame_timestamps_seconds: list[float],
 ) -> str:
+    frame_times = ", ".join(f"{timestamp:.3f}" for timestamp in frame_timestamps_seconds)
     lines = [
         "## TASK",
-        "For each visual gap between subtitle-based chapters, decide whether it belongs to the previous chapter, belongs to the next chapter, or is an independent visual chapter.",
-        "Use the previous and next chapter summaries, their reasons, and the sampled video frames.",
+        "There is exactly one story chapter boundary inside the search time range below.",
+        "You are given subtitles from the previous subtitle chapter, subtitles from the next subtitle chapter, nearby subtitles, and sampled video frames.",
+        "Choose the frame timestamp that best separates the two story events.",
+        "Focus on scene changes, location changes, character grouping changes, action goal changes, and subtitle semantic changes.",
         "",
-        "Decision values:",
-        "- merge_previous: the gap primarily completes the previous chapter, such as its reaction shot, emotional payoff, action aftermath, object/scene close-up, or outgoing transition.",
-        "- merge_next: the gap primarily opens the next chapter, such as its location setup, character entrance, establishing shot, preparatory action, or incoming transition.",
-        "- standalone: the gap has its own readable visual event, montage, travel/action sequence, time passage, or music-driven beat that a viewer would expect as a separate timeline chapter.",
-        "If the gap is at the beginning of the video, choose merge_next or standalone.",
-        "If the gap is at the end of the video, choose merge_previous or standalone.",
+        "Boundary principle:",
+        "- Everything before boundary_time belongs to the previous chapter.",
+        "- Everything from boundary_time onward belongs to the next chapter.",
+        "- The subtitle chapter ranges are rough semantic anchors, not hard timing constraints.",
+        "- The true boundary may appear before the previous subtitle chapter's last line or after the next subtitle chapter's first line.",
+        "- Prefer the frame where the visual/story state has clearly switched, not merely the first ambiguous transition frame.",
         "",
         "## OUTPUT JSON",
         "Return exactly this shape:",
-        '{"gap_reviews":[{"gap_id":"gap_001","decision":"merge_previous","title":null,"summary":null,"reason":"这是上一章讨薪成功后的情绪收尾。"}]}',
+        '{"boundary_reviews":[{"boundary_id":"br_001","boundary_time":83.6,"reason":"该帧之后地点和行动目标切换，剧情进入返乡段落。"}]}',
         "Rules:",
-        "- Return one review for every gap_id.",
-        "- decision must be one of: merge_previous, merge_next, standalone.",
-        "- reason is required for every review.",
-        "- title and summary are required only when decision is standalone; otherwise use null.",
+        "- Return exactly one review for the boundary_id below.",
+        "- boundary_time must be one of FRAME_TIMESTAMPS_SECONDS because those are the frames you can see.",
+        "- reason is required and should explain visual/story evidence.",
         "",
         f"## VIDEO_ID\n{video_id}",
         "",
-        "## GAPS",
+        "## BOUNDARY_TASK",
+        f"BOUNDARY_ID: {boundary_review['boundary_id']}",
+        f"SEARCH_TIME_RANGE_SECONDS: {float(boundary_review.get('search_time_range', {}).get('start_time', 0.0)):.3f}-{float(boundary_review.get('search_time_range', {}).get('end_time', 0.0)):.3f}",
+        f"FRAME_TIMESTAMPS_SECONDS: {frame_times}",
+        "",
+        "PREVIOUS_CHAPTER_SUBTITLES:",
+        *(_format_utterance_line(utterance) for utterance in boundary_review.get("previous_chapter_subtitles", [])),
+        "",
+        "NEXT_CHAPTER_SUBTITLES:",
+        *(_format_utterance_line(utterance) for utterance in boundary_review.get("next_chapter_subtitles", [])),
+        "",
+        "BOUNDARY_SUBTITLE_CONTEXT:",
+        f"TIME_RANGE: {float(boundary_review.get('subtitle_context_time_range', {}).get('start_time', 0.0)):.3f}-{float(boundary_review.get('subtitle_context_time_range', {}).get('end_time', 0.0)):.3f}",
+        *(_format_utterance_line(utterance) for utterance in boundary_review.get("subtitle_context", [])),
     ]
-    for gap in gaps:
-        previous = chapters_by_id.get(gap.previous_chapter_id or "")
-        current = chapters_by_id.get(gap.next_chapter_id or "")
-        frame_times = ", ".join(f"{timestamp:.3f}" for timestamp in frame_timestamps_by_gap.get(gap.gap_id, []))
-        lines.extend(
-            [
-                f"GAP_ID: {gap.gap_id}",
-                f"GAP_TIME_RANGE: {gap.start_time:.3f}-{gap.end_time:.3f}",
-                f"FRAME_TIMESTAMPS_SECONDS: {frame_times}",
-                "PREVIOUS_CHAPTER:",
-                _format_chapter_context(previous) if previous is not None else "(none: this gap is before the first subtitle chapter)",
-                "NEXT_CHAPTER:",
-                _format_chapter_context(current) if current is not None else "(none: this gap is after the final subtitle chapter)",
-                "",
-            ]
-        )
     return "\n".join(lines)
 
 
-def _gap_frame_timestamps(gaps: Sequence[VisualGap]) -> tuple[list[float], dict[str, list[float]]]:
-    all_timestamps: list[float] = []
-    by_gap: dict[str, list[float]] = {}
-    for gap in gaps:
-        midpoint = _round_time((gap.start_time + gap.end_time) / 2.0)
-        timestamps = sorted({_round_time(gap.start_time), midpoint, _round_time(gap.end_time)})
-        by_gap[gap.gap_id] = timestamps
-        all_timestamps.extend(timestamps)
-    return sorted(set(all_timestamps)), by_gap
+def parse_boundary_reviews(
+    raw: dict[str, Any],
+    *,
+    valid_boundary_ids: set[str],
+    frame_times_by_boundary: dict[str, set[float]],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    raw_reviews = raw.get("boundary_reviews") if isinstance(raw, dict) else None
+    if not isinstance(raw_reviews, list):
+        return [], ["MLLM boundary response does not contain a boundary_reviews array."]
+    reviews: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    seen: set[str] = set()
+    for index, item in enumerate(raw_reviews, start=1):
+        if not isinstance(item, dict):
+            warnings.append(f"Boundary review #{index} is not an object.")
+            continue
+        boundary_id = str(item.get("boundary_id") or "").strip()
+        boundary_time = _safe_float(item.get("boundary_time"))
+        reason = str(item.get("reason") or "").strip()
+        if boundary_id not in valid_boundary_ids:
+            warnings.append(f"Boundary review #{index} has unknown boundary_id.")
+            continue
+        if boundary_time is None:
+            warnings.append(f"Boundary review #{index} has invalid boundary_time.")
+            continue
+        rounded_time = _round_time(boundary_time)
+        if rounded_time not in frame_times_by_boundary.get(boundary_id, set()):
+            warnings.append(f"Boundary review #{index} boundary_time is not one of the sampled frame timestamps.")
+            continue
+        if not reason:
+            warnings.append(f"Boundary review #{index} has empty reason.")
+            continue
+        seen.add(boundary_id)
+        reviews.append({"boundary_id": boundary_id, "boundary_time": rounded_time, "reason": reason})
+    missing = valid_boundary_ids - seen
+    if missing:
+        warnings.append(f"MLLM boundary response missed boundary ids: {', '.join(sorted(missing))}.")
+    return reviews, warnings
+
+
+def build_boundary_review_tasks(
+    *,
+    aligned_chapters: Sequence[dict[str, Any]],
+    scenes: Sequence[dict[str, Any]],
+    utterances: Sequence[Utterance],
+    video_duration_seconds: float,
+) -> list[dict[str, Any]]:
+    tasks: list[dict[str, Any]] = []
+    for previous, current in zip(aligned_chapters, aligned_chapters[1:]):
+        search_time_range = _boundary_search_time_range(
+            previous_chapter=previous,
+            next_chapter=current,
+            video_duration_seconds=video_duration_seconds,
+        )
+        candidates = select_boundary_candidates(
+            previous_chapter=previous,
+            next_chapter=current,
+            scenes=scenes,
+            video_duration_seconds=video_duration_seconds,
+        )
+        subtitle_context, subtitle_context_time_range = boundary_subtitle_context(
+            search_time_range=search_time_range,
+            utterances=utterances,
+        )
+        tasks.append(
+            {
+                "boundary_id": f"br_{len(tasks) + 1:03d}",
+                "previous_chapter": previous,
+                "next_chapter": current,
+                "candidates": candidates,
+                "search_time_range": search_time_range,
+                "previous_chapter_subtitles": [asdict(utterance) for utterance in _chapter_subtitle_context(chapter=previous, utterances=utterances)],
+                "next_chapter_subtitles": [asdict(utterance) for utterance in _chapter_subtitle_context(chapter=current, utterances=utterances)],
+                "subtitle_context": [asdict(utterance) for utterance in subtitle_context],
+                "subtitle_context_time_range": subtitle_context_time_range,
+            }
+        )
+    return tasks
+
+
+def build_final_chapters_from_boundary_reviews(
+    *,
+    video_id: str,
+    video_duration_seconds: float,
+    aligned_chapters: Sequence[dict[str, Any]],
+    boundary_tasks: Sequence[dict[str, Any]],
+    boundary_reviews: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    review_by_id = {str(review["boundary_id"]): review for review in boundary_reviews}
+    boundaries: list[float] = []
+    for task in boundary_tasks:
+        review = review_by_id.get(str(task["boundary_id"]))
+        if review is None:
+            frame_timestamps = list(task.get("frame_timestamps_seconds") or [])
+            if frame_timestamps:
+                boundaries.append(float(frame_timestamps[len(frame_timestamps) // 2]))
+                continue
+            search_range = task.get("search_time_range") or {}
+            boundaries.append((float(search_range.get("start_time", 0.0)) + float(search_range.get("end_time", video_duration_seconds))) / 2.0)
+        else:
+            boundaries.append(float(review["boundary_time"]))
+    points = [0.0, *sorted(set(_round_time(boundary) for boundary in boundaries)), _round_time(video_duration_seconds)]
+    chapters: list[dict[str, Any]] = []
+    for index, draft in enumerate(aligned_chapters, start=1):
+        if index >= len(points):
+            break
+        start_time = points[index - 1]
+        end_time = points[index]
+        if end_time <= start_time:
+            continue
+        chapter = dict(draft)
+        chapter["chapter_id"] = f"ch_{video_id}_{len(chapters) + 1:03d}"
+        chapter["video_id"] = video_id
+        chapter["start_time"] = start_time
+        chapter["end_time"] = end_time
+        chapters.append(chapter)
+    return chapters
 
 
 def _frame_extraction_to_dict(result: FrameExtractionResult | dict[str, Any]) -> dict[str, Any]:
@@ -453,109 +641,6 @@ def _frame_extraction_to_dict(result: FrameExtractionResult | dict[str, Any]) ->
             "fallback_reason": result.fallback_reason,
         }
     return dict(result)
-
-
-def parse_gap_reviews(raw: dict[str, Any], gaps: Sequence[VisualGap]) -> tuple[list[dict[str, Any]], list[str]]:
-    raw_reviews = raw.get("gap_reviews") if isinstance(raw, dict) else None
-    if not isinstance(raw_reviews, list):
-        return [], ["MLLM gap response does not contain a gap_reviews array."]
-    valid_gap_ids = {gap.gap_id for gap in gaps}
-    reviews: list[dict[str, Any]] = []
-    warnings: list[str] = []
-    seen: set[str] = set()
-    for index, item in enumerate(raw_reviews, start=1):
-        if not isinstance(item, dict):
-            warnings.append(f"Gap review #{index} is not an object.")
-            continue
-        gap_id = str(item.get("gap_id") or "").strip()
-        decision = str(item.get("decision") or "").strip()
-        reason = str(item.get("reason") or "").strip()
-        if gap_id not in valid_gap_ids:
-            warnings.append(f"Gap review #{index} has unknown gap_id.")
-            continue
-        if decision not in {"merge_previous", "merge_next", "standalone"}:
-            warnings.append(f"Gap review #{index} has invalid decision.")
-            continue
-        if not reason:
-            warnings.append(f"Gap review #{index} has empty reason.")
-            continue
-        title = str(item.get("title") or "").strip()
-        summary = str(item.get("summary") or "").strip()
-        if decision == "standalone" and (not title or not summary):
-            warnings.append(f"Gap review #{index} standalone decision needs title and summary.")
-            continue
-        seen.add(gap_id)
-        reviews.append(
-            {
-                "gap_id": gap_id,
-                "decision": decision,
-                "title": title if title else None,
-                "summary": summary if summary else None,
-                "reason": reason,
-            }
-        )
-    missing = valid_gap_ids - seen
-    if missing:
-        warnings.append(f"MLLM gap response missed gap ids: {', '.join(sorted(missing))}.")
-    return reviews, warnings
-
-
-def apply_gap_reviews(
-    *,
-    video_id: str,
-    aligned_chapters: Sequence[dict[str, Any]],
-    gaps: Sequence[VisualGap],
-    reviews: Sequence[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    chapters = [dict(chapter) for chapter in aligned_chapters]
-    review_by_gap_id = {str(review["gap_id"]): review for review in reviews}
-    chapter_by_id = {str(chapter["chapter_id"]): chapter for chapter in chapters}
-    standalone_chapters: list[dict[str, Any]] = []
-    for gap in gaps:
-        review = review_by_gap_id.get(gap.gap_id)
-        if review is None:
-            continue
-        if review["decision"] == "merge_previous":
-            target = chapter_by_id.get(gap.previous_chapter_id or "")
-            if target is None:
-                target = chapter_by_id.get(gap.next_chapter_id or "")
-                if target is not None:
-                    target["start_time"] = gap.start_time
-            else:
-                target["end_time"] = gap.end_time
-            if target is not None:
-                target["reason"] = f"{target['reason']} Gap review: {review['reason']}"
-        elif review["decision"] == "merge_next":
-            target = chapter_by_id.get(gap.next_chapter_id or "")
-            if target is None:
-                target = chapter_by_id.get(gap.previous_chapter_id or "")
-                if target is not None:
-                    target["end_time"] = gap.end_time
-            else:
-                target["start_time"] = gap.start_time
-            if target is not None:
-                target["reason"] = f"Gap review: {review['reason']} {target['reason']}"
-        elif review["decision"] == "standalone":
-            standalone_chapters.append(
-                {
-                    "chapter_id": f"ch_{video_id}_gap_{gap.gap_id[-3:]}",
-                    "video_id": video_id,
-                    "start_time": gap.start_time,
-                    "end_time": gap.end_time,
-                    "title": review["title"],
-                    "summary": review["summary"],
-                    "reason": review["reason"],
-                    "importance": 0.5,
-                    "source": "visual_gap_mllm",
-                    "gap_id": gap.gap_id,
-                }
-            )
-    result = [*chapters, *standalone_chapters]
-    result = [chapter for chapter in result if float(chapter["end_time"]) > float(chapter["start_time"])]
-    result.sort(key=lambda chapter: (float(chapter["start_time"]), float(chapter["end_time"])))
-    for index, chapter in enumerate(result, start=1):
-        chapter["chapter_id"] = f"ch_{video_id}_{index:03d}"
-    return result
 
 
 class StoryChapterSubtitleSceneAlignedPipeline:
@@ -613,6 +698,7 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         )
         drafts, parse_warnings = parse_draft_chapters(raw)
         self._log(video_id, f"subtitle draft LLM done drafts={len(drafts)} warnings={len(parse_warnings)}")
+        subtitle_chapters = subtitle_chapters_from_drafts(video_id=video_id, drafts=drafts)
 
         aligned_chapters, align_warnings = align_draft_chapters_to_scene_boundaries(
             video_id=video_id,
@@ -626,61 +712,92 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         align_warnings.extend(normalize_warnings)
         self._log(video_id, f"scene alignment done chapters={len(aligned_chapters)} warnings={len(align_warnings)}")
 
-        visual_gaps = find_visual_gaps(aligned_chapters, video_duration_seconds=video_duration_seconds)
-        self._log(video_id, f"visual gap discovery done gaps={len(visual_gaps)}")
-        gap_raw: dict[str, Any] = {"gap_reviews": []}
-        gap_reviews: list[dict[str, Any]] = []
-        gap_warnings: list[str] = []
-        frame_extraction: dict[str, Any] | None = None
-        frame_timestamps_by_gap: dict[str, list[float]] = {}
-        frame_timestamps_seconds: list[float] = []
-        if visual_gaps:
-            frame_timestamps_seconds, frame_timestamps_by_gap = _gap_frame_timestamps(visual_gaps)
-            self._log(
-                video_id,
-                f"gap frame extraction start gaps={len(visual_gaps)} frame_timestamps={len(frame_timestamps_seconds)} max_height={self.frame_max_height}",
-            )
-            with tempfile.TemporaryDirectory() as tmpdir:
-                frame_dir = Path(tmpdir) / "gap_frames"
-                extraction_result = self.extract_frames(
-                    video_path=video_path,
-                    output_dir=frame_dir,
-                    timestamps_seconds=frame_timestamps_seconds,
-                    max_height=self.frame_max_height,
-                )
-                frame_extraction = _frame_extraction_to_dict(extraction_result)
-                image_paths = sorted(frame_dir.glob("*.png"))
-                self._log(
-                    video_id,
-                    f"gap frame extraction done input_frames={len(frame_timestamps_seconds)} extracted_images={len(image_paths)}",
-                )
-                chapters_by_id = {str(chapter["chapter_id"]): chapter for chapter in aligned_chapters}
-                self._log(
-                    video_id,
-                    f"gap MLLM review start gaps={len(visual_gaps)} input_frames={len(image_paths)}",
-                )
-                gap_raw = self.llm_client.generate_json_multimodal(
-                    system_prompt=build_gap_review_system_prompt(),
-                    user_prompt=build_gap_review_user_prompt(
-                        video_id=video_id,
-                        gaps=visual_gaps,
-                        chapters_by_id=chapters_by_id,
-                        frame_timestamps_by_gap=frame_timestamps_by_gap,
-                    ),
-                    image_paths=image_paths,
-                    frame_timestamps_seconds=frame_timestamps_seconds,
-                    max_tokens=3200,
-                )
-                gap_reviews, gap_warnings = parse_gap_reviews(gap_raw, visual_gaps)
-                self._log(video_id, f"gap MLLM review done reviews={len(gap_reviews)} warnings={len(gap_warnings)}")
-
-        story_chapters = apply_gap_reviews(
-            video_id=video_id,
-            aligned_chapters=aligned_chapters,
-            gaps=visual_gaps,
-            reviews=gap_reviews,
+        boundary_tasks = build_boundary_review_tasks(
+            aligned_chapters=subtitle_chapters,
+            scenes=scenes,
+            utterances=utterances,
+            video_duration_seconds=video_duration_seconds,
         )
-        self._log(video_id, f"gap review merge done chapters={len(story_chapters)} warnings={len(gap_warnings)}")
+        self._log(video_id, f"boundary review task build done boundaries={len(boundary_tasks)}")
+        boundary_raw: dict[str, Any] = {"boundary_reviews": [], "boundary_review_calls": {}}
+        boundary_reviews: list[dict[str, Any]] = []
+        boundary_warnings: list[str] = []
+        frame_extraction: dict[str, Any] | None = None
+        frame_timestamps_by_boundary: dict[str, list[float]] = {}
+        frame_timestamps_seconds: list[float] = []
+        if boundary_tasks:
+            frame_extraction = {"per_boundary": {}, "frame_count": 0}
+            for task in boundary_tasks:
+                boundary_id = str(task["boundary_id"])
+                task_frame_timestamps, task_frame_timestamps_by_boundary = boundary_frame_timestamps(
+                    [task],
+                    video_duration_seconds=video_duration_seconds,
+                )
+                task["frame_timestamps_seconds"] = task_frame_timestamps
+                frame_timestamps_by_boundary.update(task_frame_timestamps_by_boundary)
+                frame_timestamps_seconds.extend(task_frame_timestamps)
+                self._log(
+                    video_id,
+                    f"boundary frame extraction start boundary_id={boundary_id} input_frames={len(task_frame_timestamps)} max_height={self.frame_max_height}",
+                )
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    frame_dir = Path(tmpdir) / boundary_id
+                    extraction_result = self.extract_frames(
+                        video_path=video_path,
+                        output_dir=frame_dir,
+                        timestamps_seconds=task_frame_timestamps,
+                        max_height=self.frame_max_height,
+                    )
+                    extraction_dict = _frame_extraction_to_dict(extraction_result)
+                    image_paths = sorted(frame_dir.glob("*.png"))
+                    extraction_dict["input_frame_count"] = len(task_frame_timestamps)
+                    extraction_dict["extracted_image_count"] = len(image_paths)
+                    frame_extraction["per_boundary"][boundary_id] = extraction_dict
+                    frame_extraction["frame_count"] = int(frame_extraction["frame_count"]) + len(image_paths)
+                    self._log(
+                        video_id,
+                        f"boundary frame extraction done boundary_id={boundary_id} input_frames={len(task_frame_timestamps)} extracted_images={len(image_paths)}",
+                    )
+                    self._log(
+                        video_id,
+                        f"boundary MLLM review start boundary_id={boundary_id} input_frames={len(image_paths)}",
+                    )
+                    task_raw = self.llm_client.generate_json_multimodal(
+                        system_prompt=build_boundary_review_system_prompt(),
+                        user_prompt=build_boundary_review_user_prompt(
+                            video_id=video_id,
+                            boundary_review=task,
+                            frame_timestamps_seconds=task_frame_timestamps,
+                        ),
+                        image_paths=image_paths,
+                        frame_timestamps_seconds=task_frame_timestamps,
+                        max_tokens=1600,
+                    )
+                    boundary_raw["boundary_review_calls"][boundary_id] = task_raw
+                    raw_reviews = task_raw.get("boundary_reviews") if isinstance(task_raw, dict) else None
+                    if isinstance(raw_reviews, list):
+                        boundary_raw["boundary_reviews"].extend(raw_reviews)
+                    parsed_reviews, parsed_warnings = parse_boundary_reviews(
+                        task_raw,
+                        valid_boundary_ids={boundary_id},
+                        frame_times_by_boundary={boundary_id: set(task_frame_timestamps)},
+                    )
+                    boundary_reviews.extend(parsed_reviews)
+                    boundary_warnings.extend(parsed_warnings)
+                    self._log(
+                        video_id,
+                        f"boundary MLLM review done boundary_id={boundary_id} reviews={len(parsed_reviews)} warnings={len(parsed_warnings)}",
+                    )
+            frame_timestamps_seconds = sorted(set(frame_timestamps_seconds))
+
+        story_chapters = build_final_chapters_from_boundary_reviews(
+            video_id=video_id,
+            video_duration_seconds=video_duration_seconds,
+            aligned_chapters=subtitle_chapters,
+            boundary_tasks=boundary_tasks,
+            boundary_reviews=boundary_reviews,
+        )
+        self._log(video_id, f"boundary review merge done chapters={len(story_chapters)} warnings={len(boundary_warnings)}")
 
         output_dir = output_root / video_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -698,18 +815,18 @@ class StoryChapterSubtitleSceneAlignedPipeline:
             "utterances": [asdict(utterance) for utterance in utterances],
             "scenes": list(scenes),
             "scene_boundaries": list(scene_boundaries),
-            "subtitle_chapters": [asdict(draft) for draft in drafts],
+            "subtitle_chapters": subtitle_chapters,
             "aligned_subtitle_chapters": aligned_chapters,
-            "visual_gaps": [asdict(gap) for gap in visual_gaps],
+            "boundary_review_tasks": boundary_tasks,
             "frame_timestamps_seconds": frame_timestamps_seconds,
-            "frame_timestamps_by_gap": frame_timestamps_by_gap,
+            "frame_timestamps_by_boundary": frame_timestamps_by_boundary,
             "frame_extraction": frame_extraction,
-            "gap_reviews": gap_reviews,
-            "gap_review_raw": gap_raw,
+            "boundary_reviews": boundary_reviews,
+            "boundary_review_raw": boundary_raw,
             "draft_chapters": [asdict(draft) for draft in drafts],
             "llm_raw": raw,
             "story_chapters": story_chapters,
-            "warnings": [*parse_warnings, *align_warnings, *gap_warnings],
+            "warnings": [*parse_warnings, *align_warnings, *boundary_warnings],
         }
         output_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         self._log(video_id, f"write output done path={output_path}")
@@ -720,11 +837,14 @@ __all__ = [
     "DraftChapter",
     "StoryChapterSubtitleSceneAlignedPipeline",
     "align_draft_chapters_to_scene_boundaries",
+    "build_boundary_review_system_prompt",
+    "build_boundary_review_user_prompt",
     "build_draft_chapter_system_prompt",
     "build_draft_chapter_user_prompt",
-    "build_gap_review_system_prompt",
-    "build_gap_review_user_prompt",
-    "find_visual_gaps",
-    "parse_gap_reviews",
+    "build_final_chapters_from_boundary_reviews",
+    "boundary_frame_timestamps",
+    "parse_boundary_reviews",
     "parse_draft_chapters",
+    "select_boundary_candidates",
+    "subtitle_chapters_from_drafts",
 ]

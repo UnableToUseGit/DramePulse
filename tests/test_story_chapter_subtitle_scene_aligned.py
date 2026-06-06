@@ -9,8 +9,12 @@ from pipelines.story_chapter.baseline_text import Utterance
 from pipelines.story_chapter.subtitle_scene_aligned import (
     StoryChapterSubtitleSceneAlignedPipeline,
     align_draft_chapters_to_scene_boundaries,
+    boundary_frame_timestamps,
+    build_boundary_review_user_prompt,
     build_draft_chapter_user_prompt,
+    parse_boundary_reviews,
     parse_draft_chapters,
+    select_boundary_candidates,
 )
 
 
@@ -62,6 +66,83 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(warnings, [])
         self.assertEqual(drafts[0].start_reason, "这是新冲突的第一句台词。")
         self.assertEqual(drafts[0].end_reason, "这句台词完成了本章冲突。")
+
+    def test_boundary_review_prompt_uses_subtitles_and_frames_without_candidate_list(self) -> None:
+        chapters = [
+            {
+                "chapter_id": "ch_demo_001",
+                "video_id": "demo",
+                "start_time": 0.0,
+                "end_time": 12.0,
+                "title": "上章",
+                "summary": "上一章摘要。",
+                "reason": "上一章语义完整。",
+            },
+            {
+                "chapter_id": "ch_demo_002",
+                "video_id": "demo",
+                "start_time": 10.0,
+                "end_time": 30.0,
+                "title": "下章",
+                "summary": "下一章摘要。",
+                "reason": "下一章语义开始。",
+            },
+        ]
+        scenes = [
+            {"scene_id": "s1", "start_time": 0.0, "end_time": 9.0},
+            {"scene_id": "s2", "start_time": 9.0, "end_time": 15.0},
+            {"scene_id": "s3", "start_time": 15.0, "end_time": 30.0},
+        ]
+
+        candidates = select_boundary_candidates(
+            previous_chapter=chapters[0],
+            next_chapter=chapters[1],
+            scenes=scenes,
+            video_duration_seconds=30.0,
+        )
+        subtitle_context = [
+            Utterance("u_001", 8.5, 9.5, "上一章最后一句。", "speaker_a"),
+            Utterance("u_002", 14.5, 15.5, "下一章第一句。", "speaker_b"),
+        ]
+        prompt = build_boundary_review_user_prompt(
+            video_id="demo",
+            boundary_review={
+                "boundary_id": "br_001",
+                "previous_chapter": chapters[0],
+                "next_chapter": chapters[1],
+                "candidates": candidates,
+                "previous_chapter_subtitles": [subtitle_context[0]],
+                "next_chapter_subtitles": [subtitle_context[1]],
+                "subtitle_context": subtitle_context,
+                "subtitle_context_time_range": {"start_time": 2.0, "end_time": 22.0},
+                "search_time_range": {"start_time": 2.0, "end_time": 22.0},
+            },
+            frame_timestamps_seconds=[9.0, 15.0],
+        )
+        reviews, warnings = parse_boundary_reviews(
+            {"boundary_reviews": [{"boundary_id": "br_001", "boundary_time": 15.0, "reason": "15 秒是视觉转场。"}]},
+            valid_boundary_ids={"br_001"},
+            frame_times_by_boundary={"br_001": {9.0, 15.0}},
+        )
+
+        self.assertEqual([candidate["time"] for candidate in candidates], [9.0, 11.0, 15.0])
+        self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", prompt)
+        self.assertIn("NEXT_CHAPTER_SUBTITLES", prompt)
+        self.assertNotIn("CANDIDATE_BOUNDARIES", prompt)
+        self.assertNotIn("title:", prompt)
+        self.assertNotIn("summary:", prompt)
+        self.assertIn("BOUNDARY_SUBTITLE_CONTEXT", prompt)
+        self.assertIn("u_001 [8.500-9.500] speaker=speaker_a: 上一章最后一句。", prompt)
+        self.assertIn("u_002 [14.500-15.500] speaker=speaker_b: 下一章第一句。", prompt)
+        self.assertEqual(warnings, [])
+        self.assertEqual(reviews[0]["boundary_time"], 15.0)
+        self.assertEqual(reviews[0]["reason"], "15 秒是视觉转场。")
+        timestamps, by_boundary = boundary_frame_timestamps(
+            [{"boundary_id": "br_001", "search_time_range": {"start_time": 2.0, "end_time": 5.0}}],
+            video_duration_seconds=30.0,
+        )
+        self.assertEqual(timestamps, [2.0, 3.0, 4.0, 5.0])
+        self.assertEqual(by_boundary["br_001"], timestamps)
 
     def test_align_draft_chapters_aligns_subtitle_ranges_to_scene_ranges(self) -> None:
         drafts, warnings = parse_draft_chapters(
@@ -117,7 +198,7 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(chapters[1]["alignment"]["subtitle_end_time"], 136.0)
         self.assertEqual(chapters[1]["reason"], "剧情转入汇款返乡。")
 
-    def test_pipeline_reviews_visual_gaps_with_mllm_and_inserts_standalone_chapters(self) -> None:
+    def test_pipeline_uses_mllm_boundary_reviews_for_final_continuous_chapters(self) -> None:
         subtitle_payload = {
             "chapters": [
                 {
@@ -140,32 +221,16 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 },
             ]
         }
-        gap_payload = {
-            "gap_reviews": [
+        boundary_payload = {
+            "boundary_reviews": [
                 {
-                    "gap_id": "gap_001",
-                    "decision": "merge_next",
-                    "title": None,
-                    "summary": None,
-                    "reason": "片头建立下一章发生地点，应并入下一章。",
-                },
-                {
-                    "gap_id": "gap_002",
-                    "decision": "standalone",
-                    "title": "骑车返乡",
-                    "summary": "两人骑摩托踏上回家路。",
-                    "reason": "gap 内画面是完整赶路行动，不只是前后章节转场。",
-                },
-                {
-                    "gap_id": "gap_003",
-                    "decision": "merge_previous",
-                    "title": None,
-                    "summary": None,
-                    "reason": "片尾是上一章冲突结束后的收尾镜头。",
+                    "boundary_id": "br_001",
+                    "boundary_time": 6.0,
+                    "reason": "6 秒是骑车过场结束并进入下一段冲突的转场。",
                 }
             ]
         }
-        client = FakeSubtitleSceneClient(subtitle_payload, gap_payload)
+        client = FakeSubtitleSceneClient(subtitle_payload, boundary_payload)
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             transcription_path = root / "video.transcription.json"
@@ -237,22 +302,89 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         self.assertEqual(output["generation_mode"], "subtitle_scene_aligned")
         self.assertEqual(
             [(chapter["start_time"], chapter["end_time"], chapter["title"]) for chapter in output["story_chapters"]],
-            [(0.0, 4.0, "开场冲突"), (4.0, 6.0, "骑车返乡"), (6.0, 12.0, "冲突收束")],
+            [(0.0, 6.0, "开场冲突"), (6.0, 12.0, "冲突收束")],
         )
-        self.assertEqual(
-            [(gap["start_time"], gap["end_time"], gap["previous_chapter_id"], gap["next_chapter_id"]) for gap in output["visual_gaps"]],
-            [(0.0, 2.0, None, "ch_demo_ep01_001"), (4.0, 6.0, "ch_demo_ep01_001", "ch_demo_ep01_002"), (8.0, 12.0, "ch_demo_ep01_002", None)],
-        )
-        self.assertEqual([review["decision"] for review in output["gap_reviews"]], ["merge_next", "standalone", "merge_previous"])
-        self.assertEqual(output["gap_reviews"][1]["reason"], "gap 内画面是完整赶路行动，不只是前后章节转场。")
+        self.assertEqual(output["boundary_reviews"][0]["boundary_time"], 6.0)
+        self.assertEqual(output["boundary_reviews"][0]["reason"], "6 秒是骑车过场结束并进入下一段冲突的转场。")
         self.assertEqual(output["subtitle_chapters"][0]["reason"], "第一句台词建立冲突。")
         self.assertEqual(len(client.calls), 2)
-        self.assertIn("PREVIOUS_CHAPTER", client.calls[1]["user_prompt"])
-        self.assertIn("NEXT_CHAPTER", client.calls[1]["user_prompt"])
+        self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
+        self.assertIn("NEXT_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
+        self.assertNotIn("CANDIDATE_BOUNDARIES", client.calls[1]["user_prompt"])
         self.assertTrue(frame_calls)
         self.assertIn("你是谁？", client.calls[0]["user_prompt"])
 
-    def test_pipeline_clamps_overlapping_aligned_subtitle_chapters(self) -> None:
+    def test_pipeline_reviews_each_boundary_in_a_separate_mllm_call(self) -> None:
+        subtitle_payload = {
+            "chapters": [
+                {"start_utterance_id": "u_001", "start_time": 1.0, "end_utterance_id": "u_001", "end_time": 2.0, "title": "一", "summary": "一", "reason": "一"},
+                {"start_utterance_id": "u_002", "start_time": 8.0, "end_utterance_id": "u_002", "end_time": 9.0, "title": "二", "summary": "二", "reason": "二"},
+                {"start_utterance_id": "u_003", "start_time": 15.0, "end_utterance_id": "u_003", "end_time": 16.0, "title": "三", "summary": "三", "reason": "三"},
+            ]
+        }
+        client = FakeSubtitleSceneClient(
+            subtitle_payload,
+            {"boundary_reviews": [{"boundary_id": "br_001", "boundary_time": 5.0, "reason": "第一处变化。"}]},
+            {"boundary_reviews": [{"boundary_id": "br_002", "boundary_time": 12.0, "reason": "第二处变化。"}]},
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            transcription_path = root / "video.transcription.json"
+            scene_path = root / "scene_detection.json"
+            video_path = root / "video.mp4"
+            video_path.write_bytes(b"video")
+            transcription_path.write_text(
+                json.dumps(
+                    {
+                        "raw_response": {
+                            "chunks": [
+                                {
+                                    "offset_seconds": 0,
+                                    "raw_result": {
+                                        "transcripts": [
+                                            {
+                                                "sentences": [
+                                                    {"begin_time": 1000, "end_time": 2000, "text": "第一段。"},
+                                                    {"begin_time": 8000, "end_time": 9000, "text": "第二段。"},
+                                                    {"begin_time": 15000, "end_time": 16000, "text": "第三段。"},
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                }
+                            ]
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            scene_path.write_text(
+                json.dumps({"scenes": [{"scene_id": "s1", "start_time": 0.0, "end_time": 20.0}]}),
+                encoding="utf-8",
+            )
+
+            def fake_extract_frames(**kwargs):
+                output_dir = Path(kwargs["output_dir"])
+                output_dir.mkdir(parents=True, exist_ok=True)
+                for index, _timestamp in enumerate(kwargs["timestamps_seconds"], start=1):
+                    (output_dir / f"frame_{index:03d}.png").write_bytes(b"png")
+                return {"backend": "fake", "frame_count": len(kwargs["timestamps_seconds"])}
+
+            StoryChapterSubtitleSceneAlignedPipeline(llm_client=client, extract_frames=fake_extract_frames).run(
+                video_id="demo_three",
+                video_path=video_path,
+                video_metadata={"duration_seconds": 20.0},
+                transcription_path=transcription_path,
+                scene_detection_path=scene_path,
+                output_root=root / "output",
+            )
+
+        self.assertEqual(len(client.calls), 3)
+        self.assertIn("BOUNDARY_ID: br_001", client.calls[1]["user_prompt"])
+        self.assertNotIn("BOUNDARY_ID: br_002", client.calls[1]["user_prompt"])
+        self.assertIn("BOUNDARY_ID: br_002", client.calls[2]["user_prompt"])
+
+    def test_pipeline_uses_raw_subtitle_ranges_for_boundary_tasks(self) -> None:
         subtitle_payload = {
             "chapters": [
                 {
@@ -275,7 +407,16 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 },
             ]
         }
-        client = FakeSubtitleSceneClient(subtitle_payload)
+        boundary_payload = {
+            "boundary_reviews": [
+                {
+                    "boundary_id": "br_001",
+                    "boundary_time": 5.0,
+                    "reason": "5 秒这一帧是两个字幕语义章节中间的粗分界点。",
+                }
+            ]
+        }
+        client = FakeSubtitleSceneClient(subtitle_payload, boundary_payload)
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             transcription_path = root / "video.transcription.json"
@@ -318,7 +459,14 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            output_path = StoryChapterSubtitleSceneAlignedPipeline(llm_client=client).run(
+            def fake_extract_frames(**kwargs):
+                output_dir = Path(kwargs["output_dir"])
+                output_dir.mkdir(parents=True, exist_ok=True)
+                for index, _timestamp in enumerate(kwargs["timestamps_seconds"], start=1):
+                    (output_dir / f"frame_{index:03d}.png").write_bytes(b"png")
+                return {"backend": "fake", "frame_count": len(kwargs["timestamps_seconds"])}
+
+            output_path = StoryChapterSubtitleSceneAlignedPipeline(llm_client=client, extract_frames=fake_extract_frames).run(
                 video_id="demo_overlap",
                 video_path=video_path,
                 video_metadata={"duration_seconds": 8.0},
@@ -332,7 +480,7 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
             [(chapter["start_time"], chapter["end_time"]) for chapter in output["story_chapters"]],
             [(0.0, 5.0), (5.0, 8.0)],
         )
-        self.assertIn("Resolved aligned subtitle chapter overlap", output["warnings"][0])
+        self.assertEqual(output["boundary_reviews"][0]["boundary_time"], 5.0)
 
 
 if __name__ == "__main__":
