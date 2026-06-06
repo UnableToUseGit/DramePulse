@@ -66,7 +66,7 @@ Doubao-Seed-2.0-pro
 ## 5. 当前约束
 
 - Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核；
-- Story Chapter subtitle-scene aligned workflow 先由 LLM 选择章节结束字幕及其 `end_time`，再将边界对齐到该字幕所在镜头的 `end_time`；
+- Story Chapter subtitle-scene aligned workflow 先由 LLM 选择章节覆盖的首尾字幕并给出 `reason`，再对齐到镜头边界；相邻台词章节之间的视觉空缺统一交给 MLLM 判断并入前后章节或独立成章；
 - `thinking` 默认关闭；
 - 旧交互方案生成 pipeline 已移除；
 - `example_output/` 中保存可直接查看的样例结果；
