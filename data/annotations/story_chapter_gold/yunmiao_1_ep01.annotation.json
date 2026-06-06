@@ -1,0 +1,28 @@
+{
+  "video_id": "yunmiao_1_ep01",
+  "duration_seconds": 173.54,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 109.9,
+      "ending_chapter_summary": "女主进入府邸"
+    }
+  ],
+  "final_chapter_summary": "大少爷窗前向老爷诉苦，阐述自己怎么才能找到你想见的人",
+  "chapters": [
+    {
+      "chapter_id": "gold_yunmiao_1_ep01_001",
+      "video_id": "yunmiao_1_ep01",
+      "start_time": 0.0,
+      "end_time": 109.9,
+      "summary": "女主进入府邸"
+    },
+    {
+      "chapter_id": "gold_yunmiao_1_ep01_002",
+      "video_id": "yunmiao_1_ep01",
+      "start_time": 109.9,
+      "end_time": 173.54,
+      "summary": "大少爷窗前向老爷诉苦，阐述自己怎么才能找到你想见的人"
+    }
+  ]
+}
