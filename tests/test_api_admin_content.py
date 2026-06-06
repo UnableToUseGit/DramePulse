@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 from fastapi.testclient import TestClient
+import networkx as nx
 
 from services.api.main import create_app
 from services.api.scripts.init_local_dev import init_local_dev
@@ -18,13 +19,14 @@ class AdminContentApiTest(unittest.TestCase):
         self.tmpdir = tempfile.TemporaryDirectory()
         self.previous_env = {
             name: os.environ.get(name)
-            for name in ["DRAMEPULSE_MODE", "SQLITE_PATH", "LOCAL_OSS_ROOT", "LOCAL_OSS_BUCKET"]
+            for name in ["DRAMEPULSE_MODE", "SQLITE_PATH", "LOCAL_OSS_ROOT", "LOCAL_OSS_BUCKET", "LIGHTRAG_WORKING_ROOT"]
         }
         self.tmp_path = Path(self.tmpdir.name)
         os.environ["DRAMEPULSE_MODE"] = "local"
         os.environ["SQLITE_PATH"] = str(self.tmp_path / "dramepulse.sqlite")
         os.environ["LOCAL_OSS_ROOT"] = str(self.tmp_path)
         os.environ["LOCAL_OSS_BUCKET"] = "local"
+        os.environ["LIGHTRAG_WORKING_ROOT"] = str(self.tmp_path / "story_qa")
         (self.tmp_path / "demo_video.mp4").write_bytes(b"0" * 2048)
         init_local_dev()
         self.client = TestClient(create_app())
@@ -138,6 +140,43 @@ class AdminContentApiTest(unittest.TestCase):
         listed = next(item for item in list_response.json()["series"] if item["series_id"] == "tianxiadiyiwanku")
         self.assertEqual(listed["status"], "active")
         self.assertIn("tianxiadiyiwanku_ep01", {item["video_id"] for item in videos_response.json()["videos"]})
+
+    def test_story_graph_list_and_detail_read_lightrag_graphml(self) -> None:
+        self._insert_video("graphdemo_ep01", "graphdemo", "Graph Demo", 1)
+        self._write_story_graph("graphdemo")
+
+        list_response = self.client.get("/api/admin/story-graphs")
+        detail_response = self.client.get("/api/admin/story-graphs/graphdemo")
+
+        self.assertEqual(list_response.status_code, 200)
+        graph = next(item for item in list_response.json()["graphs"] if item["series_id"] == "graphdemo")
+        self.assertEqual(graph["series_name"], "Graph Demo")
+        self.assertEqual(graph["node_count"], 3)
+        self.assertEqual(graph["edge_count"], 2)
+        self.assertTrue(graph["available"])
+
+        self.assertEqual(detail_response.status_code, 200)
+        payload = detail_response.json()
+        self.assertEqual(payload["total_node_count"], 3)
+        self.assertEqual(payload["total_edge_count"], 2)
+        self.assertEqual({node["label"] for node in payload["nodes"]}, {"Hero", "Friend", "Factory"})
+        self.assertEqual(payload["edges"][0]["source"], "Hero")
+
+    def test_story_graph_search_returns_matching_node_and_neighbors(self) -> None:
+        self._write_story_graph("graphdemo")
+
+        response = self.client.get("/api/admin/story-graphs/graphdemo?q=Hero")
+
+        self.assertEqual(response.status_code, 200)
+        labels = {node["label"] for node in response.json()["nodes"]}
+        self.assertIn("Hero", labels)
+        self.assertIn("Friend", labels)
+        self.assertIn("Factory", labels)
+
+    def test_story_graph_missing_returns_404(self) -> None:
+        response = self.client.get("/api/admin/story-graphs/missing")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_delete_series_rejects_missing_series(self) -> None:
         response = self.client.delete("/api/admin/series/missing")
@@ -363,6 +402,23 @@ class AdminContentApiTest(unittest.TestCase):
             connection.commit()
         finally:
             connection.close()
+
+    def _write_story_graph(self, series_id: str) -> None:
+        graph_dir = self.tmp_path / "story_qa" / series_id / "lightrag"
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        graph = nx.Graph()
+        graph.add_node(
+            "Hero",
+            entity_id="Hero",
+            entity_type="person",
+            description="Main character",
+            chapter_ids="[1, 2]",
+        )
+        graph.add_node("Friend", entity_id="Friend", entity_type="person", description="Helper", chapter_ids="[1]")
+        graph.add_node("Factory", entity_id="Factory", entity_type="location", description="Workplace", chapter_ids="[2]")
+        graph.add_edge("Hero", "Friend", keywords="ALLY", description="Friends", weight=2.0, chapter_ids="[1]")
+        graph.add_edge("Hero", "Factory", keywords="WORKS_AT", description="Works there", weight=1.0, chapter_ids="[2]")
+        nx.write_graphml(graph, graph_dir / "graph_chunk_entity_relation.graphml")
 
 
 if __name__ == "__main__":

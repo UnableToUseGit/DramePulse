@@ -48,7 +48,7 @@ export function PlayerChrome({
           <Text style={styles.tag}>真实弹幕</Text>
         </View>
         <Text numberOfLines={1} style={styles.description}>
-          后端视频流 · SQLite videos 表
+          短剧高光互动 Demo
         </Text>
       </View>
 

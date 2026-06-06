@@ -118,6 +118,8 @@ def list_series() -> list[dict[str, Any]]:
             FROM videos v
             {("LEFT JOIN series_assets a ON a.series_id = COALESCE(NULLIF(v.series_id, ''), v.video_id) AND a.status = 'active'" if has_series_assets else "")}
             WHERE v.status = 'active'
+              AND v.series_id IS NOT NULL
+              AND v.series_id <> ''
             GROUP BY COALESCE(NULLIF(v.series_id, ''), v.video_id)
             ORDER BY series_id
             """

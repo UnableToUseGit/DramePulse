@@ -8,6 +8,7 @@ import {
   Eye,
   FileImage,
   FolderPlus,
+  GitBranch,
   MessageSquareText,
   MousePointerClick,
   RefreshCcw,
@@ -63,6 +64,10 @@ interface DashboardVideo {
   has_danmaku: boolean;
   has_storyboard: boolean;
   asset_status: string;
+  analysis_status: string;
+  analysis_stage?: string | null;
+  analysis_job_id?: string | null;
+  analysis_result_path?: string | null;
 }
 
 interface DashboardEvent {
@@ -105,6 +110,28 @@ interface SeriesEpisode {
   size: number;
   status: string;
   updated_at?: string | null;
+  analysis_status: string;
+  analysis_stage?: string | null;
+  analysis_job_id?: string | null;
+  analysis_result_path?: string | null;
+}
+
+interface AnalysisJob {
+  job_id?: string | null;
+  video_id: string;
+  status: string;
+  stage: string;
+  output_dir?: string | null;
+  result_text_path?: string | null;
+  error_message?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+}
+
+interface AnalysisResult {
+  video_id: string;
+  job: AnalysisJob;
+  content: string;
 }
 
 interface SeriesDetail {
@@ -122,12 +149,54 @@ interface FolderVideo {
 
 const VIDEO_CHUNK_SIZE = 512 * 1024;
 
-type ActiveTab = "dashboard" | "content";
+type ActiveTab = "dashboard" | "content" | "storyGraph";
 
 interface AuthState {
   authenticated: boolean;
   username?: string | null;
 }
+
+interface StoryGraphSummary {
+  series_id: string;
+  series_name?: string | null;
+  node_count: number;
+  edge_count: number;
+  available: boolean;
+}
+
+interface StoryGraphNode {
+  id: string;
+  label: string;
+  entity_type: string;
+  description: string;
+  degree: number;
+  chapter_ids: number[];
+}
+
+interface StoryGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  keywords: string;
+  description: string;
+  weight?: number | null;
+  chapter_ids: number[];
+}
+
+interface StoryGraphDetail {
+  series_id: string;
+  node_count: number;
+  edge_count: number;
+  total_node_count: number;
+  total_edge_count: number;
+  nodes: StoryGraphNode[];
+  edges: StoryGraphEdge[];
+}
+
+type StoryGraphSelection =
+  | { type: "node"; item: StoryGraphNode }
+  | { type: "edge"; item: StoryGraphEdge }
+  | null;
 
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
@@ -160,6 +229,20 @@ function assetStatusClass(status: string): string {
     return "status-deleted";
   }
   return "status-ready";
+}
+
+function analysisStatusLabel(status: string): string {
+  if (status === "running") return "解析中";
+  if (status === "completed") return "已解析";
+  if (status === "failed") return "解析失败";
+  return "未解析";
+}
+
+function analysisStatusClass(status: string): string {
+  if (status === "completed") return "status-ready";
+  if (status === "running") return "status-warning";
+  if (status === "failed") return "status-danger";
+  return "status-deleted";
 }
 
 function episodeLabel(video: DashboardVideo): string {
@@ -591,6 +674,8 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
   const [danmakuFiles, setDanmakuFiles] = React.useState<Record<string, File | null>>({});
   const [message, setMessage] = React.useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = React.useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = React.useState<AnalysisResult | null>(null);
+  const [busyAnalysisVideoId, setBusyAnalysisVideoId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const folderInputRef = React.useRef<HTMLInputElement | null>(null);
   const didInitialSelectRef = React.useRef(false);
@@ -655,6 +740,16 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
     input.setAttribute("webkitdirectory", "");
     input.setAttribute("directory", "");
   }, []);
+
+  React.useEffect(() => {
+    if (!activeSeriesId || !displayEpisodes.some((episode) => episode.analysis_status === "running")) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void loadDetail(activeSeriesId).catch((err) => setMessage(err instanceof Error ? err.message : "解析状态刷新失败"));
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [activeSeriesId, displayEpisodes, loadDetail]);
 
   async function reloadAll() {
     await loadSeries();
@@ -732,6 +827,41 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
       return adminFetch(`/api/admin/series/${activeSeriesId}/episodes/${episodeLabelValue}/danmaku`, { method: "POST", body });
     });
     setDanmakuFiles((current) => ({ ...current, [episode.video_id]: null }));
+  }
+
+  async function startEpisodeAnalysis(episode: SeriesEpisode) {
+    setBusyAnalysisVideoId(episode.video_id);
+    setMessage(null);
+    try {
+      const response = await adminFetch(`/api/admin/videos/${episode.video_id}/analysis-jobs`, { method: "POST" });
+      if (!response.ok) {
+        throw new Error(await readResponse(response));
+      }
+      const job = (await response.json()) as AnalysisJob;
+      setMessage(job.status === "running" ? "解析任务已启动" : "解析任务已创建");
+      await loadDetail(activeSeriesId);
+      await onUploaded();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "解析任务创建失败");
+    } finally {
+      setBusyAnalysisVideoId(null);
+    }
+  }
+
+  async function viewEpisodeAnalysisResult(episode: SeriesEpisode) {
+    setBusyAnalysisVideoId(episode.video_id);
+    setMessage(null);
+    try {
+      const response = await adminFetch(`/api/admin/videos/${episode.video_id}/analysis-result`);
+      if (!response.ok) {
+        throw new Error(await readResponse(response));
+      }
+      setAnalysisResult((await response.json()) as AnalysisResult);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "解析结果读取失败");
+    } finally {
+      setBusyAnalysisVideoId(null);
+    }
   }
 
   async function deleteSeries(series: SeriesSummary) {
@@ -952,16 +1082,26 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
               <span>标题</span>
               <span>视频 OSS Key</span>
               <span>弹幕</span>
+              <span>解析</span>
               <span>操作</span>
             </div>
             {displayEpisodes.map((episode) => {
               const selectedFile = danmakuFiles[episode.video_id];
+              const isAnalysisBusy = busyAnalysisVideoId === episode.video_id || episode.analysis_status === "running";
+              const canStartAnalysis = episode.analysis_status !== "running";
+              const canViewAnalysis = episode.analysis_status === "completed";
               return (
                 <div className="table-row episode-row" key={episode.video_id}>
                   <span>{episode.episode_label || episode.episode_no}</span>
                   <span className="strong">{episode.title}</span>
                   <span>{episode.oss_object_key}</span>
                   <span>{episode.douyin_json_path || "未上传"}</span>
+                  <span className="analysis-cell">
+                    <span className={analysisStatusClass(episode.analysis_status)}>
+                      {analysisStatusLabel(episode.analysis_status)}
+                    </span>
+                    {episode.analysis_stage && episode.analysis_status === "running" ? <em>{episode.analysis_stage}</em> : null}
+                  </span>
                   <span className="episode-actions">
                     <label className="icon-file-button">
                       <MessageSquareText size={15} />
@@ -980,6 +1120,24 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
                       <Upload size={15} />
                       上传弹幕
                     </button>
+                    <button
+                      className="secondary-button"
+                      disabled={busy || isAnalysisBusy || !canStartAnalysis}
+                      type="button"
+                      onClick={() => startEpisodeAnalysis(episode)}
+                    >
+                      <Activity size={15} />
+                      {episode.analysis_status === "failed" ? "重试解析" : "解析"}
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={busy || busyAnalysisVideoId === episode.video_id || !canViewAnalysis}
+                      type="button"
+                      onClick={() => viewEpisodeAnalysisResult(episode)}
+                    >
+                      <Eye size={15} />
+                      查看
+                    </button>
                   </span>
                 </div>
               );
@@ -987,9 +1145,492 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
           </div>
         </section>
 
+        {analysisResult ? (
+          <div className="modal-backdrop" role="presentation" onClick={() => setAnalysisResult(null)}>
+            <section className="analysis-modal" role="dialog" aria-modal="true" aria-label="解析结果" onClick={(event) => event.stopPropagation()}>
+              <div className="panel-title">
+                <div>
+                  <h2>解析结果</h2>
+                  <span>{analysisResult.job.result_text_path || analysisResult.video_id}</span>
+                </div>
+                <button className="secondary-button" type="button" onClick={() => setAnalysisResult(null)}>
+                  关闭
+                </button>
+              </div>
+              <pre className="analysis-result-text">{analysisResult.content}</pre>
+            </section>
+          </div>
+        ) : null}
+
         {uploadProgress ? <div className="panel status-panel">{uploadProgress}</div> : null}
         {message ? <div className="panel status-panel">{message}</div> : null}
       </section>
+    </section>
+  );
+}
+
+type GraphNodeCategory = "person" | "location" | "organization" | "event" | "concept" | "other";
+
+const GRAPH_NODE_CATEGORY_LABELS: Record<GraphNodeCategory, string> = {
+  person: "人物",
+  location: "地点",
+  organization: "组织",
+  event: "事件",
+  concept: "概念",
+  other: "其他"
+};
+
+const GRAPH_NODE_CATEGORY_COLORS: Record<GraphNodeCategory, string> = {
+  person: "#8fa6f5",
+  location: "#eab27a",
+  organization: "#86d99a",
+  event: "#84d8cf",
+  concept: "#eda09a",
+  other: "#f3cf66"
+};
+
+function graphNodeCategory(node: StoryGraphNode): GraphNodeCategory {
+  const type = node.entity_type.toLowerCase();
+  if (type.includes("person") || type.includes("people") || type.includes("human") || type.includes("role") || type.includes("人物") || type.includes("角色")) return "person";
+  if (type.includes("location") || type.includes("place") || type.includes("address") || type.includes("geo") || type.includes("地点") || type.includes("位置")) return "location";
+  if (type.includes("organization") || type.includes("org") || type.includes("company") || type.includes("组织") || type.includes("公司")) return "organization";
+  if (type.includes("event") || type.includes("activity") || type.includes("action") || type.includes("事件") || type.includes("活动") || type.includes("行动")) return "event";
+  if (type.includes("concept") || type.includes("object") || type.includes("state") || type.includes("mode") || type.includes("category") || type.includes("概念") || type.includes("对象") || type.includes("状态")) return "concept";
+
+  const text = `${node.label} ${node.description}`.toLowerCase();
+  if (/人物|角色|女性|男性|女子|男人|女人|父亲|母亲|丈夫|妻子|朋友|闺蜜|工人|包工头|汉子|女儿|儿子|男主|女主|老板|医生|名医/.test(text)) return "person";
+  if (/地点|位置|住宅|别墅|工地|江边|灵堂|银行|国道|医院|家中|门外|河边|城市|海城|东北|南方/.test(text)) return "location";
+  if (/组织|公司|家族|团队|银行|医院/.test(text)) return "organization";
+  if (/事件|行动|计划|葬礼|婚礼|讨薪|劝解|跳河|出席|策划|揭露|对话|争吵|偷情/.test(text)) return "event";
+  if (/概念|状态|原因|结果|关系|请柬|遗书|绝笔信|工钱|黑烟|绝望|惊恐|出轨|真相|阴谋|资产|遗产|工资|行为|模式/.test(text)) return "concept";
+  return "other";
+}
+
+function graphNodeColor(node: StoryGraphNode): string {
+  return GRAPH_NODE_CATEGORY_COLORS[graphNodeCategory(node)];
+}
+
+function graphNodeTypeLabel(node: StoryGraphNode): string {
+  const category = graphNodeCategory(node);
+  const rawType = node.entity_type && !["other", "unknown"].includes(node.entity_type.toLowerCase()) ? ` / ${node.entity_type}` : "";
+  return `${GRAPH_NODE_CATEGORY_LABELS[category]}${rawType}`;
+}
+
+function chapterText(chapterIds: number[]): string {
+  return chapterIds.length ? chapterIds.map((id) => `第${id}集`).join("、") : "未标注";
+}
+
+function truncateText(value: string, maxLength = 180): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+type GraphNodeLayout = {
+  x: number;
+  y: number;
+  radius: number;
+  labelVisible: boolean;
+};
+
+type GraphViewport = {
+  scale: number;
+  x: number;
+  y: number;
+};
+
+const DEFAULT_GRAPH_VIEWPORT: GraphViewport = { scale: 1, x: 0, y: 0 };
+const MIN_GRAPH_SCALE = 0.45;
+const MAX_GRAPH_SCALE = 3.2;
+
+function clampGraphScale(value: number): number {
+  return Math.max(MIN_GRAPH_SCALE, Math.min(MAX_GRAPH_SCALE, value));
+}
+
+function buildGraphLayout(nodes: StoryGraphNode[], width: number, height: number): Map<string, GraphNodeLayout> {
+  const layout = new Map<string, GraphNodeLayout>();
+  if (!nodes.length) return layout;
+  const sorted = [...nodes].sort((a, b) => b.degree - a.degree || a.label.localeCompare(b.label));
+  const maxDegree = Math.max(...sorted.map((node) => node.degree), 1);
+  const clusterX = width * 0.43;
+  const clusterY = height * 0.52;
+  sorted.forEach((node, index) => {
+    const ring = index === 0 ? 0 : Math.ceil(Math.sqrt(index / 4.8));
+    const angle = index * 2.399963229728653 + ring * 0.22;
+    const distance = index === 0 ? 0 : 44 + ring * 38;
+    const orbitJitter = Math.sin(index * 1.71) * 12;
+    const x = clusterX + Math.cos(angle) * (distance + orbitJitter);
+    const y = clusterY + Math.sin(angle) * (distance * 0.82 + orbitJitter * 0.6);
+    const radius = 5.5 + Math.sqrt(node.degree / maxDegree) * 17;
+    layout.set(node.id, {
+      x: Math.max(46, Math.min(width - 46, x)),
+      y: Math.max(86, Math.min(height - 68, y)),
+      radius,
+      labelVisible: index < 16 || node.degree >= maxDegree * 0.48
+    });
+  });
+  return layout;
+}
+
+function StoryGraphCanvas({
+  graph,
+  selection,
+  viewport,
+  onSelect,
+  onViewportChange
+}: {
+  graph: StoryGraphDetail | null;
+  selection: StoryGraphSelection;
+  viewport: GraphViewport;
+  onSelect: (selection: StoryGraphSelection) => void;
+  onViewportChange: (viewport: GraphViewport) => void;
+}) {
+  const width = 1480;
+  const height = 760;
+  const svgRef = React.useRef<SVGSVGElement | null>(null);
+  const dragRef = React.useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  if (!graph || graph.nodes.length === 0) {
+    return <div className="empty-state graph-empty">暂无知识图谱数据</div>;
+  }
+
+  const layout = buildGraphLayout(graph.nodes, width, height);
+  const selectedNodeId = selection?.type === "node" ? selection.item.id : null;
+  const selectedEdgeId = selection?.type === "edge" ? selection.item.id : null;
+  const selectedEdge = selection?.type === "edge" ? selection.item : null;
+  const neighborIds = new Set<string>();
+  if (selectedNodeId) {
+    graph.edges.forEach((edge) => {
+      if (edge.source === selectedNodeId) neighborIds.add(edge.target);
+      if (edge.target === selectedNodeId) neighborIds.add(edge.source);
+    });
+  }
+  if (selectedEdge) {
+    neighborIds.add(selectedEdge.source);
+    neighborIds.add(selectedEdge.target);
+  }
+
+  function svgPoint(clientX: number, clientY: number): { x: number; y: number } | null {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const rect = svg.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * width,
+      y: ((clientY - rect.top) / rect.height) * height
+    };
+  }
+
+  function handleWheel(event: React.WheelEvent<SVGSVGElement>) {
+    event.preventDefault();
+    const point = svgPoint(event.clientX, event.clientY);
+    if (!point) return;
+    const nextScale = clampGraphScale(viewport.scale * (event.deltaY < 0 ? 1.12 : 0.89));
+    const ratio = nextScale / viewport.scale;
+    onViewportChange({
+      scale: nextScale,
+      x: point.x - (point.x - viewport.x) * ratio,
+      y: point.y - (point.y - viewport.y) * ratio
+    });
+  }
+
+  function handlePointerDown(event: React.PointerEvent<SVGSVGElement>) {
+    if (event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest(".graph-node, .graph-edge")) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    svg.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: viewport.x,
+      originY: viewport.y
+    };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
+    const drag = dragRef.current;
+    const svg = svgRef.current;
+    if (!drag || !svg) return;
+    const rect = svg.getBoundingClientRect();
+    onViewportChange({
+      ...viewport,
+      x: drag.originX + ((event.clientX - drag.startX) / rect.width) * width,
+      y: drag.originY + ((event.clientY - drag.startY) / rect.height) * height
+    });
+  }
+
+  function handlePointerUp(event: React.PointerEvent<SVGSVGElement>) {
+    const svg = svgRef.current;
+    if (svg && dragRef.current?.pointerId === event.pointerId) {
+      svg.releasePointerCapture(event.pointerId);
+    }
+    dragRef.current = null;
+  }
+
+  return (
+    <svg
+      ref={svgRef}
+      className="story-graph-canvas"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label="Story knowledge graph"
+      onWheel={handleWheel}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <defs>
+        <radialGradient id="graph-canvas-glow" cx="42%" cy="50%" r="58%">
+          <stop offset="0%" stopColor="#fff7d8" stopOpacity="0.56" />
+          <stop offset="45%" stopColor="#ffffff" stopOpacity="0.88" />
+          <stop offset="100%" stopColor="#f8fafc" stopOpacity="1" />
+        </radialGradient>
+        <filter id="graph-node-shadow" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.2" floodColor="#b9951a" floodOpacity="0.18" />
+        </filter>
+      </defs>
+      <rect className="graph-canvas-bg" x="0" y="0" width={width} height={height} onClick={() => onSelect(null)} />
+      <g className="graph-viewport" transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
+      {graph.edges.map((edge) => {
+        const source = layout.get(edge.source);
+        const target = layout.get(edge.target);
+        if (!source || !target) return null;
+        const isSelected = edge.id === selectedEdgeId || edge.source === selectedNodeId || edge.target === selectedNodeId;
+        const isDimmed = Boolean(selectedNodeId || selectedEdgeId) && !isSelected;
+        return (
+          <line
+            className={`graph-edge${isSelected ? " selected" : ""}${isDimmed ? " dimmed" : ""}`}
+            key={edge.id}
+            x1={source.x}
+            y1={source.y}
+            x2={target.x}
+            y2={target.y}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onSelect({ type: "edge", item: edge });
+            }}
+          />
+        );
+      })}
+      {graph.nodes.map((node) => {
+        const point = layout.get(node.id);
+        if (!point) return null;
+        const isSelected = node.id === selectedNodeId || (selectedEdge ? node.id === selectedEdge.source || node.id === selectedEdge.target : false);
+        const isNeighbor = neighborIds.has(node.id);
+        const isDimmed = Boolean(selectedNodeId || selectedEdgeId) && !isSelected && !isNeighbor;
+        const showLabel = point.labelVisible || isSelected || isNeighbor;
+        return (
+          <g
+            className={`graph-node${isSelected ? " selected" : ""}${isNeighbor ? " neighbor" : ""}${isDimmed ? " dimmed" : ""}`}
+            key={node.id}
+            onPointerDown={(event) => {
+              event.stopPropagation();
+              onSelect({ type: "node", item: node });
+            }}
+          >
+            <circle cx={point.x} cy={point.y} r={point.radius} fill={graphNodeColor(node)} />
+            {showLabel ? (
+              <text className={point.labelVisible ? "graph-node-label primary" : "graph-node-label"} x={point.x + point.radius + 8} y={point.y + 4}>
+                {node.label}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+      </g>
+    </svg>
+  );
+}
+
+function StoryGraphDetailPanel({ selection }: { selection: StoryGraphSelection }) {
+  if (!selection) {
+    return (
+      <div className="graph-detail-empty">
+        <GitBranch size={22} />
+        <p>点击节点或关系查看详情</p>
+      </div>
+    );
+  }
+
+  if (selection.type === "node") {
+    const node = selection.item;
+    return (
+      <div className="graph-detail-card">
+        <span className="badge">节点</span>
+        <h3>{node.label}</h3>
+        <dl>
+          <dt>类型</dt>
+          <dd>{graphNodeTypeLabel(node)}</dd>
+          <dt>连接数</dt>
+          <dd>{node.degree}</dd>
+          <dt>来源集数</dt>
+          <dd>{chapterText(node.chapter_ids)}</dd>
+          <dt>描述</dt>
+          <dd>{node.description || "无描述"}</dd>
+        </dl>
+      </div>
+    );
+  }
+
+  const edge = selection.item;
+  return (
+    <div className="graph-detail-card">
+      <span className="badge">关系</span>
+      <h3>{edge.source} {"->"} {edge.target}</h3>
+      <dl>
+        <dt>关键词</dt>
+        <dd>{edge.keywords || "未标注"}</dd>
+        <dt>权重</dt>
+        <dd>{edge.weight ?? "未标注"}</dd>
+        <dt>来源集数</dt>
+        <dd>{chapterText(edge.chapter_ids)}</dd>
+        <dt>描述</dt>
+        <dd>{edge.description || "无描述"}</dd>
+      </dl>
+    </div>
+  );
+}
+
+function KnowledgeGraphView() {
+  const [graphs, setGraphs] = React.useState<StoryGraphSummary[]>([]);
+  const [selectedSeriesId, setSelectedSeriesId] = React.useState("");
+  const [seriesSearch, setSeriesSearch] = React.useState("");
+  const [nodeSearch, setNodeSearch] = React.useState("");
+  const [graph, setGraph] = React.useState<StoryGraphDetail | null>(null);
+  const [selection, setSelection] = React.useState<StoryGraphSelection>(null);
+  const [viewport, setViewport] = React.useState<GraphViewport>(DEFAULT_GRAPH_VIEWPORT);
+  const [loading, setLoading] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+
+  const filteredGraphs = graphs.filter((item) => {
+    const keyword = seriesSearch.trim().toLowerCase();
+    if (!keyword) return true;
+    return `${item.series_name || ""} ${item.series_id}`.toLowerCase().includes(keyword);
+  });
+  const selectedGraph = graphs.find((item) => item.series_id === selectedSeriesId);
+
+  const loadGraphs = React.useCallback(async () => {
+    setMessage(null);
+    const response = await adminFetch("/api/admin/story-graphs");
+    if (!response.ok) throw new Error(`图谱列表加载失败 ${response.status}`);
+    const payload = (await response.json()) as { graphs: StoryGraphSummary[] };
+    setGraphs(payload.graphs);
+    if (!selectedSeriesId && payload.graphs[0]) setSelectedSeriesId(payload.graphs[0].series_id);
+  }, [selectedSeriesId]);
+
+  const loadGraph = React.useCallback(async (seriesId: string, keyword: string) => {
+    if (!seriesId) {
+      setGraph(null);
+      return;
+    }
+    setLoading(true);
+    setSelection(null);
+    setViewport(DEFAULT_GRAPH_VIEWPORT);
+    setMessage(null);
+    try {
+      const params = new URLSearchParams({ limit: "300" });
+      if (keyword.trim()) params.set("q", keyword.trim());
+      const response = await adminFetch(`/api/admin/story-graphs/${seriesId}?${params.toString()}`);
+      if (!response.ok) throw new Error(`图谱加载失败 ${response.status}`);
+      setGraph((await response.json()) as StoryGraphDetail);
+    } catch (err) {
+      setGraph(null);
+      setMessage(err instanceof Error ? err.message : "图谱加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadGraphs().catch((err) => setMessage(err instanceof Error ? err.message : "图谱列表加载失败"));
+  }, [loadGraphs]);
+
+  React.useEffect(() => {
+    if (selectedSeriesId) void loadGraph(selectedSeriesId, nodeSearch);
+  }, [selectedSeriesId, loadGraph]);
+
+  function submitSearch(event: React.FormEvent) {
+    event.preventDefault();
+    void loadGraph(selectedSeriesId, nodeSearch);
+  }
+
+  function zoomGraph(factor: number) {
+    setViewport((current) => ({
+      ...current,
+      scale: clampGraphScale(current.scale * factor)
+    }));
+  }
+
+  function resetGraphViewport() {
+    setViewport(DEFAULT_GRAPH_VIEWPORT);
+  }
+
+  return (
+    <section className="story-graph-layout lightrag-style">
+      <div className="graph-floating-controls">
+        <button className="graph-icon-button" type="button" onClick={() => void loadGraphs()} aria-label="刷新图谱列表">
+          <RefreshCcw size={16} />
+        </button>
+        <label className="graph-select">
+          <select value={selectedSeriesId} onChange={(event) => setSelectedSeriesId(event.target.value)}>
+            {filteredGraphs.map((item) => (
+              <option key={item.series_id} value={item.series_id}>
+                {item.series_name || item.series_id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="graph-search-inline">
+          <Search size={16} />
+          <input value={seriesSearch} onChange={(event) => setSeriesSearch(event.target.value)} placeholder="Search series..." />
+        </label>
+        <form className="graph-search-inline node-search" onSubmit={submitSearch}>
+          <Search size={16} />
+          <input value={nodeSearch} onChange={(event) => setNodeSearch(event.target.value)} placeholder="Search nodes in page..." />
+        </form>
+      </div>
+
+      <div className="graph-type-legend" aria-label="knowledge graph legend">
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.person }} />人物</span>
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.location }} />地点</span>
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.organization }} />组织</span>
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.event }} />事件</span>
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.concept }} />概念</span>
+        <span><i style={{ background: GRAPH_NODE_CATEGORY_COLORS.other }} />其他</span>
+      </div>
+
+      <div className="graph-left-tools" aria-label="graph tools">
+        <span><GitBranch size={16} /></span>
+        <button type="button" onClick={() => void loadGraph(selectedSeriesId, nodeSearch)} aria-label="Refresh graph"><RefreshCcw size={16} /></button>
+        <button type="button" onClick={resetGraphViewport} aria-label="Reset graph view">R</button>
+        <span>+</span>
+        <button type="button" onClick={() => zoomGraph(1.18)} aria-label="Zoom in graph">+</button>
+        <button type="button" onClick={() => zoomGraph(0.84)} aria-label="Zoom out graph">-</button>
+        <button type="button" onClick={resetGraphViewport} aria-label="Fit graph view">Fit</button>
+      </div>
+
+      {message ? <div className="graph-toast">{message}</div> : null}
+      {loading ? <div className="empty-state graph-empty">图谱加载中...</div> : <StoryGraphCanvas graph={graph} selection={selection} viewport={viewport} onSelect={setSelection} onViewportChange={setViewport} />}
+
+      <div className="graph-status-bar">
+        <span>D: 3</span>
+        <span>Max: 1000</span>
+      </div>
+      <div className="graph-connection-status">
+        <i />
+        Connected
+      </div>
+
+      <aside className={selection ? "graph-side-panel floating open" : "graph-side-panel floating"}>
+        <div className="panel-title">
+          <h2>详情</h2>
+          {graph ? <span>{graph.total_node_count} 节点 / {graph.total_edge_count} 关系</span> : null}
+        </div>
+        <StoryGraphDetailPanel selection={selection} />
+        {selection?.type === "node" && selection.item.description ? (
+          <p className="graph-description-preview">{truncateText(selection.item.description)}</p>
+        ) : null}
+      </aside>
+
     </section>
   );
 }
@@ -1105,9 +1746,14 @@ function App() {
         <button className={activeTab === "content" ? "tab active" : "tab"} onClick={() => setActiveTab("content")} type="button">
           内容管理
         </button>
+        <button className={activeTab === "storyGraph" ? "tab active" : "tab"} onClick={() => setActiveTab("storyGraph")} type="button">
+          知识图谱
+        </button>
       </nav>
 
-      {activeTab === "dashboard" ? <DashboardView data={data} onChanged={loadData} /> : <ContentManagementView onUploaded={loadData} />}
+      {activeTab === "dashboard" ? <DashboardView data={data} onChanged={loadData} /> : null}
+      {activeTab === "content" ? <ContentManagementView onUploaded={loadData} /> : null}
+      {activeTab === "storyGraph" ? <KnowledgeGraphView /> : null}
     </main>
   );
 }

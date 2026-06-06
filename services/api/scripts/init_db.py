@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from services.api.config import get_settings, require_complete_cloud_settings
 from services.api.db import connect_mysql
+from services.api.repositories.admin_analysis import create_analysis_table_mysql
 
 
 VIDEO_COLUMNS_MYSQL = {
@@ -21,6 +22,45 @@ VIDEO_INDEXES_MYSQL = {
     "idx_videos_status": "CREATE INDEX idx_videos_status ON videos (status)",
     "idx_videos_series_episode": "CREATE INDEX idx_videos_series_episode ON videos (series_id, episode_no)",
 }
+
+
+def create_asset_tables(cursor) -> None:
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS series_assets (
+            series_id VARCHAR(128) PRIMARY KEY,
+            cover_object_key VARCHAR(512) NULL,
+            cover_url VARCHAR(1024) NULL,
+            cover_content_type VARCHAR(128) NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+            updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+            KEY idx_series_assets_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """
+    )
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS video_storyboards (
+            video_id VARCHAR(64) PRIMARY KEY,
+            interval_seconds DOUBLE NOT NULL,
+            frame_width INT NOT NULL,
+            frame_height INT NOT NULL,
+            columns_count INT NOT NULL,
+            rows_count INT NOT NULL,
+            manifest_object_key VARCHAR(512) NOT NULL,
+            manifest_json JSON NOT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'active',
+            created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+            updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+            CONSTRAINT fk_video_storyboards_video
+                FOREIGN KEY (video_id) REFERENCES videos(video_id)
+                ON UPDATE CASCADE
+                ON DELETE RESTRICT,
+            KEY idx_video_storyboards_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """
+    )
 
 
 def _existing_video_columns(cursor) -> set[str]:
@@ -211,6 +251,8 @@ def init_db() -> None:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """
             )
+            create_asset_tables(cursor)
+            create_analysis_table_mysql(cursor)
         connection.commit()
     except Exception:
         connection.rollback()

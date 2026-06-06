@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import sqlite3
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -227,6 +228,74 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.json()["storyboard"]["available"], False)
         self.assertEqual(response.json()["interaction_plans"], [])
 
+    def test_get_video_storyboard(self) -> None:
+        with (
+            patch("services.api.routers.videos.get_video") as get_video,
+            patch("services.api.routers.videos.get_video_storyboard") as get_video_storyboard,
+        ):
+            get_video.return_value = {
+                "video_id": "ep_10",
+                "series_id": "demo",
+                "series_name": "Demo",
+                "title": "Demo ep10",
+                "episode_no": 10,
+                "episode_label": "ep10",
+                "duration": 120,
+                "stream_url": "/api/videos/ep_10/stream",
+                "danmaku_url": "/api/videos/ep_10/danmaku",
+                "source": "oss",
+                "douyin_video_id": None,
+            }
+            get_video_storyboard.return_value = {
+                "video_id": "ep_10",
+                "available": True,
+                "interval_seconds": 2,
+                "frame_width": 160,
+                "frame_height": 90,
+                "columns": 5,
+                "rows": 5,
+                "sheets": [{"url": "/storyboards/ep_10/sheet_001.jpg"}],
+            }
+            response = self.client.get("/api/videos/ep_10/storyboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["video_id"], "ep_10")
+        self.assertEqual(response.json()["available"], True)
+        self.assertEqual(response.json()["sheets"][0]["url"], "/storyboards/ep_10/sheet_001.jpg")
+
+    def test_get_video_storyboard_returns_unavailable_when_missing_asset(self) -> None:
+        with (
+            patch("services.api.routers.videos.get_video") as get_video,
+            patch("services.api.routers.videos.get_video_storyboard") as get_video_storyboard,
+        ):
+            get_video.return_value = {
+                "video_id": "ep_10",
+                "title": "Demo ep10",
+                "stream_url": "/api/videos/ep_10/stream",
+                "danmaku_url": "/api/videos/ep_10/danmaku",
+            }
+            get_video_storyboard.return_value = {
+                "video_id": "ep_10",
+                "available": False,
+                "interval_seconds": None,
+                "frame_width": None,
+                "frame_height": None,
+                "columns": None,
+                "rows": None,
+                "sheets": [],
+            }
+            response = self.client.get("/api/videos/ep_10/storyboard")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["available"], False)
+        self.assertEqual(response.json()["sheets"], [])
+
+    def test_get_video_storyboard_not_found(self) -> None:
+        with patch("services.api.routers.videos.get_video", return_value=None):
+            response = self.client.get("/api/videos/missing/storyboard")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_create_playback_event(self) -> None:
         with patch("services.api.routers.playback_events.create_playback_event", return_value="evt_123"):
             response = self.client.post(
@@ -293,6 +362,44 @@ class LocalModeApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/demo_ep01/stream")
         self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/demo_ep01/danmaku")
         self.assertEqual(response.json()["videos"][0]["source"], "local")
+
+    def test_local_mode_series_list_excludes_unassigned_episode_videos(self) -> None:
+        sqlite_path = Path(os.environ["SQLITE_PATH"])
+        local_oss_root = Path(os.environ["LOCAL_OSS_ROOT"])
+        (local_oss_root / "loose_ep02.mp4").write_bytes(b"1" * 2048)
+
+        connection = sqlite3.connect(sqlite_path)
+        try:
+            connection.execute(
+                """
+                INSERT INTO videos (
+                    video_id,
+                    series_id,
+                    series_name,
+                    title,
+                    episode_no,
+                    episode_label,
+                    duration,
+                    oss_bucket,
+                    oss_object_key,
+                    content_type,
+                    size,
+                    source,
+                    status
+                )
+                VALUES (?, NULL, NULL, ?, 2, 'ep02', 120, 'local', 'loose_ep02.mp4', 'video/mp4', 2048, 'local', 'active')
+                """,
+                ("ep_02", "Episode 02"),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        response = self.client.get("/api/series")
+        self.assertEqual(response.status_code, 200)
+        series_ids = {item["series_id"] for item in response.json()["series"]}
+        self.assertIn("demo", series_ids)
+        self.assertNotIn("ep_02", series_ids)
 
     def test_local_mode_streams_demo_video(self) -> None:
         response = self.client.get("/api/videos/demo_ep01/stream")

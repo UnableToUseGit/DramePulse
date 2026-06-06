@@ -15,6 +15,7 @@ export function VideoStage({
   isPlaying,
   seekRequest,
   onTimeChange,
+  onDurationChange,
   streamUrl,
   showStartEntry = true
 }: {
@@ -23,6 +24,7 @@ export function VideoStage({
   isPlaying: boolean;
   seekRequest: SeekRequest | undefined;
   onTimeChange: (time: number) => void;
+  onDurationChange?: (duration: number) => void;
   streamUrl: string;
   showStartEntry?: boolean;
 }) {
@@ -36,10 +38,24 @@ export function VideoStage({
     currentOffsetFromLive: null,
     bufferedPosition: 0
   });
+  const sourceLoad = useEvent(player, "sourceLoad", {
+    videoSource: null,
+    duration: 0,
+    availableVideoTracks: [],
+    availableSubtitleTracks: [],
+    availableAudioTracks: []
+  });
 
   useEffect(() => {
     onTimeChange(timeUpdate?.currentTime ?? 0);
   }, [onTimeChange, timeUpdate?.currentTime]);
+
+  useEffect(() => {
+    const loadedDuration = Number(sourceLoad?.duration ?? player.duration);
+    if (Number.isFinite(loadedDuration) && loadedDuration > 0) {
+      onDurationChange?.(loadedDuration);
+    }
+  }, [onDurationChange, player.duration, sourceLoad?.duration]);
 
   useEffect(() => {
     if (isStarted && isPlaying) {

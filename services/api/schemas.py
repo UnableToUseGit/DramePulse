@@ -252,6 +252,10 @@ class AdminDashboardVideo(BaseModel):
     has_danmaku: bool = False
     has_storyboard: bool = False
     asset_status: str = "missing_danmaku"
+    analysis_status: str = "not_started"
+    analysis_stage: str | None = None
+    analysis_job_id: str | None = None
+    analysis_result_path: str | None = None
 
 
 class AdminDashboardOption(BaseModel):
@@ -343,6 +347,10 @@ class AdminSeriesEpisode(BaseModel):
     size: int
     status: str
     updated_at: datetime | str | None = None
+    analysis_status: str = "not_started"
+    analysis_stage: str | None = None
+    analysis_job_id: str | None = None
+    analysis_result_path: str | None = None
 
 
 class AdminSeriesDetail(BaseModel):
@@ -387,6 +395,77 @@ class AdminDanmakuUploadResponse(BaseModel):
     content_type: str
     size: int
     danmaku_count: int
+
+
+class AdminVideoAnalysisJob(BaseModel):
+    job_id: str | None = None
+    video_id: str
+    status: str
+    stage: str
+    output_dir: str | None = None
+    result_text_path: str | None = None
+    error_message: str | None = None
+    started_at: datetime | str | None = None
+    finished_at: datetime | str | None = None
+
+
+class AdminVideoAnalysisResultResponse(BaseModel):
+    video_id: str
+    job: AdminVideoAnalysisJob
+    content: str
+
+
+class AdminVideoAnalysisArtifact(BaseModel):
+    name: str
+    path: str
+    size: int
+
+
+class AdminVideoAnalysisArtifactsResponse(BaseModel):
+    video_id: str
+    job: AdminVideoAnalysisJob
+    artifacts: list[AdminVideoAnalysisArtifact]
+
+
+class AdminStoryGraphSummary(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    node_count: int
+    edge_count: int
+    available: bool
+
+
+class AdminStoryGraphListResponse(BaseModel):
+    graphs: list[AdminStoryGraphSummary]
+
+
+class AdminStoryGraphNode(BaseModel):
+    id: str
+    label: str
+    entity_type: str
+    description: str
+    degree: int
+    chapter_ids: list[int] = Field(default_factory=list)
+
+
+class AdminStoryGraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    keywords: str
+    description: str
+    weight: float | None = None
+    chapter_ids: list[int] = Field(default_factory=list)
+
+
+class AdminStoryGraphDetailResponse(BaseModel):
+    series_id: str
+    node_count: int
+    edge_count: int
+    total_node_count: int
+    total_edge_count: int
+    nodes: list[AdminStoryGraphNode]
+    edges: list[AdminStoryGraphEdge]
 
 
 class StoryQaIngestRequest(BaseModel):

@@ -12,6 +12,7 @@ from ..config import Settings, get_settings
 from ..db import db_cursor, sql_placeholder, utc_now_sql
 from ..oss_client import get_bucket
 from ..oss_client import read_object_range
+from .admin_analysis import latest_analysis_jobs_by_video
 
 
 SERIES_ID_PATTERN = re.compile(r"^[a-z0-9_-]+$")
@@ -274,8 +275,19 @@ def get_series_detail(series_id: str) -> dict[str, Any]:
             (clean_series_id, *MANAGED_VIDEO_STATUSES, DRAMA_OBJECT_KEY_PREFIX),
         )
         episodes = [dict(row) for row in cursor.fetchall()]
+    _attach_analysis_jobs(episodes)
     series.update(_series_keys(clean_series_id))
     return {"series": series, "episodes": episodes}
+
+
+def _attach_analysis_jobs(episodes: list[dict[str, Any]]) -> None:
+    jobs = latest_analysis_jobs_by_video([str(episode["video_id"]) for episode in episodes])
+    for episode in episodes:
+        job = jobs.get(str(episode["video_id"]))
+        episode["analysis_status"] = str(job.get("status") if job else "not_started")
+        episode["analysis_stage"] = job.get("stage") if job else None
+        episode["analysis_job_id"] = job.get("job_id") if job else None
+        episode["analysis_result_path"] = job.get("result_text_path") if job else None
 
 
 def delete_series(series_id: str) -> dict[str, Any]:

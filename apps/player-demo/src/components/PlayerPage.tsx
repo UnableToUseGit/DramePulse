@@ -85,6 +85,7 @@ export function PlayerPage({
   const [danmaku, setDanmaku] = useState<DanmakuItem[]>([]);
   const [danmakuState, setDanmakuState] = useState<"loading" | "ready" | "error">("loading");
   const [currentTime, setCurrentTime] = useState(0);
+  const [mediaDuration, setMediaDuration] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [seekRequest, setSeekRequest] = useState<SeekRequest | undefined>();
@@ -100,6 +101,7 @@ export function PlayerPage({
     [hasStartedFeed, isActive]
   );
   const canPlay = isActive && isStarted && isPlaying;
+  const effectiveDuration = mediaDuration > 0 ? mediaDuration : video.duration;
 
   useEffect(() => {
     let cancelled = false;
@@ -129,6 +131,7 @@ export function PlayerPage({
       return;
     }
     setCurrentTime(0);
+    setMediaDuration(0);
     setIsStarted(playbackMode.shouldAutoStart);
     setIsPlaying(playbackMode.shouldAutoStart);
     setSeekRequest({ id: Date.now(), time: 0 });
@@ -453,6 +456,7 @@ export function PlayerPage({
         seekRequest={seekRequest}
         onStart={handleStart}
         onTimeChange={handleTimeChange}
+        onDurationChange={setMediaDuration}
         showStartEntry={playbackMode.shouldShowStartEntry}
         streamUrl={video.streamUrl}
       />
@@ -478,7 +482,7 @@ export function PlayerPage({
       {ENABLE_INTERACTION_LAB && isActive ? (
         <InteractionLabControls selectedType={selectedPresentationType} onChange={onChangePresentationType} />
       ) : null}
-      <PlayerControls currentTime={currentTime} duration={video.duration} onSeekCommit={handleSeekCommit} />
+      <PlayerControls currentTime={currentTime} duration={effectiveDuration} onSeekCommit={handleSeekCommit} />
       <WatchAssistantPanel
         visible={assistantState.isOpen}
         message={assistantState.message}

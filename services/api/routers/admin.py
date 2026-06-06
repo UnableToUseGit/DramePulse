@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, Response, UploadFile, status
 
 from ..admin_auth import (
     ADMIN_SESSION_COOKIE,
@@ -10,6 +10,13 @@ from ..admin_auth import (
     require_admin,
     set_admin_session_cookie,
     validate_admin_session_token,
+)
+from ..repositories.admin_analysis import (
+    create_analysis_job,
+    latest_analysis_job,
+    list_analysis_artifacts,
+    read_analysis_result,
+    run_analysis_job,
 )
 from ..repositories.admin_content import (
     create_series,
@@ -24,6 +31,7 @@ from ..repositories.admin_content import (
     upload_series_cover,
 )
 from ..repositories.admin_dashboard import get_admin_dashboard
+from ..repositories.story_graphs import get_story_graph, list_story_graphs
 from ..schemas import (
     AdminAuthResponse,
     AdminDashboardResponse,
@@ -36,7 +44,12 @@ from ..schemas import (
     AdminSeriesListResponse,
     AdminSeriesResponse,
     AdminSeriesRestoreResponse,
+    AdminStoryGraphDetailResponse,
+    AdminStoryGraphListResponse,
     AdminUploadResponse,
+    AdminVideoAnalysisArtifactsResponse,
+    AdminVideoAnalysisJob,
+    AdminVideoAnalysisResultResponse,
 )
 
 router = APIRouter()
@@ -72,9 +85,60 @@ def list_admin_series(_: None = Depends(require_admin)) -> AdminSeriesListRespon
     return AdminSeriesListResponse(series=list_series())
 
 
+@router.get("/admin/story-graphs", response_model=AdminStoryGraphListResponse)
+def list_admin_story_graphs(_: None = Depends(require_admin)) -> AdminStoryGraphListResponse:
+    return AdminStoryGraphListResponse(graphs=list_story_graphs())
+
+
+@router.get("/admin/story-graphs/{series_id}", response_model=AdminStoryGraphDetailResponse)
+def retrieve_admin_story_graph(
+    series_id: str,
+    q: str = "",
+    limit: int = 300,
+    _: None = Depends(require_admin),
+) -> AdminStoryGraphDetailResponse:
+    payload = get_story_graph(series_id, query=q, limit=limit)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story graph not found")
+    return AdminStoryGraphDetailResponse(**payload)
+
+
 @router.get("/admin/series/{series_id}", response_model=AdminSeriesDetail)
 def retrieve_admin_series(series_id: str, _: None = Depends(require_admin)) -> AdminSeriesDetail:
     return AdminSeriesDetail(**get_series_detail(series_id))
+
+
+@router.post("/admin/videos/{video_id}/analysis-jobs", response_model=AdminVideoAnalysisJob)
+def create_admin_video_analysis_job(
+    video_id: str,
+    background_tasks: BackgroundTasks,
+    _: None = Depends(require_admin),
+) -> AdminVideoAnalysisJob:
+    job = create_analysis_job(video_id)
+    if job.get("_created") and job.get("job_id") and job.get("status") == "running":
+        background_tasks.add_task(run_analysis_job, str(job["job_id"]))
+    return AdminVideoAnalysisJob(**job)
+
+
+@router.get("/admin/videos/{video_id}/analysis-jobs/latest", response_model=AdminVideoAnalysisJob)
+def retrieve_admin_video_analysis_job(video_id: str, _: None = Depends(require_admin)) -> AdminVideoAnalysisJob:
+    return AdminVideoAnalysisJob(**latest_analysis_job(video_id))
+
+
+@router.get("/admin/videos/{video_id}/analysis-result", response_model=AdminVideoAnalysisResultResponse)
+def retrieve_admin_video_analysis_result(
+    video_id: str,
+    _: None = Depends(require_admin),
+) -> AdminVideoAnalysisResultResponse:
+    return AdminVideoAnalysisResultResponse(**read_analysis_result(video_id))
+
+
+@router.get("/admin/videos/{video_id}/analysis-artifacts", response_model=AdminVideoAnalysisArtifactsResponse)
+def retrieve_admin_video_analysis_artifacts(
+    video_id: str,
+    _: None = Depends(require_admin),
+) -> AdminVideoAnalysisArtifactsResponse:
+    return AdminVideoAnalysisArtifactsResponse(**list_analysis_artifacts(video_id))
 
 
 @router.get("/admin/series/{series_id}/cover")
