@@ -24,6 +24,8 @@ pipelines/inner_voice_danmaku/
 - `scripts/run_story_chapter_generation_batch.py`
 - `scripts/run_story_chapter_generation_multimodal.py`
 - `scripts/run_story_chapter_generation_multimodal_batch.py`
+- `scripts/run_story_chapter_subtitle_scene_aligned.py`
+- `scripts/run_story_chapter_subtitle_scene_aligned_batch.py`
 - `scripts/evaluate_story_chapter_workflow.py`
 - `scripts/run_inner_voice_danmaku_generation.py`
 
@@ -64,6 +66,7 @@ Doubao-Seed-2.0-pro
 ## 5. 当前约束
 
 - Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核；
+- Story Chapter subtitle-scene aligned workflow 先由 LLM 选择章节结束字幕及其 `end_time`，再将边界对齐到该字幕所在镜头的 `end_time`；
 - `thinking` 默认关闭；
 - 旧交互方案生成 pipeline 已移除；
 - `example_output/` 中保存可直接查看的样例结果；
