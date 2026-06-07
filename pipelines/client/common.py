@@ -155,6 +155,29 @@ def response_to_message_content(response: Any) -> Any:
     return content
 
 
+def message_diagnostics(response: Any) -> dict[str, Any]:
+    try:
+        choices = get_attr_or_key(response, "choices")
+        first_choice = choices[0] if isinstance(choices, list) and choices else None
+        message = get_attr_or_key(first_choice, "message")
+    except Exception:
+        message = None
+    content = get_attr_or_key(message, "content")
+    content_text = response_content_to_text(content)
+    diagnostics: dict[str, Any] = {
+        "message_content_char_count": len(content_text),
+        "message_content_preview": content_text[:500],
+    }
+    for key in ("reasoning_content", "reasoning", "thinking"):
+        value = get_attr_or_key(message, key)
+        if value is None:
+            continue
+        text = response_content_to_text(value)
+        diagnostics[f"{key}_char_count"] = len(text)
+        diagnostics[f"{key}_preview"] = text[:500]
+    return diagnostics
+
+
 def build_multimodal_user_content(
     *,
     user_prompt: str,
@@ -208,6 +231,7 @@ def run_json_chat_completion(
     try:
         response = create_completion()
         parsed = parse_json_content(response_to_message_content(response))
+        success_message_diagnostics = message_diagnostics(response)
     except Exception as exc:
         diagnostics = dict(base_diagnostics)
         diagnostics.update(
@@ -234,6 +258,7 @@ def run_json_chat_completion(
             "elapsed_sec": round(time.perf_counter() - started_at, 3),
             "usage": usage_to_dict(get_attr_or_key(response, "usage")),
             "request_id": get_attr_or_key(response, "id"),
+            **success_message_diagnostics,
         }
     )
     return parsed

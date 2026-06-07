@@ -11,8 +11,12 @@ from pipelines.client import LlmResponseError, OpenAiLlmClient, VolcArkLlmClient
 
 
 class _FakeMessage:
+    reasoning_content: object = None
+
     def __init__(self, content: object) -> None:
         self.content = content
+        if self.reasoning_content is not None:
+            self.reasoning_content = self.__class__.reasoning_content
 
 
 class _FakeChoice:
@@ -59,6 +63,7 @@ class _FakeArk:
 class VolcArkLlmClientTest(unittest.TestCase):
     def setUp(self) -> None:
         _FakeArk.response_content = '{"ok": true}'
+        _FakeMessage.reasoning_content = None
 
     def test_generate_json_multimodal_uses_ark_sdk_multi_image_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir, patch("pipelines.client.volc_ark.Ark", _FakeArk):
@@ -120,6 +125,27 @@ class VolcArkLlmClientTest(unittest.TestCase):
         self.assertEqual(diagnostics["usage"]["completion_tokens"], 7)
         self.assertEqual(diagnostics["usage"]["total_tokens"], 18)
         self.assertGreaterEqual(diagnostics["elapsed_sec"], 0.0)
+
+    def test_generate_json_multimodal_records_success_message_diagnostics(self) -> None:
+        _FakeArk.response_content = '{"ok": true, "note": "hello"}'
+        _FakeMessage.reasoning_content = "hidden thinking"
+
+        with patch("pipelines.client.volc_ark.Ark", _FakeArk):
+            client = VolcArkLlmClient(api_key="test-key", model_name="doubao-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+                max_tokens=123,
+            )
+
+        self.assertEqual(result, {"ok": True, "note": "hello"})
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["message_content_char_count"], len('{"ok": true, "note": "hello"}'))
+        self.assertIn('"note": "hello"', diagnostics["message_content_preview"])
+        self.assertEqual(diagnostics["reasoning_content_char_count"], len("hidden thinking"))
 
     def test_generate_json_multimodal_preserves_raw_response_when_json_parse_fails(self) -> None:
         _FakeArk.response_content = "不是 JSON"
