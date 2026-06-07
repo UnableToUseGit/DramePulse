@@ -247,3 +247,42 @@ def test_danmaku_llm_refinement_cli_filters_series_and_episode(tmp_path: Path) -
     assert "beiwang_ep01" not in str(fake_client.calls[0]["user_prompt"])
     assert output["llmWindowCount"] == 1
     assert output["candidates"][0]["video_id"] == "beiwang_ep02"
+
+
+def test_danmaku_llm_refinement_cli_prints_window_progress(tmp_path: Path, capsys) -> None:
+    from scripts.run_danmaku_llm_refinement import main
+
+    windows_path = tmp_path / "resonance_windows.json"
+    output_path = tmp_path / "inner_voice_llm_candidates.json"
+    windows_path.write_text(json.dumps(make_window_payload(), ensure_ascii=False), encoding="utf-8")
+    fake_client = FakeLlmClient(
+        {
+            "usable": True,
+            "clusters": [
+                {
+                    "clusterType": "actor_charm",
+                    "representativeText": "这个眼神太帅了",
+                    "sourceCommentIds": ["dm_1", "dm_2"],
+                    "confidence": 0.88,
+                    "reason": "两条弹幕都在夸角色眼神。",
+                }
+            ],
+        }
+    )
+
+    result = main(
+        [
+            "--windows-path",
+            str(windows_path),
+            "--output-path",
+            str(output_path),
+        ],
+        llm_client=fake_client,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert "prepared: windows=1" in captured.out
+    assert "[beiwang_ep01] llm_window_start: 1/1 window=dw_beiwang_ep01_001 comments=2" in captured.out
+    assert "[beiwang_ep01] llm_window_done: 1/1 window=dw_beiwang_ep01_001 candidates=1 filtered=0" in captured.out
+    assert "completed: windows=1 candidates=1 filtered=0" in captured.out

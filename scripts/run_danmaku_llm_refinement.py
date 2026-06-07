@@ -62,6 +62,39 @@ def filter_windows_payload(
     return filtered_payload
 
 
+def print_llm_refinement_progress(event: str, payload: dict[str, Any]) -> None:
+    if event == "prepared":
+        print(f"prepared: windows={payload.get('window_count', 0)}")
+        return
+    if event == "llm_window_start":
+        video_id = payload.get("video_id") or "unknown"
+        print(
+            f"[{video_id}] llm_window_start: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"window={payload.get('window_id')} "
+            f"comments={payload.get('comment_count', 0)}"
+        )
+        return
+    if event == "llm_window_done":
+        video_id = payload.get("video_id") or "unknown"
+        print(
+            f"[{video_id}] llm_window_done: "
+            f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
+            f"window={payload.get('window_id')} "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"filtered={payload.get('filtered_count', 0)}"
+        )
+        return
+    if event == "completed":
+        print(
+            f"completed: windows={payload.get('window_count', 0)} "
+            f"candidates={payload.get('candidate_count', 0)} "
+            f"filtered={payload.get('filtered_count', 0)}"
+        )
+        return
+    print(f"{event}: {payload}")
+
+
 def main(argv: Sequence[str] | None = None, *, llm_client: Any | None = None) -> int:
     args = build_parser().parse_args(argv)
     active_client = llm_client or build_llm_client(env_path=args.env_file)
@@ -75,6 +108,7 @@ def main(argv: Sequence[str] | None = None, *, llm_client: Any | None = None) ->
         llm_client=active_client,
         max_tokens=args.max_tokens,
         duration_sec=args.duration_sec,
+        progress_callback=print_llm_refinement_progress,
     )
     write_llm_candidates_output(output_path=args.output_path, payload=result)
     print(

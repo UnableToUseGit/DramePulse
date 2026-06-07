@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import UTC, datetime
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
 
 
 SUPPORTED_CLUSTER_TYPES = {"actor_charm", "scene_commentary", "meme", "other"}
 SIMPLE_EMOTION_TEXTS = {"哈哈", "哈哈哈", "哈哈哈哈", "爽", "啊啊啊", "笑死", "笑死了", "哭了"}
+ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
 def now_iso() -> str:
@@ -171,12 +172,27 @@ def refine_danmaku_windows_with_llm(
     llm_client: LlmClientProtocol,
     max_tokens: int = 1200,
     duration_sec: float = 5.0,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     windows = _windows_from_payload(payload)
     candidates: list[dict[str, Any]] = []
     filtered_clusters: list[dict[str, Any]] = []
     llm_calls: list[dict[str, Any]] = []
-    for window in windows:
+    if progress_callback is not None:
+        progress_callback("prepared", {"window_count": len(windows)})
+    for window_index, window in enumerate(windows, start=1):
+        window_comments = _window_comments(window)
+        if progress_callback is not None:
+            progress_callback(
+                "llm_window_start",
+                {
+                    "video_id": window.get("video_id") or window.get("videoId"),
+                    "window_id": window.get("window_id") or window.get("windowId"),
+                    "window_index": window_index,
+                    "window_count": len(windows),
+                    "comment_count": len(window_comments),
+                },
+            )
         raw_result = llm_client.generate_json_multimodal(
             system_prompt=_build_system_prompt(),
             user_prompt=build_window_semantic_prompt(window),
@@ -188,6 +204,7 @@ def refine_danmaku_windows_with_llm(
         llm_calls.append(dict(diagnostics) if isinstance(diagnostics, dict) else {})
         window_candidates, window_filtered = _parse_llm_clusters(raw_result=raw_result, window=window)
         filtered_clusters.extend(window_filtered)
+        start_candidate_count = len(candidates)
         for candidate in window_candidates:
             candidate_id = f"ivllm_{candidate['video_id']}_{len(candidates) + 1:03d}"
             candidates.append(
@@ -197,6 +214,27 @@ def refine_danmaku_windows_with_llm(
                     "duration_sec": _round_time(duration_sec),
                 }
             )
+        if progress_callback is not None:
+            progress_callback(
+                "llm_window_done",
+                {
+                    "video_id": window.get("video_id") or window.get("videoId"),
+                    "window_id": window.get("window_id") or window.get("windowId"),
+                    "window_index": window_index,
+                    "window_count": len(windows),
+                    "candidate_count": len(candidates) - start_candidate_count,
+                    "filtered_count": len(window_filtered),
+                },
+            )
+    if progress_callback is not None:
+        progress_callback(
+            "completed",
+            {
+                "window_count": len(windows),
+                "candidate_count": len(candidates),
+                "filtered_count": len(filtered_clusters),
+            },
+        )
     return {
         "createdAt": now_iso(),
         "sourceCsv": payload.get("source_csv") or payload.get("sourceCsv"),
