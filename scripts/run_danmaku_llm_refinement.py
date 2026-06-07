@@ -25,15 +25,51 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--windows-path", type=Path, default=DEFAULT_WINDOWS_PATH)
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
+    parser.add_argument("--series-id", help="Only process windows whose video_id starts with this series id.")
+    parser.add_argument("--episode-id", help="Only process windows whose video_id ends with this episode id.")
     parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--duration-sec", type=float, default=5.0)
     return parser
 
 
+def filter_windows_payload(
+    payload: dict[str, Any],
+    *,
+    series_id: str | None = None,
+    episode_id: str | None = None,
+) -> dict[str, Any]:
+    raw_windows = payload.get("windows")
+    windows_key = "windows"
+    if not isinstance(raw_windows, list):
+        raw_windows = payload.get("resonance_windows")
+        windows_key = "resonance_windows"
+    if not isinstance(raw_windows, list):
+        return dict(payload)
+
+    filtered_windows: list[dict[str, Any]] = []
+    for window in raw_windows:
+        if not isinstance(window, dict):
+            continue
+        video_id = str(window.get("video_id") or window.get("videoId") or "")
+        if series_id and not video_id.startswith(f"{series_id}_"):
+            continue
+        if episode_id and not video_id.endswith(f"_{episode_id}"):
+            continue
+        filtered_windows.append(window)
+
+    filtered_payload = dict(payload)
+    filtered_payload[windows_key] = filtered_windows
+    return filtered_payload
+
+
 def main(argv: Sequence[str] | None = None, *, llm_client: Any | None = None) -> int:
     args = build_parser().parse_args(argv)
     active_client = llm_client or build_llm_client(env_path=args.env_file)
-    windows_payload = load_windows_payload(args.windows_path)
+    windows_payload = filter_windows_payload(
+        load_windows_payload(args.windows_path),
+        series_id=args.series_id,
+        episode_id=args.episode_id,
+    )
     result = refine_danmaku_windows_with_llm(
         windows_payload,
         llm_client=active_client,

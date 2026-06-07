@@ -181,3 +181,69 @@ def test_danmaku_llm_refinement_cli_writes_candidates(tmp_path: Path) -> None:
     assert result == 0
     assert payload["candidateCount"] == 1
     assert payload["candidates"][0]["text"] == "这个眼神太帅了"
+
+
+def test_danmaku_llm_refinement_cli_filters_series_and_episode(tmp_path: Path) -> None:
+    from scripts.run_danmaku_llm_refinement import main
+
+    payload = {
+        "windows": [
+            {
+                "window_id": "dw_beiwang_ep01_001",
+                "video_id": "beiwang_ep01",
+                "start_time": 10.0,
+                "end_time": 18.0,
+                "comments": [
+                    {"comment_id": "ep01_dm_1", "time_sec": 11.0, "text": "第一集", "digg_count": 1},
+                ],
+            },
+            {
+                "window_id": "dw_beiwang_ep02_001",
+                "video_id": "beiwang_ep02",
+                "start_time": 20.0,
+                "end_time": 28.0,
+                "comments": [
+                    {"comment_id": "ep02_dm_1", "time_sec": 21.0, "text": "第二集这个眼神太帅了", "digg_count": 5},
+                ],
+            },
+        ]
+    }
+    windows_path = tmp_path / "resonance_windows.json"
+    output_path = tmp_path / "inner_voice_llm_candidates.json"
+    windows_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    fake_client = FakeLlmClient(
+        {
+            "usable": True,
+            "clusters": [
+                {
+                    "clusterType": "actor_charm",
+                    "representativeText": "第二集这个眼神太帅了",
+                    "sourceCommentIds": ["ep02_dm_1"],
+                    "confidence": 0.88,
+                    "reason": "只应该处理第二集窗口。",
+                }
+            ],
+        }
+    )
+
+    result = main(
+        [
+            "--windows-path",
+            str(windows_path),
+            "--output-path",
+            str(output_path),
+            "--series-id",
+            "beiwang",
+            "--episode-id",
+            "ep02",
+        ],
+        llm_client=fake_client,
+    )
+
+    output = json.loads(output_path.read_text(encoding="utf-8"))
+    assert result == 0
+    assert len(fake_client.calls) == 1
+    assert "beiwang_ep02" in str(fake_client.calls[0]["user_prompt"])
+    assert "beiwang_ep01" not in str(fake_client.calls[0]["user_prompt"])
+    assert output["llmWindowCount"] == 1
+    assert output["candidates"][0]["video_id"] == "beiwang_ep02"
