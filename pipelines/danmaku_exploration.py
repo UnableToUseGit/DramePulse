@@ -33,7 +33,7 @@ LOW_SIGNAL_TEXTS = {
 UNSAFE_KEYWORDS = ("傻逼", "sb", "滚", "去死", "垃圾")
 ACTOR_CHARM_KEYWORDS = ("帅", "美", "漂亮", "好看", "眼神", "表情", "演技", "哭戏", "气质", "老公", "老婆", "姐姐", "小奶狗")
 ACTOR_CHARM_KEEP_RATIO = 0.4
-EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜", "泪目", "捂脸", "大笑", "笑哭")
+EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜", "泪目", "捂脸", "大笑", "笑哭", "[哭]")
 EMOTION_BURST_EXCLUDE_MIN_COUNT = 3
 EMOTION_BURST_EXCLUDE_RATIO = 0.6
 
