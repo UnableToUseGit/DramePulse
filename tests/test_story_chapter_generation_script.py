@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from scripts.run_story_chapter_generation import main
+from scripts.story_chapter.run_text import main
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]

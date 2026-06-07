@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.story_chapter_viewer_server import (
+from scripts.story_chapter.viewer_server import (
     build_story_chapter_annotation,
     discover_episodes,
     load_episode_detail,
@@ -127,6 +127,52 @@ class StoryChapterViewerServerTest(unittest.TestCase):
         self.assertEqual(len(detail["scenes"]), 1)
         self.assertEqual(detail["chapters"][0]["title"], "开场")
         self.assertEqual(detail["warnings"], ["sample warning"])
+
+    def test_load_episode_detail_reads_warnings_from_debug_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            episode_dir = root / "demo_series" / "ep01"
+            episode_dir.mkdir(parents=True)
+            (episode_dir / "video.mp4").write_bytes(b"video")
+            (episode_dir / "scene_detection.json").write_text(
+                json.dumps(
+                    {
+                        "video_id": "demo_series_ep01",
+                        "scenes": [{"scene_id": "s1", "start_time": 0, "end_time": 3}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (episode_dir / "story_chapters.json").write_text(
+                json.dumps(
+                    {
+                        "video_id": "demo_series_ep01",
+                        "series_id": "demo_series",
+                        "story_chapters": [
+                            {
+                                "chapter_id": "ch1",
+                                "start_time": 0,
+                                "end_time": 3,
+                                "title": "开场",
+                                "summary": "故事开始。",
+                                "reason": "开场事件完整。",
+                            }
+                        ],
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            (episode_dir / "story_chapters.debug.json").write_text(
+                json.dumps({"warnings": ["debug warning"]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            entry = discover_episodes(root)[0]
+
+            detail = load_episode_detail(entry)
+
+        self.assertEqual(detail["chapters"][0]["title"], "开场")
+        self.assertEqual(detail["warnings"], ["debug warning"])
 
     def test_build_story_chapter_annotation_attaches_boundary_summary_to_ending_chapter(self) -> None:
         annotation = build_story_chapter_annotation(

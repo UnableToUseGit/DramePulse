@@ -7,7 +7,7 @@ import sys
 from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.story_chapter_generation import StoryChapterPipeline
 from scripts.transcription.env import get_env_value

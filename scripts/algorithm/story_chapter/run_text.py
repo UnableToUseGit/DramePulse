@@ -4,7 +4,7 @@ import sys
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.run_story_chapter_generation import (
+from scripts.story_chapter.run_text import (
     build_ark_client,
     build_parser,
     load_video_metadata_from_scene_detection,

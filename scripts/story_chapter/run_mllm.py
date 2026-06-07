@@ -6,10 +6,10 @@ import sys
 from typing import Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.story_chapter_generation_multimodal import StoryChapterMultimodalPipeline
-from scripts.run_story_chapter_generation import build_ark_client, load_video_metadata_from_scene_detection
+from scripts.story_chapter.run_text import build_ark_client, load_video_metadata_from_scene_detection
 
 
 def build_parser() -> argparse.ArgumentParser:

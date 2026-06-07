@@ -8,14 +8,12 @@ import unittest
 from pipelines.story_chapter.baseline_text import Utterance
 from pipelines.story_chapter.subtitle_scene_aligned import (
     StoryChapterSubtitleSceneAlignedPipeline,
-    align_draft_chapters_to_scene_boundaries,
     boundary_frame_timestamps,
     build_boundary_review_user_prompt,
     build_draft_chapter_user_prompt,
     draft_frame_timestamps,
     parse_boundary_reviews,
     parse_draft_chapters,
-    select_boundary_candidates,
 )
 
 
@@ -98,12 +96,6 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
             {"scene_id": "s3", "start_time": 15.0, "end_time": 30.0},
         ]
 
-        candidates = select_boundary_candidates(
-            previous_chapter=chapters[0],
-            next_chapter=chapters[1],
-            scenes=scenes,
-            video_duration_seconds=30.0,
-        )
         subtitle_context = [
             Utterance("u_001", 8.5, 9.5, "上一章最后一句。", "speaker_a"),
             Utterance("u_002", 14.5, 15.5, "下一章第一句。", "speaker_b"),
@@ -114,7 +106,6 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 "boundary_id": "br_001",
                 "previous_chapter": chapters[0],
                 "next_chapter": chapters[1],
-                "candidates": candidates,
                 "previous_chapter_subtitles": [subtitle_context[0]],
                 "next_chapter_subtitles": [subtitle_context[1]],
                 "subtitle_context": subtitle_context,
@@ -134,10 +125,10 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
             frame_times_by_boundary={"br_002": {163.5, 164.5, 165.5}},
         )
 
-        self.assertEqual([candidate["time"] for candidate in candidates], [9.0, 11.0, 15.0])
         self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", prompt)
         self.assertIn("NEXT_CHAPTER_SUBTITLES", prompt)
         self.assertNotIn("CANDIDATE_BOUNDARIES", prompt)
+        self.assertNotIn("candidates", prompt)
         self.assertIn("FRAME_TIMESTAMPS_SECONDS: 9.0, 15.0", prompt)
         self.assertIn("Do not choose a timestamp only because a subtitle line starts there", prompt)
         self.assertIn("visual state has already changed", prompt)
@@ -157,60 +148,6 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
         )
         self.assertEqual(timestamps, [2.0, 3.0, 4.0, 5.0])
         self.assertEqual(by_boundary["br_001"], timestamps)
-
-    def test_align_draft_chapters_aligns_subtitle_ranges_to_scene_ranges(self) -> None:
-        drafts, warnings = parse_draft_chapters(
-            {
-                "chapters": [
-                    {
-                        "start_utterance_id": "u_001",
-                        "start_time": 1.16,
-                        "end_utterance_id": "u_018",
-                        "end_time": 84.0,
-                        "title": "结清工钱",
-                        "summary": "讨薪事件完成。",
-                        "reason": "讨薪目标已经完成。",
-                    },
-                    {
-                        "start_utterance_id": "u_019",
-                        "start_time": 95.0,
-                        "end_utterance_id": "u_024",
-                        "end_time": 136.0,
-                        "title": "汇款报平安",
-                        "summary": "汇款后接到电话。",
-                        "reason": "剧情转入汇款返乡。",
-                    },
-                ]
-            }
-        )
-
-        chapters, align_warnings = align_draft_chapters_to_scene_boundaries(
-            video_id="beiwang_ep01",
-            video_duration_seconds=301.133,
-            scenes=[
-                {"scene_id": "s1", "start_time": 0.0, "end_time": 63.233},
-                {"scene_id": "s2", "start_time": 63.233, "end_time": 83.533},
-                {"scene_id": "s3", "start_time": 83.533, "end_time": 85.8},
-                {"scene_id": "s4", "start_time": 85.8, "end_time": 90.0},
-                {"scene_id": "s5", "start_time": 90.0, "end_time": 136.833},
-                {"scene_id": "s6", "start_time": 136.833, "end_time": 249.1},
-                {"scene_id": "s7", "start_time": 249.1, "end_time": 301.133},
-            ],
-            drafts=drafts,
-            max_alignment_window_seconds=8.0,
-            min_chapter_seconds=12.0,
-        )
-
-        self.assertEqual(warnings, [])
-        self.assertEqual(align_warnings, [])
-        self.assertEqual(
-            [(chapter["start_time"], chapter["end_time"]) for chapter in chapters],
-            [(0.0, 85.8), (90.0, 136.833)],
-        )
-        self.assertEqual(chapters[0]["title"], "结清工钱")
-        self.assertEqual(chapters[1]["alignment"]["subtitle_start_time"], 95.0)
-        self.assertEqual(chapters[1]["alignment"]["subtitle_end_time"], 136.0)
-        self.assertEqual(chapters[1]["reason"], "剧情转入汇款返乡。")
 
     def test_pipeline_uses_mllm_boundary_reviews_for_final_continuous_chapters(self) -> None:
         subtitle_payload = {
@@ -302,9 +239,9 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
             output_path = StoryChapterSubtitleSceneAlignedPipeline(
                 llm_client=client,
                 extract_frames=fake_extract_frames,
-                min_chapter_seconds=3.0,
             ).run(
                 video_id="demo_ep01",
+                series_id="demo_series",
                 video_path=video_path,
                 video_metadata={"duration_seconds": 12.0},
                 transcription_path=transcription_path,
@@ -312,20 +249,33 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 output_root=root / "output",
             )
             output = json.loads(output_path.read_text(encoding="utf-8"))
+            debug_path = output_path.with_name("story_chapters.debug.json")
+            debug_output = json.loads(debug_path.read_text(encoding="utf-8"))
 
-        self.assertEqual(output["generation_mode"], "subtitle_scene_aligned")
+        self.assertEqual(set(output), {"video_id", "series_id", "created_at", "story_chapters"})
+        self.assertEqual(output["video_id"], "demo_ep01")
+        self.assertEqual(output["series_id"], "demo_series")
         self.assertEqual(
             [(chapter["start_time"], chapter["end_time"], chapter["title"]) for chapter in output["story_chapters"]],
             [(0.0, 6.0, "开场冲突"), (6.0, 12.0, "冲突收束")],
         )
-        self.assertEqual(output["boundary_reviews"][0]["boundary_time"], 6.0)
-        self.assertEqual(output["boundary_reviews"][0]["reason"], "6 秒是骑车过场结束并进入下一段冲突的转场。")
-        self.assertEqual(output["subtitle_chapters"][0]["reason"], "第一句台词建立冲突。")
+        self.assertEqual(
+            set(output["story_chapters"][0]),
+            {"chapter_id", "start_time", "end_time", "title", "summary", "reason"},
+        )
+        self.assertEqual(debug_output["generation_mode"], "subtitle_scene_aligned")
+        self.assertEqual(debug_output["clean_output_path"], str(output_path))
+        self.assertNotIn("aligned_subtitle_chapters", debug_output)
+        self.assertEqual(set(debug_output["boundary_review_raw"]), {"boundary_review_calls"})
+        self.assertNotIn("candidates", debug_output["boundary_review_tasks"][0])
+        self.assertEqual(debug_output["boundary_reviews"][0]["boundary_time"], 6.0)
+        self.assertEqual(debug_output["boundary_reviews"][0]["reason"], "6 秒是骑车过场结束并进入下一段冲突的转场。")
+        self.assertEqual(debug_output["subtitle_chapters"][0]["reason"], "第一句台词建立冲突。")
         self.assertEqual(len(client.calls), 2)
         self.assertEqual(client.calls[0]["frame_timestamps_seconds"], [0.0, 10.0])
         self.assertEqual(len(client.calls[0]["image_paths"]), 2)
         self.assertIn("SPARSE_VIDEO_FRAMES", client.calls[0]["user_prompt"])
-        self.assertEqual(output["draft_frame_timestamps_seconds"], [0.0, 10.0])
+        self.assertEqual(debug_output["draft_frame_timestamps_seconds"], [0.0, 10.0])
         self.assertIn("PREVIOUS_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
         self.assertIn("NEXT_CHAPTER_SUBTITLES", client.calls[1]["user_prompt"])
         self.assertNotIn("CANDIDATE_BOUNDARIES", client.calls[1]["user_prompt"])
@@ -390,6 +340,7 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
 
             StoryChapterSubtitleSceneAlignedPipeline(llm_client=client, extract_frames=fake_extract_frames).run(
                 video_id="demo_three",
+                series_id="demo_series",
                 video_path=video_path,
                 video_metadata={"duration_seconds": 20.0},
                 transcription_path=transcription_path,
@@ -486,6 +437,7 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
 
             output_path = StoryChapterSubtitleSceneAlignedPipeline(llm_client=client, extract_frames=fake_extract_frames).run(
                 video_id="demo_overlap",
+                series_id="demo_series",
                 video_path=video_path,
                 video_metadata={"duration_seconds": 8.0},
                 transcription_path=transcription_path,
@@ -493,12 +445,13 @@ class StoryChapterSubtitleSceneAlignedTest(unittest.TestCase):
                 output_root=root / "output",
             )
             output = json.loads(output_path.read_text(encoding="utf-8"))
+            debug_output = json.loads(output_path.with_name("story_chapters.debug.json").read_text(encoding="utf-8"))
 
         self.assertEqual(
             [(chapter["start_time"], chapter["end_time"]) for chapter in output["story_chapters"]],
             [(0.0, 5.0), (5.0, 8.0)],
         )
-        self.assertEqual(output["boundary_reviews"][0]["boundary_time"], 5.0)
+        self.assertEqual(debug_output["boundary_reviews"][0]["boundary_time"], 5.0)
 
 
 if __name__ == "__main__":

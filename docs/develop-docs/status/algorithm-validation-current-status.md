@@ -149,11 +149,11 @@ python scripts/run_expression_trigger_workflow_batch.py \
 
 - `pipelines/story_chapter/baseline_text.py`
 - `pipelines/story_chapter/baseline_mllm.py`
-- `scripts/run_story_chapter_generation.py`
-- `scripts/run_story_chapter_generation_batch.py`
-- `scripts/run_story_chapter_generation_multimodal.py`
-- `scripts/run_story_chapter_generation_multimodal_batch.py`
-- `scripts/story_chapter_viewer_server.py`
+- `scripts/story_chapter/run_text.py`
+- `scripts/story_chapter/run_text_batch.py`
+- `scripts/story_chapter/run_mllm.py`
+- `scripts/story_chapter/run_mllm_batch.py`
+- `scripts/story_chapter/viewer_server.py`
 - `apps/story-chapter-viewer/`
 
 章节算法当前有两版：

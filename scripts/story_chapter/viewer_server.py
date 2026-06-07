@@ -15,7 +15,7 @@ from urllib.parse import unquote, urlparse
 
 DEFAULT_DATASET_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
 DEFAULT_ANNOTATION_ROOT = Path("data/annotations/story_chapter_gold")
-STATIC_ROOT = Path(__file__).resolve().parents[1] / "apps" / "story-chapter-viewer"
+STATIC_ROOT = Path(__file__).resolve().parents[2] / "apps" / "story-chapter-viewer"
 
 
 @dataclass(frozen=True)
@@ -45,6 +45,10 @@ def _safe_read_json(path: Path) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _debug_chapter_path_for(chapter_path: Path) -> Path:
+    return chapter_path.with_name("story_chapters.debug.json")
 
 
 def _find_chapter_path(
@@ -275,6 +279,11 @@ def load_episode_detail(entry: EpisodeIndexEntry) -> dict[str, Any]:
         raw_warnings = chapter_payload.get("warnings")
         if isinstance(raw_warnings, list):
             warnings = [str(warning) for warning in raw_warnings]
+        elif (debug_path := _debug_chapter_path_for(entry.chapter_path)).exists():
+            debug_payload = _safe_read_json(debug_path)
+            debug_warnings = debug_payload.get("warnings")
+            if isinstance(debug_warnings, list):
+                warnings = [str(warning) for warning in debug_warnings]
     gold_annotation = {}
     if entry.annotation_path is not None and entry.annotation_path.exists():
         gold_annotation = _safe_read_json(entry.annotation_path)

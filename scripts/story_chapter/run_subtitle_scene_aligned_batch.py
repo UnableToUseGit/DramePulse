@@ -9,12 +9,12 @@ import sys
 from typing import Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.story_chapter.subtitle_scene_aligned import StoryChapterSubtitleSceneAlignedPipeline
-from scripts.run_story_chapter_generation import load_video_metadata_from_scene_detection
-from scripts.run_story_chapter_generation_batch import DEFAULT_DATASET_ROOT, _safe_video_id
-from scripts.run_story_chapter_subtitle_scene_aligned import build_pipeline
+from scripts.story_chapter.run_text import load_video_metadata_from_scene_detection
+from scripts.story_chapter.run_text_batch import DEFAULT_DATASET_ROOT, _safe_video_id
+from scripts.story_chapter.run_subtitle_scene_aligned import build_pipeline
 
 
 @dataclass(frozen=True)
@@ -79,8 +79,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--series-id", action="append", default=[])
     parser.add_argument("--episode-id", action="append", default=[])
     parser.add_argument("--draft-frame-interval-seconds", type=float, default=10.0, help="Sparse frame interval for the first draft LLM call. Use 0 to disable.")
-    parser.add_argument("--max-alignment-window-seconds", type=float, default=10.0)
-    parser.add_argument("--min-chapter-seconds", type=float, default=12.0)
     return parser
 
 
@@ -124,6 +122,7 @@ def main(
         try:
             written_path = active_pipeline.run(
                 video_id=item.video_id,
+                series_id=item.series_slug,
                 video_path=item.video_path,
                 video_metadata=load_video_metadata_from_scene_detection(item.scene_detection_path),
                 transcription_path=item.transcription_path,

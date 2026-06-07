@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from scripts.evaluate_story_chapter_workflow import evaluate_episode, main
+from scripts.story_chapter.evaluate_workflow import evaluate_episode, main
 
 
 class StoryChapterWorkflowEvaluationScriptTest(unittest.TestCase):

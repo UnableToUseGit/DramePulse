@@ -203,132 +203,6 @@ def draft_frame_timestamps(
     return sorted(set(timestamps))
 
 
-def _scene_start_containing_time(time_sec: float, scenes: Sequence[dict[str, Any]]) -> float | None:
-    candidates: list[float] = []
-    for scene in scenes:
-        try:
-            start_time = float(scene["start_time"])
-            end_time = float(scene["end_time"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if start_time <= time_sec < end_time or start_time < time_sec <= end_time:
-            candidates.append(start_time)
-    if not candidates:
-        return None
-    return _round_time(max(candidates))
-
-
-def _scene_end_containing_time(time_sec: float, scenes: Sequence[dict[str, Any]]) -> float | None:
-    candidates: list[float] = []
-    for scene in scenes:
-        try:
-            start_time = float(scene["start_time"])
-            end_time = float(scene["end_time"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if start_time < time_sec <= end_time or start_time <= time_sec < end_time:
-            candidates.append(end_time)
-    if not candidates:
-        return None
-    return _round_time(min(candidates))
-
-
-def align_draft_chapters_to_scene_boundaries(
-    *,
-    video_id: str,
-    video_duration_seconds: float,
-    scenes: Sequence[dict[str, Any]],
-    drafts: Sequence[DraftChapter],
-    max_alignment_window_seconds: float = 10.0,
-    min_chapter_seconds: float = 12.0,
-) -> tuple[list[dict[str, Any]], list[str]]:
-    warnings: list[str] = []
-    if not drafts:
-        return [
-            {
-                "chapter_id": f"ch_{video_id}_001",
-                "video_id": video_id,
-                "start_time": 0.0,
-                "end_time": _round_time(video_duration_seconds),
-                "title": "全片",
-                "summary": "",
-                "reason": "No valid subtitle draft chapters were returned; generated one full-episode chapter.",
-                "importance": 0.5,
-                "alignment": {
-                    "subtitle_start_time": 0.0,
-                    "subtitle_end_time": _round_time(video_duration_seconds),
-                    "aligned_scene_start_time": 0.0,
-                    "aligned_scene_end_time": _round_time(video_duration_seconds),
-                },
-            }
-        ], ["No valid subtitle draft chapters; generated one full-episode fallback chapter."]
-
-    chapters: list[dict[str, Any]] = []
-    for index, draft in enumerate(drafts, start=1):
-        aligned_start = _scene_start_containing_time(draft.start_time, scenes)
-        aligned_end = _scene_end_containing_time(draft.end_time, scenes)
-        if aligned_start is None:
-            warnings.append(f"Could not find containing scene for draft chapter #{index} start_time={draft.start_time:.3f}.")
-            continue
-        if aligned_end is None:
-            warnings.append(f"Could not find containing scene for draft chapter #{index} end_time={draft.end_time:.3f}.")
-            continue
-        if aligned_end <= aligned_start:
-            warnings.append(f"Aligned draft chapter #{index} has end_time <= start_time.")
-            continue
-        chapters.append(
-            {
-                "chapter_id": f"ch_{video_id}_{index:03d}",
-                "video_id": video_id,
-                "start_time": aligned_start,
-                "end_time": aligned_end,
-                "title": draft.title,
-                "summary": draft.summary,
-                "reason": draft.reason,
-                "importance": draft.importance,
-                "alignment": {
-                    "start_utterance_id": draft.start_utterance_id,
-                    "end_utterance_id": draft.end_utterance_id,
-                    "start_reason": draft.start_reason,
-                    "end_reason": draft.end_reason,
-                    "subtitle_start_time": draft.start_time,
-                    "subtitle_end_time": draft.end_time,
-                    "aligned_scene_start_time": aligned_start,
-                    "aligned_scene_end_time": aligned_end,
-                    "start_alignment_error_seconds": _round_time(aligned_start - draft.start_time),
-                    "end_alignment_error_seconds": _round_time(aligned_end - draft.end_time),
-                },
-            }
-        )
-    return chapters, warnings
-
-
-def normalize_aligned_chapters(chapters: Sequence[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
-    normalized = [dict(chapter) for chapter in sorted(chapters, key=lambda item: (float(item["start_time"]), float(item["end_time"])))]
-    warnings: list[str] = []
-    previous_end: float | None = None
-    previous_id: str | None = None
-    result: list[dict[str, Any]] = []
-    for chapter in normalized:
-        start_time = _round_time(float(chapter["start_time"]))
-        end_time = _round_time(float(chapter["end_time"]))
-        if previous_end is not None and start_time < previous_end:
-            warnings.append(
-                f"Resolved aligned subtitle chapter overlap: {previous_id} end_time={previous_end:.3f}, "
-                f"{chapter['chapter_id']} start_time={start_time:.3f}."
-            )
-            start_time = previous_end
-        if end_time <= start_time:
-            warnings.append(f"Dropped zero-length aligned subtitle chapter {chapter['chapter_id']}.")
-            continue
-        chapter["start_time"] = start_time
-        chapter["end_time"] = end_time
-        result.append(chapter)
-        previous_end = end_time
-        previous_id = str(chapter["chapter_id"])
-    return result, warnings
-
-
 def subtitle_chapters_from_drafts(
     *,
     video_id: str,
@@ -372,65 +246,6 @@ def _boundary_search_time_range(
         "start_time": _round_time(max(0.0, rough_start - context_seconds)),
         "end_time": _round_time(min(video_duration_seconds, rough_end + context_seconds)),
     }
-
-
-def select_boundary_candidates(
-    *,
-    previous_chapter: dict[str, Any],
-    next_chapter: dict[str, Any],
-    scenes: Sequence[dict[str, Any]],
-    video_duration_seconds: float,
-) -> list[dict[str, Any]]:
-    search_time_range = _boundary_search_time_range(
-        previous_chapter=previous_chapter,
-        next_chapter=next_chapter,
-        video_duration_seconds=video_duration_seconds,
-    )
-    rough_midpoint = _round_time((float(previous_chapter["end_time"]) + float(next_chapter["start_time"])) / 2.0)
-    candidates: list[dict[str, Any]] = []
-    for scene in scenes:
-        try:
-            start_time = float(scene["start_time"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if 0.0 < start_time < video_duration_seconds and search_time_range["start_time"] <= start_time <= search_time_range["end_time"]:
-            candidates.append(
-                {
-                    "time": _round_time(start_time),
-                    "scene_id": str(scene.get("scene_id") or ""),
-                    "source": "scene_start_in_boundary_search_window",
-                }
-            )
-    if 0.0 < rough_midpoint < video_duration_seconds:
-        candidates.append(
-            {
-                "time": rough_midpoint,
-                "scene_id": "",
-                "source": "rough_midpoint_between_chapters",
-            }
-        )
-    if candidates:
-        unique: dict[float, dict[str, Any]] = {}
-        for candidate in candidates:
-            unique[float(candidate["time"])] = candidate
-        return [unique[time] for time in sorted(unique)]
-
-    fallback_time = rough_midpoint
-    nearest: float | None = None
-    for scene in scenes:
-        try:
-            start_time = float(scene["start_time"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if 0.0 < start_time < video_duration_seconds and (nearest is None or abs(start_time - fallback_time) < abs(nearest - fallback_time)):
-            nearest = start_time
-    return [
-        {
-            "time": _round_time(nearest if nearest is not None else fallback_time),
-            "scene_id": "",
-            "source": "nearest_scene_start_fallback",
-        }
-    ]
 
 
 def boundary_subtitle_context(
@@ -595,7 +410,6 @@ def parse_boundary_reviews(
 def build_boundary_review_tasks(
     *,
     aligned_chapters: Sequence[dict[str, Any]],
-    scenes: Sequence[dict[str, Any]],
     utterances: Sequence[Utterance],
     video_duration_seconds: float,
 ) -> list[dict[str, Any]]:
@@ -604,12 +418,6 @@ def build_boundary_review_tasks(
         search_time_range = _boundary_search_time_range(
             previous_chapter=previous,
             next_chapter=current,
-            video_duration_seconds=video_duration_seconds,
-        )
-        candidates = select_boundary_candidates(
-            previous_chapter=previous,
-            next_chapter=current,
-            scenes=scenes,
             video_duration_seconds=video_duration_seconds,
         )
         subtitle_context, subtitle_context_time_range = boundary_subtitle_context(
@@ -621,7 +429,6 @@ def build_boundary_review_tasks(
                 "boundary_id": f"br_{len(tasks) + 1:03d}",
                 "previous_chapter": previous,
                 "next_chapter": current,
-                "candidates": candidates,
                 "search_time_range": search_time_range,
                 "previous_chapter_subtitles": [asdict(utterance) for utterance in _chapter_subtitle_context(chapter=previous, utterances=utterances)],
                 "next_chapter_subtitles": [asdict(utterance) for utterance in _chapter_subtitle_context(chapter=current, utterances=utterances)],
@@ -689,16 +496,12 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         extract_frames: ExtractFrames = extract_frames_at_timestamps,
         frame_max_height: int = 512,
         draft_frame_interval_seconds: float = 10.0,
-        max_alignment_window_seconds: float = 10.0,
-        min_chapter_seconds: float = 12.0,
         progress_logger: Callable[[str], None] | None = None,
     ) -> None:
         self.llm_client = llm_client
         self.extract_frames = extract_frames
         self.frame_max_height = frame_max_height
         self.draft_frame_interval_seconds = draft_frame_interval_seconds
-        self.max_alignment_window_seconds = max_alignment_window_seconds
-        self.min_chapter_seconds = min_chapter_seconds
         self.progress_logger = progress_logger
 
     def _log(self, video_id: str, message: str) -> None:
@@ -709,6 +512,7 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         self,
         *,
         video_id: str,
+        series_id: str | None = None,
         video_path: Path,
         video_metadata: dict[str, Any],
         transcription_path: Path,
@@ -781,26 +585,13 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         self._log(video_id, f"subtitle draft LLM done drafts={len(drafts)} warnings={len(parse_warnings)}")
         subtitle_chapters = subtitle_chapters_from_drafts(video_id=video_id, drafts=drafts)
 
-        aligned_chapters, align_warnings = align_draft_chapters_to_scene_boundaries(
-            video_id=video_id,
-            video_duration_seconds=video_duration_seconds,
-            scenes=scenes,
-            drafts=drafts,
-            max_alignment_window_seconds=self.max_alignment_window_seconds,
-            min_chapter_seconds=self.min_chapter_seconds,
-        )
-        aligned_chapters, normalize_warnings = normalize_aligned_chapters(aligned_chapters)
-        align_warnings.extend(normalize_warnings)
-        self._log(video_id, f"scene alignment done chapters={len(aligned_chapters)} warnings={len(align_warnings)}")
-
         boundary_tasks = build_boundary_review_tasks(
             aligned_chapters=subtitle_chapters,
-            scenes=scenes,
             utterances=utterances,
             video_duration_seconds=video_duration_seconds,
         )
         self._log(video_id, f"boundary review task build done boundaries={len(boundary_tasks)}")
-        boundary_raw: dict[str, Any] = {"boundary_reviews": [], "boundary_review_calls": {}}
+        boundary_raw: dict[str, Any] = {"boundary_review_calls": {}}
         boundary_reviews: list[dict[str, Any]] = []
         boundary_warnings: list[str] = []
         frame_extraction: dict[str, Any] | None = None
@@ -855,9 +646,6 @@ class StoryChapterSubtitleSceneAlignedPipeline:
                         max_tokens=1600,
                     )
                     boundary_raw["boundary_review_calls"][boundary_id] = task_raw
-                    raw_reviews = task_raw.get("boundary_reviews") if isinstance(task_raw, dict) else None
-                    if isinstance(raw_reviews, list):
-                        boundary_raw["boundary_reviews"].extend(raw_reviews)
                     parsed_reviews, parsed_warnings = parse_boundary_reviews(
                         task_raw,
                         valid_boundary_ids={boundary_id},
@@ -883,11 +671,32 @@ class StoryChapterSubtitleSceneAlignedPipeline:
         output_dir = output_root / video_id
         output_dir.mkdir(parents=True, exist_ok=True)
         output_path = output_dir / "story_chapters.json"
-        output = {
+        debug_output_path = output_dir / "story_chapters.debug.json"
+        clean_chapters = [
+            {
+                "chapter_id": chapter["chapter_id"],
+                "start_time": chapter["start_time"],
+                "end_time": chapter["end_time"],
+                "title": chapter["title"],
+                "summary": chapter["summary"],
+                "reason": chapter["reason"],
+            }
+            for chapter in story_chapters
+        ]
+        created_at = _now_iso()
+        clean_output = {
             "video_id": video_id,
-            "created_at": _now_iso(),
+            "series_id": series_id,
+            "created_at": created_at,
+            "story_chapters": clean_chapters,
+        }
+        debug_output = {
+            "video_id": video_id,
+            "series_id": series_id,
+            "created_at": created_at,
             "generation_mode": "subtitle_scene_aligned",
             "video_path": str(video_path),
+            "clean_output_path": str(output_path),
             "video_metadata": {"duration_seconds": _round_time(video_duration_seconds)},
             "source": {
                 "transcription_path": str(transcription_path),
@@ -897,7 +706,6 @@ class StoryChapterSubtitleSceneAlignedPipeline:
             "scenes": list(scenes),
             "scene_boundaries": list(scene_boundaries),
             "subtitle_chapters": subtitle_chapters,
-            "aligned_subtitle_chapters": aligned_chapters,
             "draft_frame_timestamps_seconds": draft_frame_timestamps_seconds,
             "draft_frame_extraction": draft_frame_extraction,
             "boundary_review_tasks": boundary_tasks,
@@ -909,9 +717,10 @@ class StoryChapterSubtitleSceneAlignedPipeline:
             "draft_chapters": [asdict(draft) for draft in drafts],
             "llm_raw": raw,
             "story_chapters": story_chapters,
-            "warnings": [*parse_warnings, *align_warnings, *boundary_warnings],
+            "warnings": [*parse_warnings, *boundary_warnings],
         }
-        output_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        output_path.write_text(json.dumps(clean_output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        debug_output_path.write_text(json.dumps(debug_output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         self._log(video_id, f"write output done path={output_path}")
         return output_path
 
@@ -919,7 +728,6 @@ class StoryChapterSubtitleSceneAlignedPipeline:
 __all__ = [
     "DraftChapter",
     "StoryChapterSubtitleSceneAlignedPipeline",
-    "align_draft_chapters_to_scene_boundaries",
     "build_boundary_review_system_prompt",
     "build_boundary_review_user_prompt",
     "build_draft_chapter_system_prompt",
@@ -929,6 +737,5 @@ __all__ = [
     "draft_frame_timestamps",
     "parse_boundary_reviews",
     "parse_draft_chapters",
-    "select_boundary_candidates",
     "subtitle_chapters_from_drafts",
 ]

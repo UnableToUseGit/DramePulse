@@ -20,13 +20,13 @@ pipelines/inner_voice_danmaku/
 - `scripts/run_expression_trigger_workflow_batch.py`
 - `scripts/run_expression_trigger_mllm_baseline_batch.py`
 - `scripts/run_expression_trigger_text_baseline_batch.py`
-- `scripts/run_story_chapter_generation.py`
-- `scripts/run_story_chapter_generation_batch.py`
-- `scripts/run_story_chapter_generation_multimodal.py`
-- `scripts/run_story_chapter_generation_multimodal_batch.py`
-- `scripts/run_story_chapter_subtitle_scene_aligned.py`
-- `scripts/run_story_chapter_subtitle_scene_aligned_batch.py`
-- `scripts/evaluate_story_chapter_workflow.py`
+- `scripts/story_chapter/run_text.py`
+- `scripts/story_chapter/run_text_batch.py`
+- `scripts/story_chapter/run_mllm.py`
+- `scripts/story_chapter/run_mllm_batch.py`
+- `scripts/story_chapter/run_subtitle_scene_aligned.py`
+- `scripts/story_chapter/run_subtitle_scene_aligned_batch.py`
+- `scripts/story_chapter/evaluate_workflow.py`
 - `scripts/run_inner_voice_danmaku_generation.py`
 
 ## 2.1 当前应用入口
@@ -36,7 +36,12 @@ pipelines/inner_voice_danmaku/
 
 `apps/player-demo/` 是 React Native + Expo 移动端播放器 Demo。当前版本只包含单个竖屏短剧播放页，使用本地 fixture 展示普通弹幕、中间弹幕投票条、比例反馈、共鸣弹幕、debug 面板和端内事件统计。
 
-`apps/story-chapter-viewer/` 是 Story Chapter 本地检查与标注工具，由 `scripts/story_chapter_viewer_server.py` 提供数据和视频服务。当前版本支持查看算法生成的 `story_chapters.json`，并标注人工 gold chapter boundary。人工标注只记录内部边界点，不手工填写 `start_time` 和 `end_time`；保存时服务端自动按 `[0.0, boundaries..., duration]` 生成 non-gap、non-overlap 的 gold chapters。`boundaries[].ending_chapter_summary` 表示以该 boundary 为 `end_time` 的章节摘要；最后一个以视频 `duration` 为 `end_time` 的章节摘要单独保存在 `final_chapter_summary`，不通过接近 `duration` 的伪 boundary 表达。导出的 `chapters[].summary` 使用这些摘要，boundary 本身不再保存 `reason`。
+`apps/story-chapter-viewer/` 是 Story Chapter 本地检查与标注工具，由 `scripts/story_chapter/viewer_server.py` 提供数据和视频服务。当前版本支持查看算法生成的 `story_chapters.json`，并标注人工 gold chapter boundary。人工标注只记录内部边界点，不手工填写 `start_time` 和 `end_time`；保存时服务端自动按 `[0.0, boundaries..., duration]` 生成 non-gap、non-overlap 的 gold chapters。`boundaries[].ending_chapter_summary` 表示以该 boundary 为 `end_time` 的章节摘要；最后一个以视频 `duration` 为 `end_time` 的章节摘要单独保存在 `final_chapter_summary`，不通过接近 `duration` 的伪 boundary 表达。导出的 `chapters[].summary` 使用这些摘要，boundary 本身不再保存 `reason`。
+
+Story Chapter subtitle-scene aligned workflow 当前会写出两类产物：
+
+- `story_chapters.json`：干净最终产物，用于上传或被前端/评估脚本消费，只包含 `video_id`、`series_id`、`created_at` 和 `story_chapters`。每个章节只包含 `chapter_id`、`start_time`、`end_time`、`title`、`summary`、`reason`。
+- `story_chapters.debug.json`：完整诊断产物，保留字幕、场景、稀疏帧抽取信息、边界复核任务、MLLM raw response、warnings 等调试字段。`apps/story-chapter-viewer/` 会继续读取 `story_chapters.json` 中的章节；如果同目录存在 debug 产物，则从 debug 产物读取 warnings 用于本地复核。
 
 ## 3. 当前样例数据
 

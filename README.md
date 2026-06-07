@@ -98,8 +98,8 @@ python scripts/run_expression_trigger_text_baseline_batch.py --video-id case1_ep
 运行 Story Chapter baseline：
 
 ```bash
-python scripts/run_story_chapter_generation.py case1_ep01
-python scripts/run_story_chapter_generation_multimodal.py case1_ep01
+python scripts/story_chapter/run_text.py case1_ep01
+python scripts/story_chapter/run_mllm.py case1_ep01
 ```
 
 Expression Trigger 默认输出仍写入每集目录下的兼容文件名：

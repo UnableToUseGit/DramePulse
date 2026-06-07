@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-from scripts.run_story_chapter_generation_multimodal_batch import build_parser, discover_multimodal_inputs, main
+from scripts.story_chapter.run_mllm_batch import build_parser, discover_multimodal_inputs, main
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
