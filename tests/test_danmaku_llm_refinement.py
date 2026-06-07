@@ -284,5 +284,5 @@ def test_danmaku_llm_refinement_cli_prints_window_progress(tmp_path: Path, capsy
     assert result == 0
     assert "prepared: windows=1" in captured.out
     assert "[beiwang_ep01] llm_window_start: 1/1 window=dw_beiwang_ep01_001 comments=2" in captured.out
-    assert "[beiwang_ep01] llm_window_done: 1/1 window=dw_beiwang_ep01_001 candidates=1 filtered=0" in captured.out
+    assert "[beiwang_ep01] llm_window_done: 1/1 window=dw_beiwang_ep01_001 candidates=1 filtered=0 tokens=64" in captured.out
     assert "completed: windows=1 candidates=1 filtered=0" in captured.out

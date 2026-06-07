@@ -77,12 +77,15 @@ def print_llm_refinement_progress(event: str, payload: dict[str, Any]) -> None:
         return
     if event == "llm_window_done":
         video_id = payload.get("video_id") or "unknown"
+        token_count = payload.get("total_tokens")
+        token_text = token_count if token_count is not None else "n/a"
         print(
             f"[{video_id}] llm_window_done: "
             f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
             f"window={payload.get('window_id')} "
             f"candidates={payload.get('candidate_count', 0)} "
-            f"filtered={payload.get('filtered_count', 0)}"
+            f"filtered={payload.get('filtered_count', 0)} "
+            f"tokens={token_text}"
         )
         return
     if event == "completed":

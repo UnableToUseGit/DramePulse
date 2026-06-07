@@ -94,6 +94,19 @@ def _build_system_prompt() -> str:
     return "Return only valid JSON. Do not include markdown."
 
 
+def _diagnostic_total_tokens(diagnostics: Any) -> int | None:
+    if not isinstance(diagnostics, dict):
+        return None
+    usage = diagnostics.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    value = usage.get("total_tokens")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _windows_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
     windows = payload.get("windows")
     if not isinstance(windows, list):
@@ -202,6 +215,7 @@ def refine_danmaku_windows_with_llm(
         )
         diagnostics = getattr(llm_client, "last_call_diagnostics", {})
         llm_calls.append(dict(diagnostics) if isinstance(diagnostics, dict) else {})
+        total_tokens = _diagnostic_total_tokens(diagnostics)
         window_candidates, window_filtered = _parse_llm_clusters(raw_result=raw_result, window=window)
         filtered_clusters.extend(window_filtered)
         start_candidate_count = len(candidates)
@@ -224,6 +238,7 @@ def refine_danmaku_windows_with_llm(
                     "window_count": len(windows),
                     "candidate_count": len(candidates) - start_candidate_count,
                     "filtered_count": len(window_filtered),
+                    "total_tokens": total_tokens,
                 },
             )
     if progress_callback is not None:
