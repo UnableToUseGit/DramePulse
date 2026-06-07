@@ -32,6 +32,7 @@ LOW_SIGNAL_TEXTS = {
 
 UNSAFE_KEYWORDS = ("傻逼", "sb", "滚", "去死", "垃圾")
 ACTOR_CHARM_KEYWORDS = ("帅", "美", "漂亮", "好看", "眼神", "表情", "演技", "哭戏", "气质", "老公", "老婆", "姐姐", "小奶狗")
+ACTOR_CHARM_KEEP_RATIO = 0.4
 EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜", "泪目", "捂脸", "大笑", "笑哭")
 EMOTION_BURST_EXCLUDE_MIN_COUNT = 3
 EMOTION_BURST_EXCLUDE_RATIO = 0.6
@@ -260,10 +261,12 @@ def _build_windows_for_episode(
                 for item in window_items
             )
             actor_charm_count = intent_counts["actor_charm"]
+            actor_charm_ratio = actor_charm_count / len(window_items)
+            actor_charm_qualified = actor_charm_ratio >= ACTOR_CHARM_KEEP_RATIO
             emotion_burst_count = intent_counts["emotion_burst"]
             emotion_burst_ratio = emotion_burst_count / len(window_items)
             if (
-                actor_charm_count <= 0
+                not actor_charm_qualified
                 and emotion_burst_count >= EMOTION_BURST_EXCLUDE_MIN_COUNT
                 and emotion_burst_ratio >= EMOTION_BURST_EXCLUDE_RATIO
             ):
@@ -276,7 +279,7 @@ def _build_windows_for_episode(
                 + max(0, repeat_text_count - 1) * 1.1
                 + min(digg_sum, 50) * 0.12
                 + high_digg_count * 0.8
-                + actor_charm_count * 0.8
+                + (actor_charm_count * 0.8 if actor_charm_qualified else 0.0)
                 + burst_score
             )
             raw_windows.append(
@@ -291,9 +294,10 @@ def _build_windows_for_episode(
                     "digg_sum": int(digg_sum),
                     "high_digg_count": high_digg_count,
                     "actor_charm_count": actor_charm_count,
+                    "actor_charm_ratio": _round_time(actor_charm_ratio),
                     "emotion_burst_count": emotion_burst_count,
                     "emotion_burst_ratio": _round_time(emotion_burst_ratio),
-                    "recall_reason": "actor_charm" if actor_charm_count > 0 else "selected",
+                    "recall_reason": "actor_charm_ratio" if actor_charm_qualified else "selected",
                     "burst_score": _round_time(burst_score),
                     "resonance_score": _round_time(resonance_score),
                     "top_comments": _top_comments(window_items),
