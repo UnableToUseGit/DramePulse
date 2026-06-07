@@ -32,6 +32,13 @@ def _format_optional_number(value: Any, *, suffix: str = "") -> str:
     return f"{value}{suffix}"
 
 
+def _visual_window_count(payload: dict[str, Any]) -> int:
+    try:
+        return int(payload.get("visual_window_count", payload.get("visual_candidate_window_count", 0)) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
     video_id = str(payload.get("video_id") or "unknown")
     if event == "preprocess_subtitles_loaded":
@@ -60,7 +67,7 @@ def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
     if event == "preprocess_visual_windows_done":
         print(
             f"[{video_id}] preprocess_visual_windows_done: "
-            f"visual_windows={payload.get('visual_window_count', 0)} "
+            f"visual_windows={_visual_window_count(payload)} "
             f"elapsed={_format_optional_number(payload.get('elapsed_sec'), suffix='s')}"
         )
         return
@@ -77,7 +84,7 @@ def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
             f"[{video_id}] prepared: "
             f"duration={_format_optional_number(payload.get('duration_sec'), suffix='s')} "
             f"subtitles={payload.get('subtitle_segment_count', 0)} "
-            f"visual_windows={payload.get('visual_window_count', 0)} "
+            f"visual_windows={_visual_window_count(payload)} "
             f"candidate_frames={payload.get('candidate_frame_count', 0)} "
             f"sample_interval={payload.get('sample_interval_sec')}s "
             f"visual_window_sec={payload.get('visual_candidate_window_sec')}s "
@@ -188,6 +195,9 @@ def build_pipeline(
             sample_interval_sec=sample_interval_sec,
             max_frames=max_frames,
             frame_max_height=frame_max_height,
+            visual_candidate_window_sec=visual_candidate_window_sec,
+            visual_window_sample_interval_sec=visual_window_sample_interval_sec,
+            visual_window_max_frames=visual_window_max_frames,
             top_k=final_max_triggers or 4,
             min_gap_seconds=final_same_expression_gap_sec,
             branch_max_output_tokens=candidate_max_output_tokens,

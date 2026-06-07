@@ -44,8 +44,19 @@ def _expression_definitions_block() -> list[str]:
     ]
 
 
+def normalize_mllm_frame_timestamps(frame_timestamps_seconds: list[float]) -> list[float]:
+    timestamps: set[float] = set()
+    for timestamp in frame_timestamps_seconds:
+        try:
+            timestamps.add(max(0.0, round(float(timestamp), 1)))
+        except (TypeError, ValueError):
+            continue
+    return sorted(timestamps)
+
+
 def _format_frame_timestamps(frame_timestamps_seconds: list[float]) -> str:
-    return ", ".join(f"{timestamp:.3f}" for timestamp in frame_timestamps_seconds) if frame_timestamps_seconds else "none"
+    normalized_timestamps = normalize_mllm_frame_timestamps(frame_timestamps_seconds)
+    return ", ".join(f"{timestamp:.1f}" for timestamp in normalized_timestamps) if normalized_timestamps else "none"
 
 
 def _overlap_seconds(start_a: float, end_a: float, start_b: float, end_b: float) -> float:

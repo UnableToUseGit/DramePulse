@@ -95,11 +95,8 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
                         "candidate_type": "payback",
                         "start_time": 10.0,
                         "end_time": 22.0,
-                        "trigger_time": 20.0,
                         "summary": "女主掀桌反击。",
-                        "setup": "儿子被刁难。",
-                        "turning_point": "女主掀桌。",
-                        "payoff": "夺回主动权。",
+                        "reason": "女主从被动受辱转为主动反击。",
                         "evidence": ["18.000-20.000 我今天就把桌子掀了"],
                     }
                 ]
@@ -109,11 +106,9 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
                     {
                         "start_time": 58.0,
                         "end_time": 64.0,
-                        "trigger_time": 62.0,
                         "summary": "女主帮领导消毒形成笑点。",
-                        "setup": "领导夸张担心。",
-                        "punchline": "来嘛，我帮你消毒",
-                        "payoff": "夸张和反制形成反差。",
+                        "punchline_text": "来嘛，我帮你消毒",
+                        "reason": "女主把领导的夸张担心反制成荒诞消毒动作。",
                         "evidence": ["60.000-62.000 来嘛，我帮你消毒"],
                     }
                 ]
@@ -147,7 +142,7 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
         ]
     )
 
-    pipeline = DualBranchExpressionTriggerPipeline(llm_client=llm, sample_interval_sec=30.0, top_k=4)
+    pipeline = DualBranchExpressionTriggerPipeline(llm_client=llm, sample_interval_sec=33.333, top_k=4)
 
     result = pipeline.run(
         video_id="demo_ep01",
@@ -164,6 +159,17 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
     assert [trigger["trigger_time"] for trigger in result.expression_triggers] == [20.2, 62.2]
     assert result.resonance_cues == []
     assert len(llm.calls) == 3
-    assert "Plot Beat Branch" in llm.calls[0]["user_prompt"]
-    assert "Punchline Branch" in llm.calls[1]["user_prompt"]
+    assert "plot beat annotator" in llm.calls[0]["system_prompt"]
+    assert "Expression Trigger" not in llm.calls[0]["system_prompt"]
+    assert "short-drama plot beat annotator" in llm.calls[0]["user_prompt"]
+    assert "trigger_time" not in llm.calls[0]["user_prompt"]
+    assert len(llm.calls[0]["frame_timestamps_seconds"]) > 4
+    assert all(timestamp == round(timestamp, 1) for timestamp in llm.calls[0]["frame_timestamps_seconds"])
+    assert "FRAME_TIMESTAMPS_SECONDS" not in llm.calls[0]["user_prompt"]
+    assert "66.666" not in llm.calls[0]["user_prompt"]
+    assert "punchline candidate annotator" in llm.calls[1]["system_prompt"]
+    assert "short-drama punchline annotator" in llm.calls[1]["user_prompt"]
+    assert "punchline_text" in llm.calls[1]["user_prompt"]
+    assert "expression-trigger" not in llm.calls[1]["user_prompt"]
+    assert "triggerability judge" in llm.calls[2]["system_prompt"]
     assert "Triggerability Judge" in llm.calls[2]["user_prompt"]

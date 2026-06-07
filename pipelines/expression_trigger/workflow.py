@@ -20,6 +20,7 @@ from pipelines.expression_trigger.candidates import (
     _build_candidate_generation_prompt,
     build_candidate_generation_frame_timestamps,
     build_visual_candidate_windows,
+    normalize_mllm_frame_timestamps,
     parse_expression_trigger_candidates,
 )
 from pipelines.expression_trigger.postprocess import consolidate_expression_triggers
@@ -153,13 +154,15 @@ class WorkflowExpressionTriggerPipeline:
                 "elapsed_sec": round(time.perf_counter() - visual_window_started_at, 3),
             },
         )
-        timestamps = build_candidate_generation_frame_timestamps(
-            duration_sec=duration_sec,
-            sample_interval_sec=self.sample_interval_sec,
-            max_frames=self.max_frames,
-            visual_candidate_windows=visual_candidate_windows,
-            visual_window_sample_interval_sec=self.visual_window_sample_interval_sec,
-            visual_window_max_frames=self.visual_window_max_frames,
+        timestamps = normalize_mllm_frame_timestamps(
+            build_candidate_generation_frame_timestamps(
+                duration_sec=duration_sec,
+                sample_interval_sec=self.sample_interval_sec,
+                max_frames=self.max_frames,
+                visual_candidate_windows=visual_candidate_windows,
+                visual_window_sample_interval_sec=self.visual_window_sample_interval_sec,
+                visual_window_max_frames=self.visual_window_max_frames,
+            )
         )
         self._emit_progress(
             "preprocess_candidate_frames_built",
@@ -278,12 +281,14 @@ class WorkflowExpressionTriggerPipeline:
                 },
             )
             if candidates:
-                filter_timestamps = build_filter_frame_timestamps(
-                    candidates=candidates,
-                    duration_sec=duration_sec,
-                    interval_sec=self.filter_frame_interval_sec,
-                    context_sec=self.filter_candidate_context_sec,
-                    max_frames=self.filter_max_frames,
+                filter_timestamps = normalize_mllm_frame_timestamps(
+                    build_filter_frame_timestamps(
+                        candidates=candidates,
+                        duration_sec=duration_sec,
+                        interval_sec=self.filter_frame_interval_sec,
+                        context_sec=self.filter_candidate_context_sec,
+                        max_frames=self.filter_max_frames,
+                    )
                 )
                 filter_output_dir = Path(temp_dir) / "filter_frames"
                 try:

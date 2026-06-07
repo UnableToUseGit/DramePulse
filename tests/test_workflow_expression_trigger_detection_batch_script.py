@@ -361,11 +361,41 @@ def test_build_pipeline_builds_dual_branch_pipeline(monkeypatch) -> None:
     assert captured["sample_interval_sec"] == 10.0
     assert captured["max_frames"] == 30
     assert captured["frame_max_height"] == 512
+    assert captured["visual_candidate_window_sec"] == 20.0
+    assert captured["visual_window_sample_interval_sec"] == 0.5
+    assert captured["visual_window_max_frames"] == 60
     assert captured["top_k"] == 5
     assert captured["min_gap_seconds"] == 25.0
     assert captured["branch_max_output_tokens"] == 111
     assert captured["judge_max_output_tokens"] == 222
     assert callable(captured["progress_callback"])
+
+
+def test_print_workflow_progress_accepts_dual_branch_visual_window_fields(capsys) -> None:
+    from scripts.run_workflow_expression_trigger_detection_batch import print_workflow_progress
+
+    print_workflow_progress(
+        "prepared",
+        {
+            "video_id": "beiwang_ep01",
+            "duration_sec": 301.141,
+            "subtitle_segment_count": 79,
+            "visual_candidate_window_count": 4,
+            "visual_candidate_windows": [
+                {"start_time": 20.0, "end_time": 30.0, "reason": "low_dialogue_density"},
+            ],
+            "candidate_frame_count": 67,
+            "sample_interval_sec": 10.0,
+            "visual_candidate_window_sec": 10.0,
+            "visual_window_sample_interval_sec": 1.0,
+        },
+    )
+
+    captured = capsys.readouterr()
+
+    assert "visual_windows=4" in captured.out
+    assert "candidate_frames=67" in captured.out
+    assert "[beiwang_ep01] visual_window[01]: 20.000-30.000 reason=low_dialogue_density" in captured.out
 
 
 def test_print_workflow_progress_formats_key_events(capsys) -> None:

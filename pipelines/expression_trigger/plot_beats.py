@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 from pipelines.expression_trigger.baseline_mllm import _clean_text, _round_time
-from pipelines.expression_trigger.candidates import _format_frame_timestamps, _metadata_block
+from pipelines.expression_trigger.candidates import _metadata_block
 
 
 PLOT_BEAT_TYPES = {
@@ -19,25 +19,26 @@ PLOT_BEAT_TYPES = {
 }
 
 
+MAX_PLOT_BEAT_SECONDS = 15.0
+
+
 def build_plot_beat_prompt(
     *,
     video_id: str,
     video_duration_seconds: float,
     subtitles_timeline: str,
     metadata: dict[str, Any] | None,
-    frame_timestamps_seconds: list[float],
 ) -> str:
     return "\n".join(
         [
             "## TASK",
-            "You are the Plot Beat Branch of an expression-trigger pipeline.",
-            "Find story-structure candidate intervals in a short-drama episode.",
-            "Do not decide final expression triggers. Only output plot candidates.",
+            "You are a short-drama plot beat annotator.",
+            "Find atomic story-state changes where the plot turns or meaningfully moves forward.",
+            "Only output plot beat candidates. Do not judge audience reaction value.",
             "",
             "## INPUT",
             f"VIDEO_ID: {video_id}",
             f"VIDEO_DURATION_SECONDS: {video_duration_seconds:.3f}",
-            f"FRAME_TIMESTAMPS_SECONDS: {_format_frame_timestamps(frame_timestamps_seconds)}",
             "[METADATA]",
             _metadata_block(metadata),
             "[/METADATA]",
@@ -46,16 +47,20 @@ def build_plot_beat_prompt(
             ", ".join(sorted(PLOT_BEAT_TYPES)),
             "",
             "## RULES",
-            "- A candidate is a semantic time range, not a single point.",
-            "- Use `start_time` for the required context start.",
-            "- Use `end_time` for the semantic interval end.",
-            "- Use `trigger_time` for the best possible expression trigger point if later accepted.",
-            "- Include conflict starts and escalations when important, even if they may later be rejected.",
-            "- Prefer recall over precision, but every candidate must be grounded in subtitles or frames.",
+            "- A plot beat is an atomic story-state change carried by one shot or one/two adjacent subtitle lines.",
+            "- It is semantically point-like. `start_time` and `end_time` are only the evidence span that carries the beat.",
+            "- Output the smallest possible interval that contains the concrete plot change.",
+            "- Target 1-8 seconds. Use up to 15 seconds only when one long subtitle line or continuous shot carries the beat.",
+            "- Use `start_time` for the start of the line/shot carrying the beat.",
+            "- Use `end_time` for the end of the line/shot carrying the beat.",
+            "- Include important conflict starts and escalations when they clearly move the plot.",
+            "- Never output a whole phone call, whole argument, whole scene, or chapter-like arc. Select the exact line/action where the story state changes.",
+            "- Do not include ordinary chatter, repeated argument, background exposition, or isolated jokes with no plot movement.",
+            "- Prefer recall over precision, but every candidate must be grounded in subtitles or sampled frames.",
             "",
             "## OUTPUT",
             "Return JSON only. The top-level object must contain exactly one key: `plot_candidates`.",
-            "Each candidate must contain exactly these keys: `candidate_type`, `start_time`, `end_time`, `trigger_time`, `summary`, `setup`, `turning_point`, `payoff`, `evidence`.",
+            "Each candidate must contain exactly these keys: `candidate_type`, `start_time`, `end_time`, `summary`, `reason`, `evidence`.",
             "Output shape:",
             json.dumps(
                 {
@@ -64,11 +69,8 @@ def build_plot_beat_prompt(
                             "candidate_type": "payback",
                             "start_time": 58.0,
                             "end_time": 72.0,
-                            "trigger_time": 67.0,
                             "summary": "女主掀桌反击。",
-                            "setup": "儿子被嫂子刁难。",
-                            "turning_point": "女主到场掀桌。",
-                            "payoff": "被欺负的一方夺回主动权。",
+                            "reason": "女主从被动受辱转为主动压制对方，剧情权力关系发生变化。",
                             "evidence": ["64.790-67.190 你在我家吃饭，走就走了！"],
                         }
                     ]
@@ -108,12 +110,11 @@ def parse_plot_beat_candidates(raw: Any, *, video_id: str, duration_sec: float) 
         try:
             start_time = float(item["start_time"])
             end_time = float(item["end_time"])
-            trigger_time = float(item["trigger_time"])
         except (KeyError, TypeError, ValueError):
             continue
         if start_time < 0.0 or end_time <= start_time:
             continue
-        if trigger_time < start_time or trigger_time > end_time:
+        if end_time - start_time > MAX_PLOT_BEAT_SECONDS:
             continue
         if duration_sec > 0 and end_time > duration_sec:
             continue
@@ -124,11 +125,8 @@ def parse_plot_beat_candidates(raw: Any, *, video_id: str, duration_sec: float) 
                 "candidate_type": candidate_type,
                 "start_time": _round_time(start_time),
                 "end_time": _round_time(end_time),
-                "trigger_time": _round_time(trigger_time),
-                "summary": _clean_text(item.get("summary")),
-                "setup": _clean_text(item.get("setup")),
-                "turning_point": _clean_text(item.get("turning_point")),
-                "payoff": _clean_text(item.get("payoff")),
+                "summary": _clean_text(item.get("summary") or ""),
+                "reason": _clean_text(item.get("reason") or ""),
                 "evidence": _evidence_list(item.get("evidence")),
             }
         )
@@ -137,6 +135,7 @@ def parse_plot_beat_candidates(raw: Any, *, video_id: str, duration_sec: float) 
 
 __all__ = [
     "PLOT_BEAT_TYPES",
+    "MAX_PLOT_BEAT_SECONDS",
     "build_plot_beat_prompt",
     "parse_plot_beat_candidates",
 ]

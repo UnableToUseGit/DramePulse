@@ -13,7 +13,6 @@ def test_parse_triggerability_decisions_keeps_valid_decision() -> None:
             "candidate_type": "payback",
             "start_time": 10.0,
             "end_time": 20.0,
-            "trigger_time": 18.0,
             "summary": "女主打脸反派。",
         }
     ]

@@ -55,7 +55,7 @@ class WorkflowExpressionTriggerPromptTest(unittest.TestCase):
         self.assertIn("## TASK", prompt)
         self.assertIn("Find candidate story intervals in a short-drama episode where viewers may naturally want to react immediately.", prompt)
         self.assertIn("VIDEO_DURATION_SECONDS: 120.000", prompt)
-        self.assertIn("FRAME_TIMESTAMPS_SECONDS: 0.000, 10.000, 20.000", prompt)
+        self.assertIn("FRAME_TIMESTAMPS_SECONDS: 0.0, 10.0, 20.0", prompt)
         self.assertNotIn("Expression Triggers", prompt)
         self.assertNotIn("filtering stage", prompt)
         self.assertNotIn("second model", prompt)

@@ -7,7 +7,12 @@ import time
 from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
-from pipelines.expression_trigger.baseline_mllm import _build_system_prompt, _round_time
+from pipelines.expression_trigger.baseline_mllm import _round_time
+from pipelines.expression_trigger.candidates import (
+    build_candidate_generation_frame_timestamps,
+    build_visual_candidate_windows,
+    normalize_mllm_frame_timestamps,
+)
 from pipelines.expression_trigger.parsing import format_expression_subtitle_timeline_seconds
 from pipelines.expression_trigger.plot_beats import build_plot_beat_prompt, parse_plot_beat_candidates
 from pipelines.expression_trigger.punchlines import build_punchline_prompt, parse_punchline_candidates
@@ -17,7 +22,6 @@ from pipelines.expression_trigger.triggerability import (
     select_top_expression_triggers,
 )
 from pipelines.utils import (
-    build_sample_timestamps,
     extract_frames_at_timestamps,
     load_subtitle_segments,
     probe_video_duration_seconds,
@@ -39,6 +43,30 @@ class DualBranchExpressionTriggerResult:
 ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
+def _build_plot_beat_system_prompt() -> str:
+    return (
+        "You are a short-drama plot beat annotator. "
+        "Identify compact story turning or progression intervals from subtitles and sampled frames. "
+        "Return JSON only."
+    )
+
+
+def _build_punchline_system_prompt() -> str:
+    return (
+        "You are a short-drama punchline candidate annotator. "
+        "Identify concise dialogue-driven comedy moments where the punchline lands. "
+        "Return JSON only."
+    )
+
+
+def _build_triggerability_system_prompt() -> str:
+    return (
+        "You are a triggerability judge for short-drama player interactions. "
+        "Select final expression triggers, rank them, and choose final timing. "
+        "Return JSON only."
+    )
+
+
 class DualBranchExpressionTriggerPipeline:
     def __init__(
         self,
@@ -49,6 +77,9 @@ class DualBranchExpressionTriggerPipeline:
         frame_max_height: int = 512,
         top_k: int = 4,
         min_gap_seconds: float = 20.0,
+        visual_candidate_window_sec: float = 10.0,
+        visual_window_sample_interval_sec: float = 1.0,
+        visual_window_max_frames: int | None = 80,
         branch_max_output_tokens: int = 2400,
         judge_max_output_tokens: int = 2400,
         progress_callback: ProgressCallback | None = None,
@@ -59,6 +90,9 @@ class DualBranchExpressionTriggerPipeline:
         self.frame_max_height = frame_max_height
         self.top_k = top_k
         self.min_gap_seconds = min_gap_seconds
+        self.visual_candidate_window_sec = visual_candidate_window_sec
+        self.visual_window_sample_interval_sec = visual_window_sample_interval_sec
+        self.visual_window_max_frames = visual_window_max_frames
         self.branch_max_output_tokens = branch_max_output_tokens
         self.judge_max_output_tokens = judge_max_output_tokens
         self.progress_callback = progress_callback
@@ -104,10 +138,20 @@ class DualBranchExpressionTriggerPipeline:
                 "video_file_path": str(video_file_path),
             },
         )
-        timestamps = build_sample_timestamps(
+        visual_candidate_windows = build_visual_candidate_windows(
+            subtitle_segments=subtitle_segments,
             duration_sec=duration_sec,
-            sample_interval_sec=self.sample_interval_sec,
-            max_frames=self.max_frames,
+            window_sec=self.visual_candidate_window_sec,
+        )
+        timestamps = normalize_mllm_frame_timestamps(
+            build_candidate_generation_frame_timestamps(
+                duration_sec=duration_sec,
+                sample_interval_sec=self.sample_interval_sec,
+                max_frames=self.max_frames,
+                visual_candidate_windows=visual_candidate_windows,
+                visual_window_sample_interval_sec=self.visual_window_sample_interval_sec,
+                visual_window_max_frames=self.visual_window_max_frames,
+            )
         )
         self._emit_progress(
             "prepared",
@@ -118,6 +162,12 @@ class DualBranchExpressionTriggerPipeline:
                 "candidate_frame_count": len(timestamps),
                 "sample_interval_sec": self.sample_interval_sec,
                 "max_frames": self.max_frames,
+                "visual_window_count": len(visual_candidate_windows),
+                "visual_candidate_window_count": len(visual_candidate_windows),
+                "visual_candidate_windows": visual_candidate_windows,
+                "visual_candidate_window_sec": self.visual_candidate_window_sec,
+                "visual_window_sample_interval_sec": self.visual_window_sample_interval_sec,
+                "visual_window_max_frames": self.visual_window_max_frames,
             },
         )
 
@@ -173,13 +223,12 @@ class DualBranchExpressionTriggerPipeline:
             plot_started_at = time.perf_counter()
             try:
                 raw_plot_candidates = self.llm_client.generate_json_multimodal(
-                    system_prompt=_build_system_prompt(),
+                    system_prompt=_build_plot_beat_system_prompt(),
                     user_prompt=build_plot_beat_prompt(
                         video_id=video_id,
                         video_duration_seconds=duration_sec,
                         subtitles_timeline=subtitles_timeline,
                         metadata=metadata,
-                        frame_timestamps_seconds=timestamps,
                     ),
                     image_paths=image_paths,
                     frame_timestamps_seconds=timestamps,
@@ -209,7 +258,7 @@ class DualBranchExpressionTriggerPipeline:
             punchline_started_at = time.perf_counter()
             try:
                 raw_punchline_candidates = self.llm_client.generate_json_multimodal(
-                    system_prompt=_build_system_prompt(),
+                    system_prompt=_build_punchline_system_prompt(),
                     user_prompt=build_punchline_prompt(
                         video_id=video_id,
                         video_duration_seconds=duration_sec,
@@ -254,7 +303,7 @@ class DualBranchExpressionTriggerPipeline:
             triggerability_started_at = time.perf_counter()
             try:
                 raw_triggerability = self.llm_client.generate_json_multimodal(
-                    system_prompt=_build_system_prompt(),
+                    system_prompt=_build_triggerability_system_prompt(),
                     user_prompt=build_triggerability_prompt(
                         video_id=video_id,
                         video_duration_seconds=duration_sec,
