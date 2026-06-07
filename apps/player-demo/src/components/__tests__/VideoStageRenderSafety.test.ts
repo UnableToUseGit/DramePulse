@@ -26,4 +26,15 @@ describe("VideoStage render safety", () => {
 
     expect(source).toContain("allowsVideoFrameAnalysis={false}");
   });
+
+  it("loads playback assets in PlayerPage and renders controls from the enhanced video", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+
+    expect(source).toContain("loadPlaybackAssets");
+    expect(source).toContain("playbackAssetVideo");
+    expect(source).toContain("setPlaybackAssetVideo(assets.video)");
+    expect(source).toContain("const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video");
+    expect(source).toContain("storyboard={displayVideo.storyboard}");
+  });
 });

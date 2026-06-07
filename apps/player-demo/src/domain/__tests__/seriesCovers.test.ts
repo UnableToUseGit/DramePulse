@@ -18,6 +18,19 @@ describe("seriesCovers", () => {
     expect(seriesIds.every((seriesId) => getSeriesCoverSource(seriesId) !== undefined)).toBe(true);
   });
 
+  it("resolves bundled cover assets for cloud series ids", () => {
+    const cloudSeriesIds = [
+      "beiwang",
+      "jialijiawai",
+      "naniandonzhi",
+      "shibasui_tainainai",
+      "tianxiadiyiwanku",
+      "yunmiao1"
+    ];
+
+    expect(cloudSeriesIds.every((seriesId) => getSeriesCoverSource(seriesId) !== undefined)).toBe(true);
+  });
+
   it("returns undefined for unknown series id", () => {
     expect(getSeriesCoverSource("unknown_series")).toBeUndefined();
     expect(getSeriesCoverSource(undefined)).toBeUndefined();

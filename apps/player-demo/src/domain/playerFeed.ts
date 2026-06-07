@@ -28,6 +28,7 @@ export interface SeriesGroup {
   title: string;
   summary: string;
   episodeCount: number;
+  coverUrl?: string;
   episodes: PlayerVideo[];
   coverVideo: PlayerVideo;
 }

@@ -31,4 +31,19 @@ describe("TheaterScreen layout", () => {
     expect(pageSource).toContain("styles.seriesBottomDock");
     expect(pageSource).toContain('backgroundColor: "#1C1C1E"');
   });
+
+  it("uses cloud series cover URLs before local cover fallbacks", () => {
+    const fs = require("fs");
+    const theaterSource = fs.readFileSync("src/screens/TheaterScreen.tsx", "utf8");
+    const detailSheetSource = fs.readFileSync("src/components/SeriesDetailSheet.tsx", "utf8");
+
+    expect(theaterSource).toContain("getSeriesCoverSource(series.coverVideo.seriesId)");
+    expect(theaterSource).toContain("series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl }");
+    expect(theaterSource).toContain("onError={() => setDidFailCloudCover(true)}");
+    expect(theaterSource).not.toContain("{ uri: item.coverVideo.streamUrl }");
+    expect(detailSheetSource).toContain("getSeriesCoverSource(series.coverVideo.seriesId)");
+    expect(detailSheetSource).toContain("series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl }");
+    expect(detailSheetSource).toContain("onError={() => setDidFailCloudCover(true)}");
+    expect(detailSheetSource).not.toContain("{ uri: series.coverVideo.streamUrl }");
+  });
 });

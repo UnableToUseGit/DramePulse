@@ -24,6 +24,24 @@ const DRAG_DISMISS_VELOCITY = 0.72;
 const SHEET_ENTER_DURATION_MS = 220;
 const SHEET_EXIT_DURATION_MS = 160;
 
+function SeriesPosterImage({ series }: { series: SeriesGroup }) {
+  const [didFailCloudCover, setDidFailCloudCover] = useState(false);
+  const localCoverSource = getSeriesCoverSource(series.coverVideo.seriesId);
+  const coverSource = series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl } : localCoverSource;
+
+  if (!coverSource) {
+    return <View style={styles.poster} />;
+  }
+
+  return (
+    <Image
+      source={coverSource}
+      style={styles.poster}
+      onError={() => setDidFailCloudCover(true)}
+    />
+  );
+}
+
 export function SeriesDetailSheet({
   visible,
   series,
@@ -110,7 +128,6 @@ export function SeriesDetailSheet({
   if (!series) {
     return null;
   }
-  const coverSource = getSeriesCoverSource(series.coverVideo.seriesId) ?? { uri: series.coverVideo.streamUrl };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={closeWithSheetAnimation}>
@@ -120,7 +137,7 @@ export function SeriesDetailSheet({
           <View style={styles.handle} />
         </View>
         <View style={styles.header}>
-          <Image source={coverSource} style={styles.poster} />
+          <SeriesPosterImage series={series} />
           <View style={styles.headerText}>
             <Text numberOfLines={1} style={styles.title}>
               {series.title} ›

@@ -25,6 +25,7 @@ import {
 } from "../domain/playerFeed";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
 import { PlayerVideo } from "../domain/playerApi";
+import { loadPlaybackAssets } from "../domain/playerDataApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
@@ -142,6 +143,7 @@ export function PlayerPage({
     createInitialResonanceTapState()
   );
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
+  const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>();
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
@@ -191,6 +193,25 @@ export function PlayerPage({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
   });
+  const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video;
+
+  useEffect(() => {
+    let cancelled = false;
+    setPlaybackAssetVideo(undefined);
+    loadPlaybackAssets({
+      apiBaseUrl: API_BASE_URL,
+      videoId: video.videoId
+    })
+      .then((assets) => {
+        if (!cancelled) {
+          setPlaybackAssetVideo(assets.video);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [video.videoId]);
 
   useEffect(() => {
     playbackObserver?.record({
@@ -614,9 +635,9 @@ export function PlayerPage({
           isSpeedMenuOpen={speedControls.isSpeedMenuOpen}
           onToggleSpeedMenu={speedControls.toggleSpeedMenu}
           onSelectPlaybackRate={speedControls.selectPlaybackRate}
-          title={video.title}
-          plotSummary={video.plotSummary}
-          episodeLabel={video.episodeLabel}
+          title={displayVideo.title}
+          plotSummary={displayVideo.plotSummary}
+          episodeLabel={displayVideo.episodeLabel}
           metaBottomOffset={metaBottomOffset}
           actionRailBottomOffset={actionRailBottomOffset}
           showActionRail={timelineChromeVisibility.showActionRail}
@@ -648,8 +669,8 @@ export function PlayerPage({
           bottomOffset={controlsBottomOffset}
           onSeekCommit={handleSeekCommit}
           onDragStateChange={handleTimelineDragStateChange}
-          storyChapters={video.storyChapters}
-          storyboard={video.storyboard}
+          storyChapters={displayVideo.storyChapters}
+          storyboard={displayVideo.storyboard}
         />
       ) : null}
       {renderState.shouldRenderInteractiveShell ? (

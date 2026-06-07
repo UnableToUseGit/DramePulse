@@ -9,6 +9,7 @@ import {
   PlayerVideo
 } from "./playerApi";
 import { groupVideosBySeries, SeriesGroup } from "./playerFeed";
+import { normalizeStoryboardManifest, StoryboardManifest } from "./storyNavigation";
 
 function extractVideosPayload(payload: unknown) {
   return isRecord(payload) && Array.isArray(payload.videos) ? payload.videos : [];
@@ -17,12 +18,6 @@ function extractVideosPayload(payload: unknown) {
 function normalizeVideosPayload(payload: unknown, apiBaseUrl: string) {
   return extractVideosPayload(payload)
     .map((item) => normalizeVideo(item, apiBaseUrl))
-    .filter((video): video is PlayerVideo => video !== undefined);
-}
-
-function selectFirstEpisodePerSeries(videos: PlayerVideo[]) {
-  return groupVideosBySeries(videos)
-    .map((series) => series.episodes[0])
     .filter((video): video is PlayerVideo => video !== undefined);
 }
 
@@ -74,6 +69,29 @@ function normalizeSeriesSummary(value: unknown, apiBaseUrl: string): PlayerSerie
   };
 }
 
+function withSeriesMetadata(group: SeriesGroup | undefined, series: PlayerSeriesSummary): SeriesGroup | undefined {
+  if (!group) {
+    return undefined;
+  }
+  return {
+    ...group,
+    title: series.title,
+    summary: series.summary,
+    episodeCount: series.episodeCount || group.episodeCount,
+    ...(series.coverUrl ? { coverUrl: series.coverUrl } : {})
+  };
+}
+
+function resolveStoryboardUrls(storyboard: StoryboardManifest, apiBaseUrl: string): StoryboardManifest {
+  return {
+    ...storyboard,
+    sheets: storyboard.sheets.map((sheet) => ({
+      ...sheet,
+      url: joinUrl(apiBaseUrl, sheet.url)
+    }))
+  };
+}
+
 export async function loadHomeFeedVideos({
   apiBaseUrl,
   fetcher = fetch,
@@ -83,17 +101,8 @@ export async function loadHomeFeedVideos({
   fetcher?: FetchLike;
   timeoutMs?: number;
 }) {
-  try {
-    const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/feed/home"), timeoutMs);
-    const videos = normalizeVideosPayload(payload, apiBaseUrl);
-    if (videos.length > 0) {
-      return selectFirstEpisodePerSeries(videos);
-    }
-  } catch {
-    // Fall back to the stable legacy endpoint while the cloud feed API is still settling.
-  }
-  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher, timeoutMs });
-  return selectFirstEpisodePerSeries(videos);
+  const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/feed/home"), timeoutMs);
+  return normalizeVideosPayload(payload, apiBaseUrl);
 }
 
 export async function loadTheaterSeries({
@@ -193,7 +202,7 @@ export async function loadTheaterSeriesGroups({
             fetcher,
             timeoutMs
           });
-          return groupVideosBySeries(episodes)[0];
+          return withSeriesMetadata(groupVideosBySeries(episodes)[0], series);
         })
       )
     ).filter((series): series is SeriesGroup => series !== undefined);
@@ -242,6 +251,29 @@ export interface PlaybackAssets {
   interactionPlans: unknown[];
 }
 
+async function loadVideoStoryboard({
+  apiBaseUrl,
+  videoId,
+  fetcher,
+  timeoutMs
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher: FetchLike;
+  timeoutMs: number;
+}): Promise<StoryboardManifest | undefined> {
+  try {
+    const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}/storyboard`), timeoutMs);
+    if (isRecord(payload) && payload.available === false) {
+      return undefined;
+    }
+    const storyboard = normalizeStoryboardManifest(payload);
+    return storyboard ? resolveStoryboardUrls(storyboard, apiBaseUrl) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function loadPlaybackAssets({
   apiBaseUrl,
   videoId,
@@ -254,6 +286,8 @@ export async function loadPlaybackAssets({
   timeoutMs?: number;
 }): Promise<PlaybackAssets> {
   const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
+  const storyboard = await loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs });
+  const enhancedVideo: PlayerVideo = storyboard ? { ...video, storyboard } : video;
 
   let interactionPlans: unknown[] = [];
   try {
@@ -269,9 +303,9 @@ export async function loadPlaybackAssets({
   }
 
   return {
-    video,
-    storyChapters: video.storyChapters ?? [],
-    storyboard: video.storyboard,
+    video: enhancedVideo,
+    storyChapters: enhancedVideo.storyChapters ?? [],
+    storyboard: enhancedVideo.storyboard,
     interactionPlans
   };
 }

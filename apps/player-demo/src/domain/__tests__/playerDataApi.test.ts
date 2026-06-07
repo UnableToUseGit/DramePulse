@@ -31,8 +31,8 @@ function createFetcher(responses: Record<string, unknown>) {
 }
 
 describe("playerDataApi", () => {
-  it("loads home feed from /api/feed/home when available", async () => {
-    const { fetcher } = createFetcher({
+  it("loads home feed directly from /api/feed/home", async () => {
+    const { fetcher, calls } = createFetcher({
       "http://api.test/api/feed/home": {
         videos: [
           {
@@ -43,6 +43,15 @@ describe("playerDataApi", () => {
             episode_no: 1,
             stream_url: "/api/videos/s1_ep01/stream",
             danmaku_url: "/api/videos/s1_ep01/danmaku"
+          },
+          {
+            video_id: "s1_ep02",
+            series_id: "s1",
+            series_name: "短剧 A",
+            title: "短剧 A 第2集",
+            episode_no: 2,
+            stream_url: "/api/videos/s1_ep02/stream",
+            danmaku_url: "/api/videos/s1_ep02/danmaku"
           }
         ]
       }
@@ -50,7 +59,8 @@ describe("playerDataApi", () => {
 
     const videos = await loadHomeFeedVideos({ apiBaseUrl: "http://api.test", fetcher });
 
-    expect(videos).toHaveLength(1);
+    expect(calls).toEqual(["http://api.test/api/feed/home"]);
+    expect(videos.map((video) => video.videoId)).toEqual(["s1_ep01", "s1_ep02"]);
     expect(videos[0]).toMatchObject({
       videoId: "s1_ep01",
       seriesId: "s1",
@@ -59,8 +69,8 @@ describe("playerDataApi", () => {
     });
   });
 
-  it("falls back to /api/videos and keeps only the first episode per series", async () => {
-    const { fetcher } = createFetcher({
+  it("does not fall back to /api/videos when the home feed endpoint is unavailable", async () => {
+    const { fetcher, calls } = createFetcher({
       "http://api.test/api/feed/home": new Error("feed unavailable"),
       "http://api.test/api/videos": {
         videos: [
@@ -95,9 +105,8 @@ describe("playerDataApi", () => {
       }
     });
 
-    const videos = await loadHomeFeedVideos({ apiBaseUrl: "http://api.test", fetcher });
-
-    expect(videos.map((video) => video.videoId)).toEqual(["s1_ep01", "s2_ep01"]);
+    await expect(loadHomeFeedVideos({ apiBaseUrl: "http://api.test", fetcher })).rejects.toThrow("feed unavailable");
+    expect(calls).toEqual(["http://api.test/api/feed/home"]);
   });
 
   it("filters pseudo series rows from theater series", async () => {
@@ -171,6 +180,7 @@ describe("playerDataApi", () => {
           {
             series_id: "beiwang",
             title: "北往",
+            cover_url: "/dramas/beiwang/cover.webp",
             episode_count: 2,
             first_video_id: "beiwang_ep01",
             status: "active"
@@ -207,6 +217,7 @@ describe("playerDataApi", () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0].seriesKey).toBe("id:beiwang");
+    expect(groups[0].coverUrl).toBe("http://api.test/dramas/beiwang/cover.webp");
     expect(groups[0].episodeCount).toBe(2);
     expect(groups[0].episodes.map((video) => video.videoId)).toEqual(["beiwang_ep01", "beiwang_ep02"]);
   });
@@ -257,6 +268,16 @@ describe("playerDataApi", () => {
         stream_url: "/api/videos/beiwang_ep01/stream",
         danmaku_url: "/api/videos/beiwang_ep01/danmaku"
       },
+      "http://api.test/api/videos/beiwang_ep01/storyboard": {
+        video_id: "beiwang_ep01",
+        available: true,
+        interval_seconds: 1,
+        frame_width: 120,
+        frame_height: 212,
+        columns: 5,
+        rows: 5,
+        sheets: [{ url: "/storyboards/beiwang_ep01/sheet_000.jpg", start_time: 0, frame_count: 25 }]
+      },
       "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
         video_id: "beiwang_ep01",
         interaction_plans: []
@@ -271,7 +292,8 @@ describe("playerDataApi", () => {
 
     expect(assets.video.videoId).toBe("beiwang_ep01");
     expect(assets.storyChapters).toEqual([]);
-    expect(assets.storyboard).toBeUndefined();
+    expect(assets.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
+    expect(assets.video.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
     expect(assets.interactionPlans).toEqual([]);
   });
 

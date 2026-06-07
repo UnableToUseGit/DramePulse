@@ -6,6 +6,24 @@ import { shouldRestoreScrollOffset, type SeriesGroup } from "../domain/playerFee
 import { getSeriesCoverSource } from "../domain/seriesCovers";
 import { colors, radii, spacing } from "../theme";
 
+function SeriesCoverImage({ series }: { series: SeriesGroup }) {
+  const [didFailCloudCover, setDidFailCloudCover] = useState(false);
+  const localCoverSource = getSeriesCoverSource(series.coverVideo.seriesId);
+  const coverSource = series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl } : localCoverSource;
+
+  if (!coverSource) {
+    return null;
+  }
+
+  return (
+    <Image
+      source={coverSource}
+      style={styles.coverImage}
+      onError={() => setDidFailCloudCover(true)}
+    />
+  );
+}
+
 export function TheaterScreen({
   series,
   resumeVideoIds,
@@ -65,11 +83,10 @@ export function TheaterScreen({
         onLayout={restoreScrollOffset}
         onContentSizeChange={restoreScrollOffset}
         renderItem={({ item }) => {
-          const coverSource = getSeriesCoverSource(item.coverVideo.seriesId) ?? { uri: item.coverVideo.streamUrl };
           return (
             <Pressable accessibilityRole="button" style={styles.card} onPress={() => onSelectSeries(item)}>
               <View style={styles.cover}>
-                <Image source={coverSource} style={styles.coverImage} />
+                <SeriesCoverImage series={item} />
               </View>
               <Text numberOfLines={2} style={styles.title}>
                 {item.title}
