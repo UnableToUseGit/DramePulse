@@ -84,6 +84,11 @@ def _is_low_quality_text(text: str) -> bool:
     return False
 
 
+def _is_emoji_marker_only(text: str) -> bool:
+    compact = _compact_text(text)
+    return bool(re.fullmatch(r"(?:\[[^\[\]]+\])+", compact))
+
+
 def _fallback_series_id(series_title: str) -> str:
     ascii_slug = re.sub(r"[^a-z0-9]+", "_", series_title.lower()).strip("_")
     if ascii_slug:
@@ -119,6 +124,8 @@ def _normalize_row(row: dict[str, Any], *, row_number: int) -> tuple[Exploration
     text = _clean_text(row.get("弹幕内容"))
     if not series_title or not episode_id or not text:
         return None, "missing_required_value"
+    if _is_emoji_marker_only(text):
+        return None, "emoji_marker_only"
 
     try:
         time_ms = float(row.get("发弹幕时刻相对于视频起始时间偏移量") or 0.0)
