@@ -1,5 +1,6 @@
 {
   "video_id": "beiwang_ep01",
+  "series_id": "beiwang",
   "video_path": "/api/episodes/beiwang_ep01/video",
   "subtitle_path": "/api/episodes/beiwang_ep01/subtitle",
   "source_json_path": "/api/episodes/beiwang_ep01/danmaku",

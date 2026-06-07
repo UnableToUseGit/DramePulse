@@ -1,53 +1,54 @@
 {
-  "video_id": "nanian_dongzhi_ep01",
-  "video_path": "/api/episodes/nanian_dongzhi_ep01/video",
-  "subtitle_path": "/api/episodes/nanian_dongzhi_ep01/subtitle",
-  "source_json_path": "/api/episodes/nanian_dongzhi_ep01/danmaku",
+  "video_id": "naniandongzhi_ep01",
+  "series_id": "naniandongzhi",
+  "video_path": "/api/episodes/naniandongzhi_ep01/video",
+  "subtitle_path": "/api/episodes/naniandongzhi_ep01/subtitle",
+  "source_json_path": "/api/episodes/naniandongzhi_ep01/danmaku",
   "annotations": [
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_001",
+      "annotation_id": "gold_naniandongzhi_ep01_001",
       "cue_time": 27.427,
       "primary_expression": "震惊",
       "reason": "女主和男主闪婚，男主让他看个文件，居然是安乐死预约函。"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_002",
+      "annotation_id": "gold_naniandongzhi_ep01_002",
       "cue_time": 55.207,
       "primary_expression": "笑死",
       "reason": "男主本来一脸严肃说自己结婚都是身不由己，还有一年寿命，女主直接来扒衣服，笑点拉满。"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_003",
+      "annotation_id": "gold_naniandongzhi_ep01_003",
       "cue_time": 68.324,
       "primary_expression": "笑死",
       "reason": "女主说“一年后你就死了，做一次少一次” 我等不了"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_004",
+      "annotation_id": "gold_naniandongzhi_ep01_004",
       "cue_time": 101.268,
       "primary_expression": "笑死",
       "reason": "女主继续调戏男主，说为什么要跟他结婚，因为她想要个自己的孩子，说男主这么帅，不要白不要"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_005",
+      "annotation_id": "gold_naniandongzhi_ep01_005",
       "cue_time": 116.887,
       "primary_expression": "笑死",
       "reason": "依然是女主的台词幽默。，“我们赶紧做，顺利的话你还能见上孩子一面”"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_006",
+      "annotation_id": "gold_naniandongzhi_ep01_006",
       "cue_time": 135.169,
       "primary_expression": "笑死",
       "reason": "也是女主台词搞笑，“五个月培养感情，六个月备孕，我还能剩一个月给你准备后事，嘿嘿，我可真体贴”"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_007",
+      "annotation_id": "gold_naniandongzhi_ep01_007",
       "cue_time": 151.769,
       "primary_expression": "笑死",
       "reason": "男主想宣誓主权，但女主强硬的表现，男主退缩，搞笑"
     },
     {
-      "annotation_id": "gold_nanian_dongzhi_ep01_008",
+      "annotation_id": "gold_naniandongzhi_ep01_008",
       "cue_time": 173.599,
       "primary_expression": "磕到了",
       "reason": "女主突然转头过去亲吻男主，甜！！！"
