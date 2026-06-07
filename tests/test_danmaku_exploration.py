@@ -52,9 +52,9 @@ def test_explore_danmaku_csv_builds_profiles_windows_and_review_candidates(tmp_p
     assert first_window["top_comments"][0]["text"] == "太帅了这个眼神"
 
     candidate_texts = [candidate["text"] for candidate in result["inner_voice_review_candidates"]]
-    assert "她终于怼回去了" in candidate_texts
-    accepted_candidate = next(candidate for candidate in result["inner_voice_review_candidates"] if candidate["text"] == "她终于怼回去了")
-    assert accepted_candidate["intent_type"] == "plot_reaction"
+    assert "太帅了这个眼神" in candidate_texts
+    accepted_candidate = next(candidate for candidate in result["inner_voice_review_candidates"] if candidate["text"] == "太帅了这个眼神")
+    assert accepted_candidate["intent_type"] == "actor_charm"
     assert accepted_candidate["recommendation"] == "recommended"
     assert accepted_candidate["review_status"] == "unreviewed"
     assert accepted_candidate["source_comment_ids"]
@@ -91,13 +91,10 @@ def test_explore_danmaku_csv_filters_windows_with_only_simple_emotion(tmp_path: 
     )
 
     assert [window["start_time"] for window in result["resonance_windows"]] == [46.0]
-    semantic_window = result["resonance_windows"][0]
-    assert semantic_window["semantic_signal_count"] == 4
-    assert semantic_window["semantic_intent_counts"] == {
-        "actor_charm": 1,
-        "meme": 1,
-        "plot_reaction": 2,
-    }
+    selected_window = result["resonance_windows"][0]
+    assert selected_window["actor_charm_count"] == 1
+    assert selected_window["emotion_burst_count"] == 0
+    assert selected_window["recall_reason"] == "actor_charm"
 
 
 def test_danmaku_exploration_cli_writes_three_artifacts(tmp_path: Path) -> None:

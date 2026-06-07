@@ -53,7 +53,7 @@ Expression Trigger workflow 当前会写出两类产物：
 Danmaku Exploration 当前从真实弹幕 CSV 生成三类探查产物：
 
 - `episode_profile.json`：每集弹幕规模、时间范围、点赞分布、低质文本数量、高频文本和高赞文本；
-- `resonance_windows.json`：按滑动窗口聚合出的高语义弹幕共鸣窗口，包含窗口分数、弹幕数量、去重数量、点赞量、语义信号数量、意图分布和 top comments；纯简单情绪或表情堆出来的窗口不会进入该产物；
+- `resonance_windows.json`：按滑动窗口聚合出的弹幕共鸣窗口，包含窗口分数、弹幕数量、去重数量、点赞量、actor charm 命中数、emotion burst 命中数和 top comments；命中 actor charm 的高分窗口优先保留，纯简单情绪或表情堆出来的窗口不会进入该产物；
 - `inner_voice_review_candidates.json`：供人工复核的心里话弹幕候选，包含候选文案、source comment、表达意图、共鸣分、心里话适配分和推荐原因。
 
 ## 3. 当前样例数据

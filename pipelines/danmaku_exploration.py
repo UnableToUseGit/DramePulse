@@ -32,11 +32,9 @@ LOW_SIGNAL_TEXTS = {
 
 UNSAFE_KEYWORDS = ("傻逼", "sb", "滚", "去死", "垃圾")
 ACTOR_CHARM_KEYWORDS = ("帅", "美", "漂亮", "好看", "眼神", "表情", "演技", "哭戏", "气质", "老公", "老婆", "姐姐", "小奶狗")
-PLOT_REACTION_KEYWORDS = ("终于", "怼", "反转", "打脸", "反杀", "真相", "原来", "醒悟", "报仇", "争气")
-MEME_KEYWORDS = ("顶得住", "顶不住", "禁止", "会演", "笑不活", "蚌埠住", "绷不住", "名场面")
-EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜")
-STANCE_KEYWORDS = ("别原谅", "站", "选", "支持", "不配", "离开他")
-SEMANTIC_RESONANCE_INTENTS = {"plot_reaction", "actor_charm", "meme", "stance"}
+EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜", "泪目", "捂脸", "大笑", "笑哭")
+EMOTION_BURST_EXCLUDE_MIN_COUNT = 3
+EMOTION_BURST_EXCLUDE_RATIO = 0.6
 
 
 @dataclass(frozen=True)
@@ -261,8 +259,14 @@ def _build_windows_for_episode(
                 classify_intent(item.clean_text, low_quality=item.low_quality)
                 for item in window_items
             )
-            semantic_signal_count = sum(intent_counts[intent] for intent in SEMANTIC_RESONANCE_INTENTS)
-            if semantic_signal_count <= 0:
+            actor_charm_count = intent_counts["actor_charm"]
+            emotion_burst_count = intent_counts["emotion_burst"]
+            emotion_burst_ratio = emotion_burst_count / len(window_items)
+            if (
+                actor_charm_count <= 0
+                and emotion_burst_count >= EMOTION_BURST_EXCLUDE_MIN_COUNT
+                and emotion_burst_ratio >= EMOTION_BURST_EXCLUDE_RATIO
+            ):
                 start_time = _round_time(start_time + step_sec)
                 continue
             burst_score = max(0.0, len(window_items) - min_window_danmaku_count) * 0.75
@@ -272,7 +276,7 @@ def _build_windows_for_episode(
                 + max(0, repeat_text_count - 1) * 1.1
                 + min(digg_sum, 50) * 0.12
                 + high_digg_count * 0.8
-                + semantic_signal_count * 0.8
+                + actor_charm_count * 0.8
                 + burst_score
             )
             raw_windows.append(
@@ -286,12 +290,10 @@ def _build_windows_for_episode(
                     "repeat_text_count": repeat_text_count,
                     "digg_sum": int(digg_sum),
                     "high_digg_count": high_digg_count,
-                    "semantic_signal_count": semantic_signal_count,
-                    "semantic_intent_counts": {
-                        intent: int(count)
-                        for intent, count in sorted(intent_counts.items())
-                        if intent in SEMANTIC_RESONANCE_INTENTS and count > 0
-                    },
+                    "actor_charm_count": actor_charm_count,
+                    "emotion_burst_count": emotion_burst_count,
+                    "emotion_burst_ratio": _round_time(emotion_burst_ratio),
+                    "recall_reason": "actor_charm" if actor_charm_count > 0 else "selected",
                     "burst_score": _round_time(burst_score),
                     "resonance_score": _round_time(resonance_score),
                     "top_comments": _top_comments(window_items),
@@ -314,18 +316,12 @@ def classify_intent(text: str, *, low_quality: bool = False) -> str:
     compact = _compact_text(text)
     if any(keyword in compact for keyword in UNSAFE_KEYWORDS):
         return "unsafe"
-    if low_quality:
-        return "low_signal"
-    if any(keyword in compact for keyword in PLOT_REACTION_KEYWORDS):
-        return "plot_reaction"
     if any(keyword in compact for keyword in ACTOR_CHARM_KEYWORDS):
         return "actor_charm"
-    if any(keyword in compact for keyword in MEME_KEYWORDS):
-        return "meme"
-    if any(keyword in compact for keyword in STANCE_KEYWORDS):
-        return "stance"
     if any(keyword in compact for keyword in EMOTION_BURST_KEYWORDS):
         return "emotion_burst"
+    if low_quality:
+        return "low_signal"
     return "low_signal"
 
 
@@ -343,10 +339,8 @@ def _fit_score_for_text(
         score += 0.3
     elif compact_len <= 24:
         score += 0.15
-    if intent_type in {"plot_reaction", "actor_charm", "meme"}:
+    if intent_type == "actor_charm":
         score += 0.35
-    elif intent_type == "stance":
-        score += 0.18
     elif intent_type == "emotion_burst":
         score += 0.05
     if source_count >= 2:
