@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 import sqlite3
 from typing import Any
 
@@ -18,6 +19,14 @@ def _rows(cursor: Any) -> list[dict[str, Any]]:
 
 def _int(value: Any) -> int:
     return int(value or 0)
+
+
+def _datetime_text(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
 
 
 def _table_exists(cursor: Any, table_name: str) -> bool:
@@ -384,6 +393,8 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
         (DRAMA_OBJECT_KEY_PREFIX,),
     )
     recent_events = _rows(cursor)
+    for event in recent_events:
+        event["server_time"] = _datetime_text(event.get("server_time"))
 
     for video in videos:
         video["interaction_count"] = _int(video.get("interaction_count"))

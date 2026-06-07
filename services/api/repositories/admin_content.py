@@ -12,6 +12,7 @@ from ..config import Settings, get_settings
 from ..db import db_cursor, sql_placeholder, utc_now_sql
 from ..oss_client import get_bucket
 from ..oss_client import read_object_range
+from .assets import public_object_url
 from .admin_analysis import latest_analysis_jobs_by_video
 
 
@@ -154,6 +155,84 @@ def get_series_cover_storage(series_id: str) -> dict[str, Any] | None:
         if not row:
             return None
         return dict(row)
+
+
+def _ensure_series_assets_table() -> None:
+    settings = get_settings()
+    with db_cursor(settings) as cursor:
+        if settings.mode == "local":
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS series_assets (
+                    series_id TEXT PRIMARY KEY,
+                    cover_object_key TEXT NULL,
+                    cover_url TEXT NULL,
+                    cover_content_type TEXT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+                    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
+                )
+                """
+            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_series_assets_status ON series_assets (status)")
+            return
+
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS series_assets (
+                series_id VARCHAR(128) PRIMARY KEY,
+                cover_object_key VARCHAR(512) NULL,
+                cover_url VARCHAR(1024) NULL,
+                cover_content_type VARCHAR(128) NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'active',
+                created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                KEY idx_series_assets_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            """
+        )
+
+
+def _upsert_series_cover_asset(series_id: str, object_key: str, content_type: str) -> None:
+    _ensure_series_assets_table()
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    now_sql = utc_now_sql(settings)
+    cover_url = public_object_url(object_key)
+    with db_cursor(settings) as cursor:
+        if settings.mode == "local":
+            cursor.execute(
+                """
+                INSERT INTO series_assets (
+                    series_id, cover_object_key, cover_url, cover_content_type, status
+                )
+                VALUES (?, ?, ?, ?, 'active')
+                ON CONFLICT(series_id) DO UPDATE SET
+                    cover_object_key = excluded.cover_object_key,
+                    cover_url = excluded.cover_url,
+                    cover_content_type = excluded.cover_content_type,
+                    status = excluded.status,
+                    updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
+                """,
+                (series_id, object_key, cover_url, content_type),
+            )
+            return
+
+        cursor.execute(
+            f"""
+            INSERT INTO series_assets (
+                series_id, cover_object_key, cover_url, cover_content_type, status
+            )
+            VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, 'active')
+            ON DUPLICATE KEY UPDATE
+                cover_object_key = VALUES(cover_object_key),
+                cover_url = VALUES(cover_url),
+                cover_content_type = VALUES(cover_content_type),
+                status = VALUES(status),
+                updated_at = {now_sql}
+            """,
+            (series_id, object_key, cover_url, content_type),
+        )
 
 
 def read_series_cover(series_id: str) -> tuple[bytes, str] | None:
@@ -348,6 +427,7 @@ async def upload_series_cover(series_id: str, file: UploadFile) -> dict[str, Any
 
     object_key = f"dramas/{clean_series_id}/cover.{extension}"
     size = _put_bytes(object_key, await _read_upload(file), content_type)
+    _upsert_series_cover_asset(clean_series_id, object_key, content_type)
     return {"object_key": object_key, "content_type": content_type, "size": size}
 
 

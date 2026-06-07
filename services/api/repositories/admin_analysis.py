@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 import shutil
 import subprocess
 import tempfile
@@ -21,7 +21,7 @@ _ANALYSIS_SEMAPHORE = threading.Semaphore(1)
 
 
 def _now_iso() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S.%f")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 
 def _row_to_job(row: dict[str, Any] | None, *, video_id: str | None = None) -> dict[str, Any]:

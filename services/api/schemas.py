@@ -141,6 +141,41 @@ class InteractionPlansResponse(BaseModel):
     interaction_plans: list[InteractionPlan]
 
 
+class StoryChapter(BaseModel):
+    chapter_id: str
+    video_id: str
+    chapter_index: int = Field(ge=1)
+    start_time: float = Field(ge=0)
+    end_time: float = Field(ge=0)
+    title: str | None = None
+    summary: str | None = None
+    reason: str | None = None
+    source: str = "subtitle_scene_aligned"
+    status: str = "active"
+
+
+class StoryChapterResponse(BaseModel):
+    video_id: str
+    available: bool
+    source_video_id: str | None = None
+    source_series_id: str | None = None
+    canonical_series_id: str | None = None
+    episode_no: int | None = None
+    compact_parse_status: str | None = None
+    debug_parse_status: str | None = None
+    chapters: list[StoryChapter] = Field(default_factory=list)
+
+
+class StoryChapterRawResponse(BaseModel):
+    video_id: str
+    source_video_id: str
+    filename: str
+    parse_status: str
+    source_path: str | None = None
+    sha256: str | None = None
+    content: str
+
+
 class StoryboardResponse(BaseModel):
     video_id: str
     available: bool = False
@@ -156,7 +191,7 @@ class PlaybackAssetsResponse(BaseModel):
     video: VideoResponse
     danmaku: DanmakuResponse
     storyboard: StoryboardResponse
-    story_chapters: list[dict[str, Any]] = Field(default_factory=list)
+    story_chapters: list[StoryChapter] = Field(default_factory=list)
     interaction_plans: list[InteractionPlan] = Field(default_factory=list)
 
 

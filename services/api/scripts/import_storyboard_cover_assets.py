@@ -13,6 +13,7 @@ if __package__ is None or __package__ == "":
 from services.api.config import get_settings, require_complete_cloud_settings
 from services.api.db import db_cursor, sql_placeholder
 from services.api.oss_client import get_bucket
+from services.api.repositories.assets import public_object_url
 from services.api.scripts.init_db import create_asset_tables
 
 
@@ -39,10 +40,7 @@ def _mapped_video_id(source_video_id: str) -> str:
 
 
 def _object_url(object_key: str) -> str:
-    settings = get_settings()
-    if settings.cdn_base_url:
-        return f"{settings.cdn_base_url.rstrip('/')}/{object_key}"
-    return f"/{object_key}"
+    return public_object_url(object_key)
 
 
 def _content_type(path: Path) -> str:

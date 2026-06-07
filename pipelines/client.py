@@ -7,7 +7,10 @@ import os
 from pathlib import Path
 from typing import Any, Protocol
 
-from volcenginesdkarkruntime import Ark
+try:  # pragma: no cover - exercised through the real SDK in integration environments.
+    from volcenginesdkarkruntime import Ark
+except ImportError:  # pragma: no cover - unit tests patch Ark with a fake client.
+    Ark = None  # type: ignore[assignment]
 
 
 class LlmClientProtocol(Protocol):
@@ -80,6 +83,8 @@ class VolcArkLlmClient:
         self.base_url = base_url or os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
         self.model_name = model_name or os.environ.get("ARK_MODEL", "doubao-seed-2-0-lite-260215")
         self.timeout_sec = timeout_sec
+        if Ark is None:
+            raise RuntimeError("volcenginesdkarkruntime is required to use VolcArkLlmClient")
         self._client = Ark(
             api_key=self.api_key,
             base_url=self.base_url,

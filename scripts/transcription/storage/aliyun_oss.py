@@ -14,8 +14,6 @@ from ..errors import ProviderExecutionError
 class AliyunOssStore:
     def __init__(self, config: AliyunOssConfig) -> None:
         self.config = config
-        if oss2 is None:
-            raise ProviderExecutionError("oss2 is not installed. Install it with: pip install oss2")
         missing = [
             name
             for name, value in [
@@ -28,6 +26,8 @@ class AliyunOssStore:
         ]
         if missing:
             raise ProviderExecutionError(f"OSS config is incomplete: {', '.join(missing)}")
+        if oss2 is None:
+            raise ProviderExecutionError("oss2 is not installed. Install it with: pip install oss2")
         auth = oss2.Auth(config.access_key_id, config.access_key_secret)
         self.bucket = oss2.Bucket(auth, config.endpoint, config.bucket_name)
 

@@ -13,7 +13,7 @@ if __package__ is None or __package__ == "":
 from pipelines.client import VolcArkLlmClient
 from pipelines.interaction_plan_generation import InteractionPlanGenerationPipeline
 from scripts.run_highlight_recognition import ResolvedVideoInputs, resolve_video_inputs
-from scripts.transcription.env import get_env_value
+from scripts.transcription.env import load_dotenv_values
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -58,13 +58,11 @@ def _default_highlight_recognition_path(*, output_root: Path, video_id: str) -> 
 
 
 def build_ark_client(*, env_path: Path | None = None) -> VolcArkLlmClient:
-    dotenv_api_key = get_env_value("ARK_API_KEY", env_path=env_path)
-    dotenv_base_url = get_env_value("ARK_BASE_URL", env_path=env_path)
-    dotenv_model = get_env_value("ARK_MODEL", env_path=env_path)
+    dotenv_values = load_dotenv_values(env_path)
     return VolcArkLlmClient(
-        api_key=dotenv_api_key or None,
-        base_url=dotenv_base_url or None,
-        model_name=dotenv_model or None,
+        api_key=dotenv_values.get("ARK_API_KEY") or None,
+        base_url=dotenv_values.get("ARK_BASE_URL") or None,
+        model_name=dotenv_values.get("ARK_MODEL") or None,
     )
 
 

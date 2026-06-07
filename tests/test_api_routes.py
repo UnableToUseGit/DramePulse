@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import sqlite3
@@ -412,6 +413,52 @@ class LocalModeApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.status_code, 206)
         self.assertEqual(len(response.content), 4)
         self.assertEqual(response.headers["content-range"].split("/")[0], "bytes 0-3")
+
+    def test_local_mode_storyboard_legacy_url_is_fetchable(self) -> None:
+        local_oss_root = Path(os.environ["LOCAL_OSS_ROOT"])
+        sheet_path = local_oss_root / "storyboards" / "demo_ep01" / "sheet_001.jpg"
+        sheet_path.parent.mkdir(parents=True, exist_ok=True)
+        sheet_path.write_bytes(b"storyboard-image")
+        manifest = {
+            "video_id": "demo_ep01",
+            "interval_seconds": 2,
+            "frame_width": 160,
+            "frame_height": 90,
+            "columns": 5,
+            "rows": 5,
+            "sheets": [{"url": "/storyboards/demo_ep01/sheet_001.jpg"}],
+        }
+        connection = sqlite3.connect(os.environ["SQLITE_PATH"])
+        try:
+            connection.execute(
+                """
+                INSERT INTO video_storyboards (
+                    video_id,
+                    interval_seconds,
+                    frame_width,
+                    frame_height,
+                    columns_count,
+                    rows_count,
+                    manifest_object_key,
+                    manifest_json,
+                    status
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+                """,
+                ("demo_ep01", 2, 160, 90, 5, 5, "storyboards/demo_ep01/storyboard_manifest.json", json.dumps(manifest)),
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+        storyboard_response = self.client.get("/api/videos/demo_ep01/storyboard")
+
+        self.assertEqual(storyboard_response.status_code, 200)
+        sheet_url = storyboard_response.json()["sheets"][0]["url"]
+        self.assertEqual(sheet_url, "/storyboards/demo_ep01/sheet_001.jpg")
+        sheet_response = self.client.get(sheet_url)
+        self.assertEqual(sheet_response.status_code, 200)
+        self.assertEqual(sheet_response.content, b"storyboard-image")
 
     def test_local_mode_records_playback_event(self) -> None:
         response = self.client.post(
