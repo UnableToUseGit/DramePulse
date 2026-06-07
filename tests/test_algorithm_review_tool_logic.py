@@ -64,6 +64,35 @@ if (item.setup !== '') throw new Error('missing setup should normalize to empty 
     assert result.returncode == 0, result.stderr
 
 
+def test_review_tool_normalizes_expression_trigger_time() -> None:
+    script = """
+const logic = require('./apps/algorithm-review-tool/review_tool.js');
+
+const items = logic.normalizeAlgorithmOutput({
+  expression_triggers: [
+    {
+      trigger_id: 'et_demo_001',
+      start_time: 10,
+      end_time: 13,
+      trigger_time: 12.25,
+      expression_type: '笑点',
+      importance_score: 0.91,
+      summary: '包袱落地',
+      reason: '台词反差'
+    }
+  ]
+}, 'demo_ep01');
+
+const item = items[0];
+if (item.cue_time !== 12.25) throw new Error(`trigger_time should normalize to cue_time, got ${item.cue_time}`);
+if (item.raw.trigger_time !== 12.25) throw new Error('raw trigger_time missing');
+if (item.primary_expression !== '笑点') throw new Error('expression mismatch');
+"""
+    result = run_node(script)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_review_tool_normalizes_highlight_candidates_when_no_final_output_exists() -> None:
     script = """
 const logic = require('./apps/algorithm-review-tool/review_tool.js');

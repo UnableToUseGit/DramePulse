@@ -17,6 +17,7 @@ DEFAULT_ANNOTATION_DIR = Path("data/annotations/expression_trigger_gold")
 DEFAULT_ALGORITHM_OUTPUT_ROOT = Path("output/expression_trigger")
 DEFAULT_REPORT_PATH = Path("output/expression_trigger_annotation_eval/report.json")
 ALGORITHM_OUTPUT_FILENAMES = ("expression_triggers.json", "highlight_recognition.json")
+SUPPORTED_EVAL_EXPRESSIONS = {"爽点", "甜点", "泪点", "笑点"}
 
 
 def now_iso() -> str:
@@ -39,13 +40,17 @@ def _round_time(value: float) -> float:
 
 
 def _time_value(item: dict[str, Any]) -> float | None:
-    for key in ("payoff_time", "cue_time"):
+    for key in ("trigger_time", "payoff_time", "cue_time"):
         try:
             value = float(item[key])
         except (KeyError, TypeError, ValueError):
             continue
         return value
     return None
+
+
+def _normalized_expression(value: Any) -> str:
+    return normalize_plot_primary_expression(value)
 
 
 def _payoff_window(item: dict[str, Any]) -> dict[str, float] | None:
@@ -144,8 +149,12 @@ def evaluate_episode(
         best_matched_by = ""
         for prediction_index in unmatched_prediction_indexes:
             prediction = predictions[prediction_index]
-            prediction_time = float(prediction.get("payoff_time", prediction.get("cue_time")))
-            annotation_time = float(annotation.get("payoff_time", annotation.get("cue_time")))
+            prediction_time_value = _time_value(prediction)
+            annotation_time_value = _time_value(annotation)
+            if prediction_time_value is None or annotation_time_value is None:
+                continue
+            prediction_time = float(prediction_time_value)
+            annotation_time = float(annotation_time_value)
             delta = abs(prediction_time - annotation_time)
             matched_by = "tolerance"
             window = annotation.get("payoff_window")
@@ -172,14 +181,34 @@ def evaluate_episode(
 
         unmatched_prediction_indexes.remove(best_index)
         prediction = predictions[best_index]
-        expression_match = prediction["primary_expression"] == annotation["primary_expression"]
+        prediction_time = float(_time_value(prediction) or 0.0)
+        annotation_time = float(_time_value(annotation) or 0.0)
+        annotation_expression = _normalized_expression(annotation.get("primary_expression"))
+        prediction_expression = _normalized_expression(
+            prediction.get("primary_expression") or prediction.get("expression_type") or prediction.get("emotion")
+        )
+        unsupported_gold_expression = annotation_expression not in SUPPORTED_EVAL_EXPRESSIONS
+        expression_match = (not unsupported_gold_expression) and prediction_expression == annotation_expression
+        annotation_for_report = {
+            **annotation,
+            "payoff_time": _round_time(annotation_time),
+            "cue_time": _round_time(annotation_time),
+            "primary_expression": annotation_expression,
+        }
+        prediction_for_report = {
+            **prediction,
+            "payoff_time": _round_time(prediction_time),
+            "cue_time": _round_time(prediction_time),
+            "primary_expression": prediction_expression,
+        }
         matches.append(
             {
-                "annotation": annotation,
-                "prediction": prediction,
+                "annotation": annotation_for_report,
+                "prediction": prediction_for_report,
                 "time_delta_sec": _round_time(best_delta),
                 "matched_by": best_matched_by,
                 "expression_match": expression_match,
+                "unsupported_gold_expression": unsupported_gold_expression,
             }
         )
 
@@ -188,6 +217,10 @@ def evaluate_episode(
     gold_count = len(gold_annotations)
     prediction_count = len(predictions)
     expression_correct_count = sum(1 for match in matches if match["expression_match"])
+    unsupported_gold_count = sum(
+        1 for annotation in gold_annotations if _normalized_expression(annotation.get("primary_expression")) not in SUPPORTED_EVAL_EXPRESSIONS
+    )
+    supported_matched_count = sum(1 for match in matches if not match["unsupported_gold_expression"])
 
     return {
         "video_id": video_id,
@@ -196,11 +229,15 @@ def evaluate_episode(
         "prediction_count": prediction_count,
         "matched_count": matched_count,
         "expression_correct_count": expression_correct_count,
+        "unsupported_gold_count": unsupported_gold_count,
+        "supported_matched_count": supported_matched_count,
         "missed_count": len(missed),
         "false_positive_count": len(false_positives),
         "recall": _round_metric(matched_count / gold_count) if gold_count else None,
         "precision": _round_metric(matched_count / prediction_count) if prediction_count else None,
-        "expression_accuracy_on_matches": _round_metric(expression_correct_count / matched_count) if matched_count else None,
+        "expression_accuracy_on_matches": _round_metric(expression_correct_count / supported_matched_count)
+        if supported_matched_count
+        else None,
         "matches": matches,
         "missed": missed,
         "false_positives": false_positives,
@@ -239,17 +276,23 @@ def summarize_episode_results(episodes: list[dict[str, Any]]) -> dict[str, Any]:
     expression_correct_count = sum(int(episode["expression_correct_count"]) for episode in episodes)
     missed_count = sum(int(episode["missed_count"]) for episode in episodes)
     false_positive_count = sum(int(episode["false_positive_count"]) for episode in episodes)
+    unsupported_gold_count = sum(int(episode.get("unsupported_gold_count", 0)) for episode in episodes)
+    supported_matched_count = sum(int(episode.get("supported_matched_count", 0)) for episode in episodes)
     return {
         "episode_count": len(episodes),
         "gold_count": gold_count,
         "prediction_count": prediction_count,
         "matched_count": matched_count,
         "expression_correct_count": expression_correct_count,
+        "unsupported_gold_count": unsupported_gold_count,
+        "supported_matched_count": supported_matched_count,
         "missed_count": missed_count,
         "false_positive_count": false_positive_count,
         "recall": _round_metric(matched_count / gold_count) if gold_count else None,
         "precision": _round_metric(matched_count / prediction_count) if prediction_count else None,
-        "expression_accuracy_on_matches": _round_metric(expression_correct_count / matched_count) if matched_count else None,
+        "expression_accuracy_on_matches": _round_metric(expression_correct_count / supported_matched_count)
+        if supported_matched_count
+        else None,
     }
 
 

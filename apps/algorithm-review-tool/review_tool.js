@@ -49,7 +49,7 @@
     const source = item && typeof item === "object" ? item : {};
     const startTime = roundTime(source.start_time);
     const endTime = roundTime(source.end_time || startTime);
-    const cueTime = roundTime(source.cue_time || startTime + (endTime - startTime) / 2);
+    const cueTime = roundTime(source.trigger_time || source.cue_time || source.payoff_time || startTime + (endTime - startTime) / 2);
     return {
       id: cleanText(source.trigger_id || `et_${videoId}_${String(index + 1).padStart(3, "0")}`),
       kind: "expression_trigger",

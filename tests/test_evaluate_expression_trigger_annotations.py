@@ -87,6 +87,56 @@ def test_evaluate_episode_matches_nearest_trigger_with_expression_agreement() ->
     assert result["false_positives"][0]["trigger_id"] == "et_demo_ep01_003"
 
 
+def test_evaluate_episode_reads_prediction_trigger_time() -> None:
+    from scripts.evaluate_expression_trigger_annotations import evaluate_episode
+
+    result = evaluate_episode(
+        video_id="demo_ep01",
+        gold_annotations=[
+            {
+                "annotation_id": "gold_demo_ep01_001",
+                "cue_time": 10.0,
+                "primary_expression": "笑死",
+                "reason": "笑点",
+            }
+        ],
+        predictions=[
+            {"trigger_id": "et_demo_ep01_001", "trigger_time": 10.5, "expression_type": "笑点"},
+        ],
+        tolerance_sec=3.0,
+    )
+
+    assert result["matched_count"] == 1
+    assert result["matches"][0]["prediction"]["cue_time"] == 10.5
+    assert result["matches"][0]["expression_match"] is True
+
+
+def test_evaluate_episode_reports_unsupported_gold_expression() -> None:
+    from scripts.evaluate_expression_trigger_annotations import evaluate_episode
+
+    result = evaluate_episode(
+        video_id="demo_ep01",
+        gold_annotations=[
+            {
+                "annotation_id": "gold_demo_ep01_001",
+                "cue_time": 20.0,
+                "primary_expression": "震惊",
+                "reason": "突然求婚。",
+            }
+        ],
+        predictions=[
+            {"trigger_id": "et_demo_ep01_001", "trigger_time": 20.2, "expression_type": "笑点"},
+        ],
+        tolerance_sec=3.0,
+    )
+
+    assert result["unsupported_gold_count"] == 1
+    assert result["matched_count"] == 1
+    assert result["supported_matched_count"] == 0
+    assert result["expression_accuracy_on_matches"] is None
+    assert result["matches"][0]["unsupported_gold_expression"] is True
+
+
 def test_evaluate_episode_matches_payoff_time_inside_gold_window() -> None:
     from scripts.evaluate_expression_trigger_annotations import evaluate_episode
 
@@ -165,6 +215,7 @@ def test_main_reads_annotation_directory_and_writes_report(tmp_path: Path) -> No
     assert report["summary"]["prediction_count"] == 2
     assert report["summary"]["matched_count"] == 1
     assert report["summary"]["false_positive_count"] == 1
+    assert report["summary"]["unsupported_gold_count"] == 0
     assert report["episodes"][0]["video_id"] == "demo_ep01"
     assert report["episodes"][0]["algorithm_output_path"] == str(
         algorithm_output_root / "demo_ep01" / "expression_triggers.json"
