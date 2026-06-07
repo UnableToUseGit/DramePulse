@@ -161,6 +161,7 @@ def print_workflow_progress(event: str, payload: dict[str, Any]) -> None:
 
 def build_pipeline(
     *,
+    pipeline_type: str,
     env_path: Path,
     sample_interval_sec: float,
     max_frames: int | None,
@@ -178,10 +179,28 @@ def build_pipeline(
     candidate_max_output_tokens: int,
     filter_max_output_tokens: int,
 ):
+    llm_client = build_llm_client(env_path=env_path)
+    if pipeline_type == "dual_branch":
+        from pipelines.expression_trigger.dual_branch_workflow import DualBranchExpressionTriggerPipeline
+
+        return DualBranchExpressionTriggerPipeline(
+            llm_client=llm_client,
+            sample_interval_sec=sample_interval_sec,
+            max_frames=max_frames,
+            frame_max_height=frame_max_height,
+            top_k=final_max_triggers or 4,
+            min_gap_seconds=final_same_expression_gap_sec,
+            branch_max_output_tokens=candidate_max_output_tokens,
+            judge_max_output_tokens=filter_max_output_tokens,
+            progress_callback=print_workflow_progress,
+        )
+    if pipeline_type != "legacy":
+        raise ValueError(f"Unsupported workflow pipeline type: {pipeline_type}")
+
     from pipelines.workflow_expression_trigger_detection import WorkflowExpressionTriggerPipeline
 
     return WorkflowExpressionTriggerPipeline(
-        llm_client=build_llm_client(env_path=env_path),
+        llm_client=llm_client,
         sample_interval_sec=sample_interval_sec,
         max_frames=max_frames,
         frame_max_height=frame_max_height,
@@ -221,6 +240,18 @@ def expression_trigger_to_asset_item(
     *,
     resonance_cues: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    if "trigger_time" in trigger:
+        expression_type = str(trigger.get("expression_type") or trigger.get("primary_expression") or "")
+        return {
+            "trigger_id": str(trigger.get("trigger_id") or ""),
+            "start_time": float(trigger.get("start_time", 0.0)),
+            "end_time": float(trigger.get("end_time", 0.0)),
+            "trigger_time": float(trigger.get("trigger_time", 0.0)),
+            "expression_type": expression_type,
+            "importance_score": float(trigger.get("importance_score", 0.0)),
+            "summary": str(trigger.get("summary") or ""),
+            "reason": str(trigger.get("reason") or ""),
+        }
     primary_expression = str(trigger.get("primary_expression") or "")
     cue_time = trigger.get("cue_time", trigger.get("payoff_time", trigger.get("start_time", 0.0)))
     return {
@@ -242,6 +273,10 @@ def write_workflow_episode_output(
     *,
     episode: Any,
     output_root: Path,
+    pipeline_type: str = "dual_branch_expression_trigger",
+    plot_candidates: list[dict[str, Any]] | None = None,
+    punchline_candidates: list[dict[str, Any]] | None = None,
+    triggerability_decisions: list[dict[str, Any]] | None = None,
     expression_candidates: list[dict[str, Any]],
     candidate_decisions: list[dict[str, Any]],
     expression_triggers: list[dict[str, Any]],
@@ -268,14 +303,21 @@ def write_workflow_episode_output(
         "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
         "subtitle_path": str(episode.subtitle_path),
         "created_at": created_at,
-        "pipeline_type": "workflow_expression_trigger",
+        "pipeline_type": pipeline_type,
         "llm_call": llm_call or {},
         "expression_candidates": expression_candidates,
         "candidate_decisions": candidate_decisions,
         "expression_triggers": expression_triggers,
         "resonance_cues": resonance_cues,
-        "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
     }
+    if plot_candidates is not None:
+        debug_payload["plot_candidates"] = plot_candidates
+    if punchline_candidates is not None:
+        debug_payload["punchline_candidates"] = punchline_candidates
+    if triggerability_decisions is not None:
+        debug_payload["triggerability_decisions"] = triggerability_decisions
+    if all("primary_expression" in trigger for trigger in expression_triggers):
+        debug_payload["highlight_assets"] = expression_triggers_to_highlight_assets(expression_triggers)
     asset_path = output_dir / ASSET_FILENAME
     debug_path = output_dir / DEBUG_FILENAME
     asset_path.write_text(json.dumps(asset_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -308,6 +350,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--limit", type=int, default=0, help="Process at most N episodes. Default: all.")
     parser.add_argument("--force", action="store_true", help="Regenerate outputs that already exist.")
+    parser.add_argument("--pipeline", choices=("dual_branch", "legacy"), default="dual_branch")
     parser.add_argument("--sample-interval-sec", type=float, default=10.0)
     parser.add_argument("--max-frames", type=int)
     parser.add_argument("--frame-max-height", type=int, default=512)
@@ -339,6 +382,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         limit=args.limit,
     )
     active_pipeline = pipeline or build_pipeline(
+        pipeline_type=args.pipeline,
         env_path=args.env_file,
         sample_interval_sec=args.sample_interval_sec,
         max_frames=args.max_frames,
@@ -381,6 +425,10 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
             written_path = write_workflow_episode_output(
                 episode=episode,
                 output_root=args.output_root,
+                pipeline_type="dual_branch_expression_trigger" if args.pipeline == "dual_branch" else "workflow_expression_trigger",
+                plot_candidates=getattr(result, "plot_candidates", None),
+                punchline_candidates=getattr(result, "punchline_candidates", None),
+                triggerability_decisions=getattr(result, "triggerability_decisions", None),
                 expression_candidates=result.expression_candidates,
                 candidate_decisions=result.candidate_decisions,
                 expression_triggers=result.expression_triggers,
