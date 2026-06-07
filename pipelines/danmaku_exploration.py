@@ -36,6 +36,7 @@ PLOT_REACTION_KEYWORDS = ("终于", "怼", "反转", "打脸", "反杀", "真相
 MEME_KEYWORDS = ("顶得住", "顶不住", "禁止", "会演", "笑不活", "蚌埠住", "绷不住", "名场面")
 EMOTION_BURST_KEYWORDS = ("哈哈", "笑死", "笑不活", "爽", "啊啊", "哭了", "甜")
 STANCE_KEYWORDS = ("别原谅", "站", "选", "支持", "不配", "离开他")
+SEMANTIC_RESONANCE_INTENTS = {"plot_reaction", "actor_charm", "meme", "stance"}
 
 
 @dataclass(frozen=True)
@@ -256,6 +257,14 @@ def _build_windows_for_episode(
             unique_text_count = len(text_counts)
             digg_sum = sum(item.digg_count for item in window_items)
             high_digg_count = sum(1 for item in window_items if item.digg_count >= 5)
+            intent_counts = Counter(
+                classify_intent(item.clean_text, low_quality=item.low_quality)
+                for item in window_items
+            )
+            semantic_signal_count = sum(intent_counts[intent] for intent in SEMANTIC_RESONANCE_INTENTS)
+            if semantic_signal_count <= 0:
+                start_time = _round_time(start_time + step_sec)
+                continue
             burst_score = max(0.0, len(window_items) - min_window_danmaku_count) * 0.75
             resonance_score = (
                 len(window_items)
@@ -263,6 +272,7 @@ def _build_windows_for_episode(
                 + max(0, repeat_text_count - 1) * 1.1
                 + min(digg_sum, 50) * 0.12
                 + high_digg_count * 0.8
+                + semantic_signal_count * 0.8
                 + burst_score
             )
             raw_windows.append(
@@ -276,6 +286,12 @@ def _build_windows_for_episode(
                     "repeat_text_count": repeat_text_count,
                     "digg_sum": int(digg_sum),
                     "high_digg_count": high_digg_count,
+                    "semantic_signal_count": semantic_signal_count,
+                    "semantic_intent_counts": {
+                        intent: int(count)
+                        for intent, count in sorted(intent_counts.items())
+                        if intent in SEMANTIC_RESONANCE_INTENTS and count > 0
+                    },
                     "burst_score": _round_time(burst_score),
                     "resonance_score": _round_time(resonance_score),
                     "top_comments": _top_comments(window_items),

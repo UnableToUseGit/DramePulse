@@ -60,6 +60,46 @@ def test_explore_danmaku_csv_builds_profiles_windows_and_review_candidates(tmp_p
     assert accepted_candidate["source_comment_ids"]
 
 
+def test_explore_danmaku_csv_filters_windows_with_only_simple_emotion(tmp_path: Path) -> None:
+    from pipelines.danmaku_exploration import explore_danmaku_csv
+
+    csv_path = tmp_path / "圈选剧前5集弹幕.csv"
+    csv_path.write_text(
+        "\n".join(
+            [
+                "剧名称,group_title,发弹幕时刻相对于视频起始时间偏移量,累计点赞数,弹幕内容",
+                "北往,第1集,10000,8,哈哈哈哈",
+                "北往,第1集,10800,5,[捂脸][捂脸]",
+                "北往,第1集,11600,3,笑死我了",
+                "北往,第1集,12400,1,啊啊啊",
+                "北往,第1集,50000,2,女主终于怼回去了",
+                "北往,第1集,50800,1,她这句太争气了",
+                "北往,第1集,51600,3,这个眼神太帅了",
+                "北往,第1集,52400,0,这谁顶得住",
+            ]
+        )
+        + "\n",
+        encoding="gb18030",
+    )
+
+    result = explore_danmaku_csv(
+        csv_path,
+        window_sec=8.0,
+        step_sec=2.0,
+        min_window_danmaku_count=4,
+        max_windows_per_episode=10,
+    )
+
+    assert [window["start_time"] for window in result["resonance_windows"]] == [46.0]
+    semantic_window = result["resonance_windows"][0]
+    assert semantic_window["semantic_signal_count"] == 4
+    assert semantic_window["semantic_intent_counts"] == {
+        "actor_charm": 1,
+        "meme": 1,
+        "plot_reaction": 2,
+    }
+
+
 def test_danmaku_exploration_cli_writes_three_artifacts(tmp_path: Path) -> None:
     from scripts.run_danmaku_exploration import main
 
