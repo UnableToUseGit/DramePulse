@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import argparse
@@ -19,15 +18,11 @@ from scripts.algorithm_danmaku_csv import index_danmaku_csv_episodes, load_danma
 
 DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
 DEFAULT_OUTPUT_ROOT = Path("output")
+DEFAULT_ANNOTATION_DIR = Path("data/annotations/expression_trigger_gold")
 TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "algorithm-review-tool"
 ANNOTATION_TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "annotation-tool"
 SUBTITLE_DENSITY_TOOL_DIR = Path(__file__).resolve().parents[1] / "apps" / "subtitle-density-tool"
-FEEDBACK_FILENAME = "expression_trigger_feedback.json"
 VIDEO_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
-
-
-def now_iso() -> str:
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def read_json(path: Path) -> Any:
@@ -35,11 +30,6 @@ def read_json(path: Path) -> Any:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-
-
-def write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def is_valid_video_id(video_id: str) -> bool:
@@ -57,6 +47,7 @@ def extract_title(episode_dir: Path, *, series_id: str, episode_id: str) -> str:
 
 def resolve_algorithm_output(video_id: str, output_root: Path) -> tuple[str | None, Path | None]:
     candidates = (
+        ("expression_triggers", output_root / video_id / "expression_triggers.json"),
         ("highlight_recognition", output_root / video_id / "highlight_recognition.json"),
         ("highlight_candidates", output_root / video_id / "highlight_candidates.json"),
     )
@@ -76,6 +67,68 @@ def resolve_subtitle_density_output(video_id: str, output_root: Path) -> Path | 
         if path.exists():
             return path
     return None
+
+
+def _round_time(value: float) -> float:
+    return round(float(value), 3)
+
+
+def _annotation_time(item: dict[str, Any]) -> float | None:
+    for key in ("payoff_time", "cue_time"):
+        try:
+            return _round_time(float(item[key]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return None
+
+
+def _annotation_window(item: dict[str, Any]) -> dict[str, float] | None:
+    window = item.get("payoff_window")
+    if not isinstance(window, dict):
+        return None
+    try:
+        start_time = _round_time(float(window["start_time"]))
+        end_time = _round_time(float(window["end_time"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if start_time < 0 or end_time < start_time:
+        return None
+    return {"start_time": start_time, "end_time": end_time}
+
+
+def load_gold_annotation_payload(*, video_id: str, annotation_dir: Path) -> dict[str, Any]:
+    annotation_path = annotation_dir / f"{video_id}.annotation.json"
+    payload = read_json(annotation_path)
+    if not isinstance(payload, dict):
+        return {"video_id": video_id, "annotation_count": 0, "annotations": []}
+    raw_annotations = payload.get("annotations")
+    if not isinstance(raw_annotations, list):
+        return {"video_id": video_id, "annotation_count": 0, "annotations": []}
+    annotations: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_annotations, start=1):
+        if not isinstance(item, dict):
+            continue
+        annotation_time = _annotation_time(item)
+        if annotation_time is None or annotation_time < 0:
+            continue
+        annotations.append(
+            {
+                "annotation_id": str(item.get("annotation_id") or f"gold_{video_id}_{index:03d}"),
+                "cue_time": annotation_time,
+                "payoff_time": annotation_time,
+                "primary_expression": str(item.get("primary_expression") or item.get("expression_type") or "").strip(),
+                "reason": str(item.get("reason") or "").strip(),
+                "payoff_window": _annotation_window(item),
+            }
+        )
+    annotations = sorted(annotations, key=lambda item: (float(item["cue_time"]), str(item["annotation_id"])))
+    return {
+        "video_id": video_id,
+        "annotation_count": len(annotations),
+        "annotations": annotations,
+        "_review_output_type": "expression_trigger_gold",
+        "_review_output_path": str(annotation_path) if annotation_path.exists() else None,
+    }
 
 
 def load_subtitle_density_payload(*, video_id: str, output_root: Path) -> dict[str, Any]:
@@ -114,7 +167,7 @@ def load_episode_danmaku_payload(*, data_root: Path, episode_dir: Path, series_i
     return {"source": None, "count": 0, "items": []}
 
 
-def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]:
+def build_episode_index(*, data_root: Path, output_root: Path, annotation_dir: Path = DEFAULT_ANNOTATION_DIR) -> dict[str, Any]:
     episodes: list[dict[str, Any]] = []
     csv_episode_paths = index_danmaku_csv_episodes(data_root)
     for video_path in sorted(data_root.glob("*/ep*/video.mp4")):
@@ -123,6 +176,7 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
         episode_id = episode_dir.name
         video_id = f"{series_id}_{episode_id}"
         output_type, algorithm_output_path = resolve_algorithm_output(video_id, output_root)
+        gold_payload = load_gold_annotation_payload(video_id=video_id, annotation_dir=annotation_dir)
         subtitle_density_path = resolve_subtitle_density_output(video_id, output_root)
         danmaku_source, danmaku_path = resolve_danmaku_source(
             episode_dir=episode_dir,
@@ -130,7 +184,6 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
             episode_id=episode_id,
             csv_episode_paths=csv_episode_paths,
         )
-        feedback_path = output_root / video_id / FEEDBACK_FILENAME
         episodes.append(
             {
                 "video_id": video_id,
@@ -150,10 +203,11 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
                 "has_scene_detection": (episode_dir / "scene_detection.json").exists(),
                 "algorithm_output_type": output_type,
                 "algorithm_output_path": str(algorithm_output_path) if algorithm_output_path else None,
+                "gold_annotation_path": gold_payload.get("_review_output_path"),
+                "gold_annotation_count": gold_payload["annotation_count"],
+                "has_gold_annotations": int(gold_payload["annotation_count"]) > 0,
                 "subtitle_density_path": str(subtitle_density_path) if subtitle_density_path else None,
                 "has_subtitle_density": subtitle_density_path is not None,
-                "feedback_path": str(feedback_path),
-                "has_feedback": feedback_path.exists(),
             }
         )
     return {
@@ -163,22 +217,10 @@ def build_episode_index(*, data_root: Path, output_root: Path) -> dict[str, Any]
     }
 
 
-def save_feedback_payload(*, video_id: str, output_root: Path, payload: dict[str, Any]) -> Path:
-    if not is_valid_video_id(video_id):
-        raise ValueError(f"Invalid video_id: {video_id}")
-    if str(payload.get("video_id", video_id)) != video_id:
-        raise ValueError("Payload video_id does not match URL video_id")
-    output_path = output_root / video_id / FEEDBACK_FILENAME
-    saved_payload = dict(payload)
-    saved_payload["video_id"] = video_id
-    saved_payload["saved_at"] = now_iso()
-    write_json(output_path, saved_payload)
-    return output_path
-
-
 class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
     data_root: Path
     output_root: Path
+    annotation_dir: Path
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urlparse(self.path)
@@ -202,7 +244,7 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             self._send_file(SUBTITLE_DENSITY_TOOL_DIR / "subtitle_density_tool.js")
             return
         if path == "/api/episodes":
-            self._send_json(build_episode_index(data_root=self.data_root, output_root=self.output_root))
+            self._send_json(build_episode_index(data_root=self.data_root, output_root=self.output_root, annotation_dir=self.annotation_dir))
             return
         api_match = re.fullmatch(r"/api/episodes/([^/]+)/([^/]+)", path)
         if api_match:
@@ -211,29 +253,10 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
             return
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
-    def do_POST(self) -> None:  # noqa: N802
-        parsed = urlparse(self.path)
-        path = unquote(parsed.path)
-        api_match = re.fullmatch(r"/api/episodes/([^/]+)/feedback", path)
-        if not api_match:
-            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
-            return
-        video_id = api_match.group(1)
-        try:
-            content_length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
-            if not isinstance(payload, dict):
-                raise ValueError("Feedback payload must be a JSON object")
-            output_path = save_feedback_payload(video_id=video_id, output_root=self.output_root, payload=payload)
-        except (ValueError, json.JSONDecodeError) as exc:
-            self._send_json({"ok": False, "error": str(exc)}, status=HTTPStatus.BAD_REQUEST)
-            return
-        self._send_json({"ok": True, "feedback_path": str(output_path)})
-
     def _episode_for_id(self, video_id: str) -> dict[str, Any] | None:
         if not is_valid_video_id(video_id):
             return None
-        index = build_episode_index(data_root=self.data_root, output_root=self.output_root)
+        index = build_episode_index(data_root=self.data_root, output_root=self.output_root, annotation_dir=self.annotation_dir)
         return next((episode for episode in index["episodes"] if episode["video_id"] == video_id), None)
 
     def _send_episode_resource(self, video_id: str, resource: str) -> None:
@@ -271,8 +294,8 @@ class AlgorithmReviewHandler(SimpleHTTPRequestHandler):
                 payload = {**payload, "_review_output_type": output_type, "_review_output_path": str(output_path)}
             self._send_json(payload or {})
             return
-        if resource == "feedback":
-            self._send_json(read_json(self.output_root / video_id / FEEDBACK_FILENAME) or {"video_id": video_id})
+        if resource == "gold-annotations":
+            self._send_json(load_gold_annotation_payload(video_id=video_id, annotation_dir=self.annotation_dir))
             return
         if resource == "subtitle-density":
             self._send_json(load_subtitle_density_payload(video_id=video_id, output_root=self.output_root))
@@ -358,6 +381,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", type=int, default=8780)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
+    parser.add_argument("--annotation-dir", type=Path, default=DEFAULT_ANNOTATION_DIR)
     return parser
 
 
@@ -366,12 +390,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     handler = type(
         "ConfiguredAlgorithmReviewHandler",
         (AlgorithmReviewHandler,),
-        {"data_root": args.data_root, "output_root": args.output_root},
+        {"data_root": args.data_root, "output_root": args.output_root, "annotation_dir": args.annotation_dir},
     )
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f"Serving algorithm review tool on http://{args.host}:{args.port}/")
     print(f"Data root: {args.data_root}")
     print(f"Output root: {args.output_root}")
+    print(f"Annotation dir: {args.annotation_dir}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

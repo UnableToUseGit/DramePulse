@@ -39,7 +39,7 @@ def _safe_video_id(scene_detection_path: Path, fallback: str) -> str:
     if not isinstance(payload, dict):
         return fallback
     video_id = str(payload.get("video_id") or "").strip()
-    return video_id or fallback
+    return fallback if video_id in {"", "video"} else video_id
 
 
 def discover_story_chapter_inputs(dataset_root: Path) -> list[StoryChapterInput]:

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DramePulse 算法验证台</title>
+    <title>DramePulse Trigger 对照台</title>
     <link rel="icon" href="data:,">
     <style>
       :root {
@@ -28,7 +28,7 @@
         color: var(--text);
         font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
       }
-      button, input, select, textarea { font: inherit; }
+      button, select { font: inherit; }
       button {
         border: 1px solid var(--line);
         border-radius: 6px;
@@ -37,27 +37,15 @@
         padding: 8px 10px;
         cursor: pointer;
       }
-      button:hover, button.active { border-color: var(--accent); }
-      button.primary { background: var(--accent); color: #171204; font-weight: 800; }
-      button.good.active { border-color: var(--green); color: var(--green); }
-      button.bad.active { border-color: var(--red); color: var(--red); }
-      input, select, textarea {
-        width: 100%;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #111619;
-        color: var(--text);
-        padding: 8px 10px;
-      }
-      textarea { min-height: 82px; resize: vertical; }
+      button:hover { border-color: var(--accent); }
       .app {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 420px;
+        grid-template-columns: minmax(0, 1fr) minmax(520px, 46vw);
         gap: 14px;
         height: 100vh;
         padding: 14px;
       }
-      .main, .side, .panel {
+      .main, .side {
         min-height: 0;
         border: 1px solid var(--line);
         background: var(--panel);
@@ -70,9 +58,17 @@
       }
       .topbar {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) auto auto;
+        grid-template-columns: minmax(220px, 1fr) auto;
         gap: 10px;
         align-items: center;
+      }
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #111619;
+        color: var(--text);
+        padding: 8px 10px;
       }
       .status {
         color: var(--muted);
@@ -91,11 +87,8 @@
       video {
         position: absolute;
         inset: 0;
-        display: block;
         width: 100%;
         height: 100%;
-        max-width: 100%;
-        max-height: 100%;
         object-fit: contain;
         background: #000;
       }
@@ -129,7 +122,11 @@
         background: var(--accent);
         cursor: pointer;
       }
-      .marker.missed { background: var(--cyan); }
+      .marker.gold {
+        top: 3px;
+        height: 44px;
+        background: var(--green);
+      }
       .playhead {
         position: absolute;
         top: 0;
@@ -145,9 +142,22 @@
       }
       .side {
         display: grid;
-        grid-template-rows: auto minmax(0, .85fr) minmax(0, 1.15fr);
+        grid-template-rows: minmax(0, 1fr) minmax(190px, .45fr);
         gap: 10px;
         padding: 12px;
+      }
+      .comparison-grid {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .column {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 8px;
       }
       .section-title {
         display: flex;
@@ -157,9 +167,10 @@
         color: var(--muted);
         font-size: 13px;
       }
-      .trigger-list, .danmaku-list {
+      .trigger-list {
         overflow: auto;
         display: grid;
+        align-content: start;
         gap: 8px;
         padding-right: 4px;
       }
@@ -172,21 +183,14 @@
         cursor: pointer;
       }
       .trigger-item.active { border-color: var(--accent); }
-      .trigger-item.reviewed { border-left: 4px solid var(--green); }
+      .trigger-item.gold { border-left: 4px solid var(--green); }
+      .trigger-item.prediction { border-left: 4px solid var(--accent); }
       .time { font-variant-numeric: tabular-nums; color: var(--accent); }
+      .trigger-item.gold .time { color: var(--green); }
       .meta { color: var(--muted); font-size: 12px; }
       .trigger-reason {
         color: #d8dde0;
         font-size: 13px;
-        line-height: 1.45;
-      }
-      .trigger-release {
-        display: grid;
-        gap: 3px;
-        border-left: 2px solid var(--accent);
-        padding-left: 8px;
-        color: var(--muted);
-        font-size: 12px;
         line-height: 1.45;
       }
       .detail {
@@ -196,16 +200,23 @@
         padding: 12px;
       }
       .detail h2 { margin: 0 0 8px; font-size: 18px; }
-      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-      .full { grid-column: 1 / -1; }
-      .verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-      .danmaku-row {
-        border-left: 2px solid var(--line);
-        padding: 5px 8px;
-        color: var(--muted);
-        font-size: 13px;
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin: 10px 0;
       }
-      .danmaku-row.near { border-left-color: var(--cyan); color: var(--text); }
+      .kv {
+        border: 1px solid var(--line);
+        background: #111619;
+        padding: 8px;
+      }
+      .kv span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 3px;
+      }
       @media (max-width: 980px) {
         html, body { overflow: auto; }
         .app { height: auto; grid-template-columns: 1fr; }
@@ -220,35 +231,27 @@
         <div class="topbar">
           <select id="episodeSelect"></select>
           <div class="status" id="reviewProgress">未加载</div>
-          <button class="primary" id="saveFeedback">保存反馈</button>
         </div>
         <div class="video-wrap">
           <video id="video" controls playsinline></video>
         </div>
-        <div class="subtitle-line" id="subtitleLine">选择剧集后开始审阅</div>
+        <div class="subtitle-line" id="subtitleLine">选择剧集后开始对照</div>
         <div class="timeline" id="timeline"><div class="playhead" id="playhead"></div></div>
         <div class="actions">
-          <button id="prevTrigger">上一触发点</button>
-          <button id="nextTrigger">下一触发点</button>
-          <button id="addMissed">当前时间新增漏检</button>
-          <span class="status" id="saveStatus">未保存</span>
+          <button id="prevTrigger">上一项</button>
+          <button id="nextTrigger">下一项</button>
         </div>
       </section>
       <aside class="side">
-        <div>
-          <div class="section-title">
-            <strong>算法触发点</strong>
-            <select id="filterSelect">
-              <option value="all">全部</option>
-              <option value="pending">待审核</option>
-              <option value="reviewed">已审核</option>
-            </select>
+        <div class="comparison-grid">
+          <div class="column">
+            <div class="section-title"><strong>Groundtruth</strong><span id="groundtruthCount">0</span></div>
+            <div class="trigger-list" id="groundtruthList"></div>
           </div>
-          <div class="trigger-list" id="triggerList"></div>
-        </div>
-        <div>
-          <div class="section-title"><strong>附近弹幕</strong><span id="danmakuCount">0</span></div>
-          <div class="danmaku-list" id="danmakuList"></div>
+          <div class="column">
+            <div class="section-title"><strong>Prediction</strong><span id="predictionCount">0</span></div>
+            <div class="trigger-list" id="predictionList"></div>
+          </div>
         </div>
         <div class="detail" id="detailPanel"></div>
       </aside>
@@ -259,30 +262,26 @@
         episodes: [],
         currentEpisode: null,
         reviewItems: [],
+        goldAnnotations: [],
         subtitles: [],
-        danmaku: [],
-        reviews: {},
-        missedTriggers: [],
-        selectedId: "",
+        selectedKey: "",
+        selectedKind: "",
         duration: 0,
       };
 
       const el = {
         episodeSelect: document.getElementById("episodeSelect"),
         reviewProgress: document.getElementById("reviewProgress"),
-        saveFeedback: document.getElementById("saveFeedback"),
         video: document.getElementById("video"),
         subtitleLine: document.getElementById("subtitleLine"),
         timeline: document.getElementById("timeline"),
         playhead: document.getElementById("playhead"),
         prevTrigger: document.getElementById("prevTrigger"),
         nextTrigger: document.getElementById("nextTrigger"),
-        addMissed: document.getElementById("addMissed"),
-        saveStatus: document.getElementById("saveStatus"),
-        filterSelect: document.getElementById("filterSelect"),
-        triggerList: document.getElementById("triggerList"),
-        danmakuList: document.getElementById("danmakuList"),
-        danmakuCount: document.getElementById("danmakuCount"),
+        groundtruthList: document.getElementById("groundtruthList"),
+        groundtruthCount: document.getElementById("groundtruthCount"),
+        predictionList: document.getElementById("predictionList"),
+        predictionCount: document.getElementById("predictionCount"),
         detailPanel: document.getElementById("detailPanel"),
       };
 
@@ -296,7 +295,7 @@
         const index = await fetchJson("/api/episodes");
         state.episodes = index.episodes || [];
         el.episodeSelect.innerHTML = state.episodes.map((episode) => {
-          const label = `${episode.series_id}/${episode.episode_id} · ${episode.algorithm_output_type || "无算法输出"}`;
+          const label = `${episode.series_id}/${episode.episode_id} · gt ${episode.gold_annotation_count || 0} · pred ${episode.algorithm_output_type || "none"}`;
           return `<option value="${episode.video_id}">${label}</option>`;
         }).join("");
         if (state.episodes.length) await loadEpisode(state.episodes[0].video_id);
@@ -306,21 +305,23 @@
         const episode = state.episodes.find((item) => item.video_id === videoId);
         if (!episode) return;
         state.currentEpisode = episode;
-        state.selectedId = "";
+        state.selectedKey = "";
+        state.selectedKind = "";
         state.duration = 0;
         el.video.src = `/api/episodes/${videoId}/video`;
-        const [algorithmOutput, feedback, subtitleText, danmakuPayload] = await Promise.all([
+        const [algorithmOutput, subtitleText, goldPayload] = await Promise.all([
           fetchJson(`/api/episodes/${videoId}/algorithm-output`),
-          fetchJson(`/api/episodes/${videoId}/feedback`),
           fetch(`/api/episodes/${videoId}/subtitle`).then((response) => response.ok ? response.text() : ""),
-          fetchJson(`/api/episodes/${videoId}/danmaku`),
+          fetchJson(`/api/episodes/${videoId}/gold-annotations`),
         ]);
         state.reviewItems = ReviewTool.normalizeAlgorithmOutput(algorithmOutput, videoId);
-        state.reviews = ReviewTool.normalizeReviewMap(feedback);
-        state.missedTriggers = ReviewTool.normalizeMissedTriggers(feedback);
+        state.goldAnnotations = ReviewTool.normalizeGoldAnnotations(goldPayload, videoId);
         state.subtitles = parseSrt(subtitleText);
-        state.danmaku = ReviewTool.extractDanmakuItems(danmakuPayload);
-        state.selectedId = state.reviewItems[0] ? state.reviewItems[0].id : "";
+        const first = state.goldAnnotations[0] || state.reviewItems[0];
+        if (first) {
+          state.selectedKey = first.id;
+          state.selectedKind = first.kind;
+        }
         renderAll();
       }
 
@@ -339,192 +340,106 @@
       function renderAll() {
         renderProgress();
         renderTimeline();
-        renderTriggerList();
-        renderDetail();
-        renderDanmaku();
+        renderComparisonLists();
+        renderSelectedDetail();
         updateSubtitle();
       }
 
       function renderProgress() {
-        const reviewed = Object.values(state.reviews).filter((review) => review && review.verdict).length;
-        el.reviewProgress.textContent = `${reviewed}/${state.reviewItems.length} 已审核 · 漏检 ${state.missedTriggers.length}`;
+        el.reviewProgress.textContent = `gt ${state.goldAnnotations.length} · pred ${state.reviewItems.length}`;
       }
 
-      function filteredItems() {
-        const filter = el.filterSelect.value;
-        if (filter === "pending") return state.reviewItems.filter((item) => !(state.reviews[item.id] && state.reviews[item.id].verdict));
-        if (filter === "reviewed") return state.reviewItems.filter((item) => state.reviews[item.id] && state.reviews[item.id].verdict);
-        return state.reviewItems;
+      function renderComparisonLists() {
+        el.groundtruthCount.textContent = String(state.goldAnnotations.length);
+        el.predictionCount.textContent = String(state.reviewItems.length);
+        el.groundtruthList.innerHTML = state.goldAnnotations.map((item) => renderListItem(item, "gold")).join("") || '<div class="meta">没有 groundtruth 标注。</div>';
+        el.predictionList.innerHTML = state.reviewItems.map((item) => renderListItem(item, "prediction")).join("") || '<div class="meta">没有 prediction 结果。</div>';
       }
 
-      function renderTriggerList() {
-        const items = filteredItems();
-        el.triggerList.innerHTML = items.map((item) => {
-          const review = state.reviews[item.id] || {};
-          const classes = ["trigger-item", item.id === state.selectedId ? "active" : "", review.verdict ? "reviewed" : ""].join(" ");
-          return `<div class="${classes}" data-id="${item.id}">
-            <div><span class="time">${ReviewTool.formatClock(item.cue_time)}</span> ${item.primary_expression || item.kind}</div>
-            <div class="meta">${item.source_type} · ${item.interaction_mode} · ${review.verdict || "pending"}</div>
-            <div>${escapeHtml(item.summary || item.reason || "无摘要")}</div>
-            <div class="trigger-release">
-              <div>铺垫：${escapeHtml(item.setup || "未提供")}</div>
-              <div>转折：${escapeHtml(item.turning_point || "未提供")}</div>
-              <div>释放：${escapeHtml(item.expression_release || "未提供")}</div>
-            </div>
-            <div class="trigger-reason">原因：${escapeHtml(item.reason || "无原因")}</div>
-          </div>`;
-        }).join("") || '<div class="meta">没有可审阅的算法输出，可以直接新增漏检点。</div>';
+      function renderListItem(item, column) {
+        const active = item.id === state.selectedKey && item.kind === state.selectedKind ? "active" : "";
+        return `<div class="trigger-item ${column} ${active}" data-kind="${item.kind}" data-id="${item.id}">
+          <div><span class="time">${ReviewTool.formatClock(item.cue_time)}</span> ${escapeHtml(item.primary_expression || item.kind)}</div>
+          <div class="meta">${escapeHtml(item.source_type || item.kind)}${item.confidence ? ` · conf ${item.confidence.toFixed(2)}` : ""}</div>
+          <div class="trigger-reason">${escapeHtml(item.summary || item.reason || "无摘要")}</div>
+        </div>`;
       }
 
       function renderTimeline() {
         const width = Math.max(1, el.timeline.clientWidth);
-        const duration = state.duration || el.video.duration || Math.max(...state.reviewItems.map((item) => item.end_time), ...state.missedTriggers.map((item) => item.cue_time), 1);
+        const duration = state.duration || el.video.duration || Math.max(...state.reviewItems.map((item) => item.end_time), ...state.goldAnnotations.map((item) => item.cue_time), 1);
         el.timeline.querySelectorAll(".marker").forEach((node) => node.remove());
-        for (const item of state.reviewItems) {
+        for (const item of state.goldAnnotations) {
           const marker = document.createElement("div");
-          marker.className = "marker";
-          marker.title = `${ReviewTool.formatClock(item.cue_time)} ${item.primary_expression || item.kind}`;
+          marker.className = "marker gold";
+          marker.title = `${ReviewTool.formatClock(item.cue_time)} GT: ${item.primary_expression}`;
           marker.style.left = `${Math.min(1, item.cue_time / duration) * width}px`;
+          marker.dataset.kind = item.kind;
           marker.dataset.id = item.id;
           el.timeline.appendChild(marker);
         }
-        for (const item of state.missedTriggers) {
+        for (const item of state.reviewItems) {
           const marker = document.createElement("div");
-          marker.className = "marker missed";
-          marker.title = `${ReviewTool.formatClock(item.cue_time)} 漏检: ${item.primary_expression}`;
+          marker.className = "marker";
+          marker.title = `${ReviewTool.formatClock(item.cue_time)} Pred: ${item.primary_expression || item.kind}`;
           marker.style.left = `${Math.min(1, item.cue_time / duration) * width}px`;
+          marker.dataset.kind = item.kind;
+          marker.dataset.id = item.id;
           el.timeline.appendChild(marker);
         }
         updatePlayhead();
       }
 
-      function renderDetail() {
-        const item = state.reviewItems.find((candidate) => candidate.id === state.selectedId);
+      function selectedItem() {
+        return [...state.goldAnnotations, ...state.reviewItems].find((item) => item.id === state.selectedKey && item.kind === state.selectedKind) || null;
+      }
+
+      function renderSelectedDetail() {
+        const item = selectedItem();
         if (!item) {
-          el.detailPanel.innerHTML = `<h2>漏检点</h2>${renderMissedEditor()}`;
-          bindDetailInputs();
+          el.detailPanel.innerHTML = '<h2>未选择</h2><p class="meta">点击 Groundtruth 或 Prediction 查看详情。</p>';
           return;
         }
-        const review = state.reviews[item.id] || {};
+        const windowText = item.payoff_window
+          ? `${ReviewTool.formatClock(item.payoff_window.start_time)} - ${ReviewTool.formatClock(item.payoff_window.end_time)}`
+          : "无";
         el.detailPanel.innerHTML = `
           <h2>${escapeHtml(item.primary_expression || item.kind)}</h2>
-          <div class="meta">${item.id} · ${item.kind}</div>
-          <p><span class="time">${ReviewTool.formatClock(item.start_time)} - ${ReviewTool.formatClock(item.end_time)}</span></p>
+          <div class="meta">${item.kind} · ${escapeHtml(item.id)}</div>
+          <div class="detail-grid">
+            <div class="kv"><span>cue_time</span>${ReviewTool.formatClock(item.cue_time)}</div>
+            <div class="kv"><span>interval</span>${ReviewTool.formatClock(item.start_time)} - ${ReviewTool.formatClock(item.end_time)}</div>
+            <div class="kv"><span>confidence</span>${item.confidence ? item.confidence.toFixed(3) : "n/a"}</div>
+            <div class="kv"><span>gold window</span>${windowText}</div>
+          </div>
           <p>${escapeHtml(item.summary || "无摘要")}</p>
-          <div class="trigger-release">
-            <div>铺垫：${escapeHtml(item.setup || "未提供")}</div>
-            <div>转折：${escapeHtml(item.turning_point || "未提供")}</div>
-            <div>释放：${escapeHtml(item.expression_release || "未提供")}</div>
-          </div>
-          <p class="meta">${escapeHtml(item.reason || "")}</p>
-          <div class="verdicts">
-            ${verdictButton("correct", "准确", review)}
-            ${verdictButton("false_positive", "不该触发", review)}
-            ${verdictButton("timing_early", "偏早", review)}
-            ${verdictButton("timing_late", "偏晚", review)}
-            ${verdictButton("expression_wrong", "表达错", review)}
-            ${verdictButton("interaction_wrong", "交互错", review)}
-          </div>
-          <div class="grid">
-            <label>修正开始<input id="correctedStart" value="${escapeAttr(review.corrected_start_time ?? item.start_time)}"></label>
-            <label>修正结束<input id="correctedEnd" value="${escapeAttr(review.corrected_end_time ?? item.end_time)}"></label>
-            <label>修正表达<input id="correctedExpression" value="${escapeAttr(review.corrected_primary_expression || item.primary_expression)}"></label>
-            <label>修正交互<select id="correctedMode">
-              ${["single_tap", "hold_burst", "repeat_tap", "stance_poll", "finale_rating"].map((mode) => `<option value="${mode}" ${(review.corrected_interaction_mode || item.interaction_mode) === mode ? "selected" : ""}>${mode}</option>`).join("")}
-            </select></label>
-            <label class="full">备注<textarea id="reviewNote">${escapeHtml(review.note || "")}</textarea></label>
-          </div>
-        `;
-        bindDetailInputs();
-      }
-
-      function verdictButton(value, label, review) {
-        const className = `${value === "correct" ? "good" : "bad"} ${review.verdict === value ? "active" : ""}`;
-        return `<button class="${className}" data-verdict="${value}">${label}</button>`;
-      }
-
-      function renderMissedEditor() {
-        return `
-          <div class="meta">在当前播放时间新增算法漏检点。</div>
-          <div class="grid">
-            <label>cue_time<input id="missedCue" value="${ReviewTool.roundTime(el.video.currentTime || 0)}"></label>
-            <label>source_type<select id="missedSource"><option>plot</option><option>performance</option><option>character_appeal</option><option>finale_judgment</option></select></label>
-            <label>primary_expression<input id="missedExpression" placeholder="爽到了 / 震惊 / 笑死"></label>
-            <label>interaction_mode<select id="missedMode"><option>single_tap</option><option>hold_burst</option><option>repeat_tap</option><option>stance_poll</option><option>finale_rating</option></select></label>
-            <label class="full">原因<textarea id="missedNote" placeholder="为什么这里适合低摩擦表达"></textarea></label>
-          </div>
-          <p><button class="primary" id="confirmMissed">确认新增漏检</button></p>
-          <h2>已新增漏检</h2>
-          ${state.missedTriggers.map((item, index) => `<div class="trigger-item"><span class="time">${ReviewTool.formatClock(item.cue_time)}</span> ${escapeHtml(item.primary_expression || "未填写")}<div class="meta">${escapeHtml(item.note || "")}</div><button data-remove-missed="${index}">删除</button></div>`).join("")}
+          <p class="trigger-reason">原因：${escapeHtml(item.reason || "无原因")}</p>
         `;
       }
 
-      function bindDetailInputs() {
-        el.detailPanel.querySelectorAll("[data-verdict]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const review = ensureReview(state.selectedId);
-            review.verdict = button.dataset.verdict;
-            syncReviewForm(review);
-            markDirty();
-            renderAll();
-          });
-        });
-        ["correctedStart", "correctedEnd", "correctedExpression", "correctedMode", "reviewNote"].forEach((id) => {
-          const input = document.getElementById(id);
-          if (!input || !state.selectedId) return;
-          input.addEventListener("input", () => {
-            const review = ensureReview(state.selectedId);
-            syncReviewForm(review);
-            markDirty();
-            renderProgress();
-          });
-        });
-        const confirmMissed = document.getElementById("confirmMissed");
-        if (confirmMissed) {
-          confirmMissed.addEventListener("click", () => {
-            state.missedTriggers.push({
-              cue_time: document.getElementById("missedCue").value,
-              source_type: document.getElementById("missedSource").value,
-              primary_expression: document.getElementById("missedExpression").value,
-              interaction_mode: document.getElementById("missedMode").value,
-              note: document.getElementById("missedNote").value,
-            });
-            markDirty();
-            renderAll();
-          });
-        }
-        el.detailPanel.querySelectorAll("[data-remove-missed]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.missedTriggers.splice(Number(button.dataset.removeMissed), 1);
-            markDirty();
-            renderAll();
-          });
-        });
+      function selectAndJump(kind, id) {
+        const item = [...state.goldAnnotations, ...state.reviewItems].find((candidate) => candidate.kind === kind && candidate.id === id);
+        if (!item) return;
+        state.selectedKind = kind;
+        state.selectedKey = id;
+        el.video.currentTime = Math.max(0, item.cue_time - 1);
+        renderAll();
       }
 
-      function ensureReview(triggerId) {
-        if (!state.reviews[triggerId]) state.reviews[triggerId] = {};
-        return state.reviews[triggerId];
+      function orderedItems() {
+        return [...state.goldAnnotations, ...state.reviewItems].sort((a, b) => a.cue_time - b.cue_time || a.kind.localeCompare(b.kind));
       }
 
-      function syncReviewForm(review) {
-        const start = document.getElementById("correctedStart");
-        const end = document.getElementById("correctedEnd");
-        const expression = document.getElementById("correctedExpression");
-        const mode = document.getElementById("correctedMode");
-        const note = document.getElementById("reviewNote");
-        if (start) review.corrected_start_time = start.value;
-        if (end) review.corrected_end_time = end.value;
-        if (expression) review.corrected_primary_expression = expression.value;
-        if (mode) review.corrected_interaction_mode = mode.value;
-        if (note) review.note = note.value;
+      function selectedIndex() {
+        return orderedItems().findIndex((item) => item.id === state.selectedKey && item.kind === state.selectedKind);
       }
 
-      function renderDanmaku() {
-        const current = el.video.currentTime || 0;
-        const nearby = state.danmaku.filter((item) => Math.abs(item.time_sec - current) <= 8).slice(0, 80);
-        el.danmakuCount.textContent = String(state.danmaku.length);
-        el.danmakuList.innerHTML = nearby.map((item) => `<div class="danmaku-row ${Math.abs(item.time_sec - current) <= 2 ? "near" : ""}"><span class="time">${ReviewTool.formatClock(item.time_sec)}</span> ${escapeHtml(item.text)}</div>`).join("") || '<div class="meta">当前附近没有弹幕</div>';
+      function moveSelection(delta) {
+        const items = orderedItems();
+        if (!items.length) return;
+        const current = selectedIndex();
+        const next = Math.max(0, Math.min(items.length - 1, current + delta));
+        selectAndJump(items[next].kind, items[next].id);
       }
 
       function updateSubtitle() {
@@ -538,67 +453,25 @@
         el.playhead.style.left = `${Math.min(1, (el.video.currentTime || 0) / duration) * 100}%`;
       }
 
-      function jumpToItem(item) {
-        if (!item) return;
-        state.selectedId = item.id;
-        el.video.currentTime = Math.max(0, item.cue_time - 1);
-        renderAll();
-      }
-
-      function selectedIndex() {
-        return state.reviewItems.findIndex((item) => item.id === state.selectedId);
-      }
-
-      function markDirty() {
-        el.saveStatus.textContent = "有未保存修改";
-      }
-
-      async function saveFeedback() {
-        if (!state.currentEpisode) return;
-        const payload = ReviewTool.buildFeedbackPayload({
-          videoId: state.currentEpisode.video_id,
-          datasetEpisodeDir: state.currentEpisode.episode_dir,
-          algorithmOutputPath: state.currentEpisode.algorithm_output_path,
-          reviews: state.reviews,
-          missedTriggers: state.missedTriggers,
-          episodeReview: { status: "in_progress", note: "" },
-        });
-        const response = await fetch(`/api/episodes/${state.currentEpisode.video_id}/feedback`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const result = await response.json();
-        el.saveStatus.textContent = result.ok ? `已保存 ${new Date().toLocaleTimeString()}` : `保存失败: ${result.error}`;
-      }
-
       function escapeHtml(value) {
         return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
       }
 
-      function escapeAttr(value) {
-        return escapeHtml(value);
-      }
-
       el.episodeSelect.addEventListener("change", () => loadEpisode(el.episodeSelect.value));
-      el.filterSelect.addEventListener("change", renderTriggerList);
-      el.triggerList.addEventListener("click", (event) => {
-        const itemNode = event.target.closest("[data-id]");
-        if (!itemNode) return;
-        const item = state.reviewItems.find((candidate) => candidate.id === itemNode.dataset.id);
-        jumpToItem(item);
+      el.groundtruthList.addEventListener("click", (event) => {
+        const node = event.target.closest("[data-id]");
+        if (node) selectAndJump(node.dataset.kind, node.dataset.id);
+      });
+      el.predictionList.addEventListener("click", (event) => {
+        const node = event.target.closest("[data-id]");
+        if (node) selectAndJump(node.dataset.kind, node.dataset.id);
       });
       el.timeline.addEventListener("click", (event) => {
         const marker = event.target.closest("[data-id]");
-        if (marker) jumpToItem(state.reviewItems.find((item) => item.id === marker.dataset.id));
+        if (marker) selectAndJump(marker.dataset.kind, marker.dataset.id);
       });
-      el.prevTrigger.addEventListener("click", () => jumpToItem(state.reviewItems[Math.max(0, selectedIndex() - 1)]));
-      el.nextTrigger.addEventListener("click", () => jumpToItem(state.reviewItems[Math.min(state.reviewItems.length - 1, selectedIndex() + 1)]));
-      el.addMissed.addEventListener("click", () => {
-        state.selectedId = "";
-        renderDetail();
-      });
-      el.saveFeedback.addEventListener("click", saveFeedback);
+      el.prevTrigger.addEventListener("click", () => moveSelection(-1));
+      el.nextTrigger.addEventListener("click", () => moveSelection(1));
       el.video.addEventListener("loadedmetadata", () => {
         state.duration = el.video.duration || 0;
         renderTimeline();
@@ -606,7 +479,6 @@
       el.video.addEventListener("timeupdate", () => {
         updateSubtitle();
         updatePlayhead();
-        renderDanmaku();
       });
       window.addEventListener("resize", renderTimeline);
 

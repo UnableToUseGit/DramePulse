@@ -22,6 +22,8 @@ from scripts.run_expression_trigger_detection_batch import expression_triggers_t
 
 
 DEFAULT_OUTPUT_ROOT = Path("output/workflow_expression_trigger")
+ASSET_FILENAME = "expression_triggers.json"
+DEBUG_FILENAME = "expression_triggers.debug.json"
 
 
 def _format_optional_number(value: Any, *, suffix: str = "") -> str:
@@ -199,6 +201,43 @@ def build_pipeline(
     )
 
 
+def _trigger_ui_time(trigger: dict[str, Any], resonance_cues: list[dict[str, Any]]) -> float:
+    trigger_id = str(trigger.get("trigger_id") or "")
+    for cue in resonance_cues:
+        if str(cue.get("source_trigger_id") or "") != trigger_id:
+            continue
+        try:
+            return float(cue["ui_trigger_time"])
+        except (KeyError, TypeError, ValueError):
+            break
+    try:
+        return float(trigger.get("cue_time", trigger.get("payoff_time", trigger["start_time"])))
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+
+
+def expression_trigger_to_asset_item(
+    trigger: dict[str, Any],
+    *,
+    resonance_cues: list[dict[str, Any]],
+) -> dict[str, Any]:
+    primary_expression = str(trigger.get("primary_expression") or "")
+    cue_time = trigger.get("cue_time", trigger.get("payoff_time", trigger.get("start_time", 0.0)))
+    return {
+        "trigger_id": str(trigger.get("trigger_id") or ""),
+        "start_time": float(trigger.get("start_time", 0.0)),
+        "end_time": float(trigger.get("end_time", 0.0)),
+        "cue_time": float(cue_time),
+        "ui_trigger_time": _trigger_ui_time(trigger, resonance_cues),
+        "expression_type": primary_expression,
+        "interaction_mode": str(trigger.get("interaction_mode") or ""),
+        "intensity": float(trigger.get("intensity", 0.0)),
+        "confidence": float(trigger.get("confidence", 0.0)),
+        "summary": str(trigger.get("summary") or ""),
+        "reason": str(trigger.get("reason") or ""),
+    }
+
+
 def write_workflow_episode_output(
     *,
     episode: Any,
@@ -211,12 +250,24 @@ def write_workflow_episode_output(
 ) -> Path:
     output_dir = output_root / episode.video_id
     output_dir.mkdir(parents=True, exist_ok=True)
-    payload = {
+    created_at = now_iso()
+    asset_payload = {
         "video_id": episode.video_id,
+        "series_id": episode.series_id,
+        "created_at": created_at,
+        "expression_triggers": [
+            expression_trigger_to_asset_item(trigger, resonance_cues=resonance_cues)
+            for trigger in expression_triggers
+        ],
+    }
+    debug_payload = {
+        "video_id": episode.video_id,
+        "series_id": episode.series_id,
+        "episode_id": episode.episode_id,
         "video_path": str(episode.video_path),
         "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
         "subtitle_path": str(episode.subtitle_path),
-        "created_at": now_iso(),
+        "created_at": created_at,
         "pipeline_type": "workflow_expression_trigger",
         "llm_call": llm_call or {},
         "expression_candidates": expression_candidates,
@@ -225,9 +276,11 @@ def write_workflow_episode_output(
         "resonance_cues": resonance_cues,
         "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
     }
-    output_path = output_dir / "highlight_recognition.json"
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return output_path
+    asset_path = output_dir / ASSET_FILENAME
+    debug_path = output_dir / DEBUG_FILENAME
+    asset_path.write_text(json.dumps(asset_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    debug_path.write_text(json.dumps(debug_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return asset_path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -308,7 +361,7 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
     skipped = 0
     failed: list[tuple[str, str]] = []
     for episode in episodes:
-        output_path = args.output_root / episode.video_id / "highlight_recognition.json"
+        output_path = args.output_root / episode.video_id / ASSET_FILENAME
         if output_path.exists() and not args.force:
             skipped += 1
             print(f"SKIP {episode.video_id}: existing {output_path}")

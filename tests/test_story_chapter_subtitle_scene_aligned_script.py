@@ -7,6 +7,7 @@ import unittest
 
 from scripts.story_chapter.run_subtitle_scene_aligned import build_parser as build_single_parser
 from scripts.story_chapter.run_subtitle_scene_aligned import main as single_main
+from scripts.story_chapter.run_subtitle_scene_aligned_batch import discover_subtitle_scene_aligned_inputs
 from scripts.story_chapter.run_subtitle_scene_aligned_batch import build_parser as build_batch_parser
 from scripts.story_chapter.run_subtitle_scene_aligned_batch import main as batch_main
 
@@ -175,6 +176,23 @@ class StoryChapterSubtitleSceneAlignedScriptTest(unittest.TestCase):
         self.assertEqual(pipeline.calls[0]["video_metadata"], {"duration_seconds": 9.25})
         self.assertEqual(summary["succeeded"], 1)
         self.assertEqual(summary["failed"], 0)
+
+    def test_batch_discovery_falls_back_when_scene_detection_video_id_is_generic_video(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            dataset_root = Path(tmpdir) / "dataset"
+            for episode_id in ("ep04", "ep05"):
+                episode_dir = dataset_root / "naniandongzhi" / episode_id
+                episode_dir.mkdir(parents=True)
+                (episode_dir / "video.mp4").write_bytes(b"video")
+                (episode_dir / "video.transcription.json").write_text("{}", encoding="utf-8")
+                (episode_dir / "scene_detection.json").write_text(
+                    json.dumps({"video_id": "video", "scenes": [{"start_time": 0.0, "end_time": 9.25}]}),
+                    encoding="utf-8",
+                )
+
+            inputs = discover_subtitle_scene_aligned_inputs(dataset_root)
+
+        self.assertEqual([item.video_id for item in inputs], ["naniandongzhi_ep04", "naniandongzhi_ep05"])
 
 
 if __name__ == "__main__":

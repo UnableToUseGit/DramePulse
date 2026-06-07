@@ -188,7 +188,8 @@ python scripts/run_expression_trigger_workflow_batch.py --video-id case1_ep01 --
 输出写入：
 
 ```text
-output/<video_id>/highlight_recognition.json
+output/<video_id>/expression_triggers.json
+output/<video_id>/expression_triggers.debug.json
 ```
 
 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL` 从 `.env` 读取，也可由进程环境变量覆盖。

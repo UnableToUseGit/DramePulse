@@ -1,13 +1,4 @@
 (function (root) {
-  const VERDICTS = [
-    "correct",
-    "false_positive",
-    "timing_early",
-    "timing_late",
-    "expression_wrong",
-    "interaction_wrong",
-  ];
-
   function toFiniteNumber(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -27,36 +18,6 @@
     const secondPart = Math.floor((totalMs % 60000) / 1000);
     const ms = totalMs % 1000;
     return `${String(minutes).padStart(2, "0")}:${String(secondPart).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
-  }
-
-  function extractDanmakuItems(payload) {
-    if (!payload || typeof payload !== "object") return [];
-    const candidates = [
-      payload.items,
-      payload.danmaku,
-      payload.danmaku && payload.danmaku.items,
-      payload.comments,
-    ];
-    const items = candidates.find((candidate) => Array.isArray(candidate)) || [];
-    return items
-      .map((item, index) => {
-        const source = item && typeof item === "object" ? item : {};
-        const text = cleanText(source.text || source.content);
-        if (!text) return null;
-        const timeSec = Number.isFinite(Number(source.time_sec))
-          ? Number(source.time_sec)
-          : Number(source.time_ms) / 1000;
-        if (!Number.isFinite(timeSec)) return null;
-        return {
-          id: cleanText(source.danmaku_id || source.id || `danmaku_${index + 1}`),
-          time_sec: roundTime(timeSec),
-          text,
-          digg_count: toFiniteNumber(source.digg_count, 0),
-          score: toFiniteNumber(source.score, 0),
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.time_sec - b.time_sec);
   }
 
   function normalizeAlgorithmOutput(payload, videoId) {
@@ -96,7 +57,7 @@
       end_time: endTime,
       cue_time: cueTime,
       source_type: cleanText(source.source_type || "plot"),
-      primary_expression: cleanText(source.primary_expression || source.emotion),
+      primary_expression: cleanText(source.expression_type || source.primary_expression || source.emotion),
       interaction_mode: cleanText(source.interaction_mode || "single_tap"),
       confidence: toFiniteNumber(source.confidence, 0),
       intensity: toFiniteNumber(source.intensity, 0),
@@ -158,70 +119,41 @@
     };
   }
 
-  function normalizeReviewMap(feedback) {
-    const reviews = {};
-    const items = feedback && Array.isArray(feedback.trigger_reviews) ? feedback.trigger_reviews : [];
-    for (const item of items) {
-      if (!item || typeof item !== "object") continue;
-      const triggerId = cleanText(item.trigger_id);
-      if (triggerId) reviews[triggerId] = { ...item };
-    }
-    return reviews;
-  }
-
-  function normalizeMissedTriggers(feedback) {
-    return feedback && Array.isArray(feedback.missed_triggers) ? feedback.missed_triggers.map((item) => ({ ...item })) : [];
-  }
-
-  function normalizedOptionalTime(value) {
-    const text = cleanText(value);
-    return text ? roundTime(text) : null;
-  }
-
-  function buildFeedbackPayload(config) {
-    const videoId = cleanText(config.videoId || config.video_id);
-    const reviewMap = config.reviews && typeof config.reviews === "object" ? config.reviews : {};
-    const triggerReviews = Object.entries(reviewMap)
-      .filter(([, review]) => review && typeof review === "object" && cleanText(review.verdict))
-      .map(([triggerId, review]) => ({
-        trigger_id: triggerId,
-        verdict: cleanText(review.verdict),
-        corrected_start_time: normalizedOptionalTime(review.corrected_start_time),
-        corrected_end_time: normalizedOptionalTime(review.corrected_end_time),
-        corrected_primary_expression: cleanText(review.corrected_primary_expression),
-        corrected_interaction_mode: cleanText(review.corrected_interaction_mode),
-        note: cleanText(review.note),
-      }));
-    const missedTriggers = Array.isArray(config.missedTriggers) ? config.missedTriggers : [];
-    return {
-      video_id: videoId,
-      dataset_episode_dir: cleanText(config.datasetEpisodeDir),
-      algorithm_output_path: cleanText(config.algorithmOutputPath),
-      updated_at: new Date().toISOString(),
-      trigger_reviews: triggerReviews,
-      missed_triggers: missedTriggers.map((item, index) => ({
-        missed_id: cleanText(item.missed_id || `missed_${videoId}_${String(index + 1).padStart(3, "0")}`),
-        cue_time: roundTime(item.cue_time),
-        source_type: cleanText(item.source_type || "plot"),
-        primary_expression: cleanText(item.primary_expression),
-        interaction_mode: cleanText(item.interaction_mode || "single_tap"),
-        note: cleanText(item.note),
-      })),
-      episode_review: {
-        status: cleanText(config.episodeReview && config.episodeReview.status) || "in_progress",
-        note: cleanText(config.episodeReview && config.episodeReview.note),
-      },
-    };
+  function normalizeGoldAnnotations(payload, videoId) {
+    const source = payload && typeof payload === "object" ? payload : {};
+    const items = Array.isArray(source.annotations) ? source.annotations : [];
+    return items
+      .map((item, index) => {
+        const annotation = item && typeof item === "object" ? item : {};
+        const cueTime = roundTime(annotation.payoff_time || annotation.cue_time);
+        if (!Number.isFinite(cueTime) || cueTime < 0) return null;
+        const window = annotation.payoff_window && typeof annotation.payoff_window === "object"
+          ? {
+              start_time: roundTime(annotation.payoff_window.start_time),
+              end_time: roundTime(annotation.payoff_window.end_time),
+            }
+          : null;
+        return {
+          id: cleanText(annotation.annotation_id || `gold_${videoId}_${String(index + 1).padStart(3, "0")}`),
+          kind: "gold_annotation",
+          start_time: window ? window.start_time : cueTime,
+          end_time: window ? window.end_time : cueTime,
+          cue_time: cueTime,
+          payoff_time: cueTime,
+          primary_expression: cleanText(annotation.expression_type || annotation.primary_expression),
+          reason: cleanText(annotation.reason),
+          payoff_window: window,
+          raw: annotation,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.cue_time - b.cue_time || a.id.localeCompare(b.id));
   }
 
   const api = {
-    VERDICTS,
-    buildFeedbackPayload,
-    extractDanmakuItems,
     formatClock,
     normalizeAlgorithmOutput,
-    normalizeMissedTriggers,
-    normalizeReviewMap,
+    normalizeGoldAnnotations,
     roundTime,
   };
 

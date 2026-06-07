@@ -29,7 +29,7 @@ def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:
     )
 
 
-def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path: Path) -> None:
+def test_workflow_batch_main_writes_clean_asset_and_debug_outputs(tmp_path: Path) -> None:
     from pipelines.workflow_expression_trigger_detection import WorkflowExpressionTriggerResult
     from scripts.run_workflow_expression_trigger_detection_batch import main
 
@@ -137,19 +137,40 @@ def test_workflow_batch_main_writes_candidates_and_review_tool_outputs(tmp_path:
         pipeline=fake_pipeline,
     )
 
-    output_path = output_root / "series_a_ep01" / "highlight_recognition.json"
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    asset_path = output_root / "series_a_ep01" / "expression_triggers.json"
+    debug_path = output_root / "series_a_ep01" / "expression_triggers.debug.json"
+    payload = json.loads(asset_path.read_text(encoding="utf-8"))
+    debug_payload = json.loads(debug_path.read_text(encoding="utf-8"))
     assert result == 0
     assert payload["video_id"] == "series_a_ep01"
-    assert payload["expression_candidates"][0]["candidate_id"] == "cand_series_a_ep01_001"
-    assert payload["candidate_decisions"][0]["decision"] == "keep"
-    assert payload["expression_triggers"][0]["primary_expression"] == "爽点"
-    assert payload["expression_triggers"][0]["candidate_id"] == "cand_series_a_ep01_001"
-    assert payload["resonance_cues"][0]["emotion_type"] == "爽点"
-    assert payload["resonance_cues"][0]["ui_trigger_time"] == 8.5
-    assert payload["highlight_assets"][0]["emotion"] == "爽点"
-    assert payload["llm_call"]["candidate_generation"]["usage"]["total_tokens"] == 10
-    assert payload["llm_call"]["candidate_filtering"]["usage"]["total_tokens"] == 20
+    assert payload["series_id"] == "series_a"
+    assert set(payload) == {"video_id", "series_id", "created_at", "expression_triggers"}
+    assert payload["expression_triggers"][0]["expression_type"] == "爽点"
+    assert payload["expression_triggers"][0]["ui_trigger_time"] == 8.5
+    assert payload["expression_triggers"][0] == {
+        "trigger_id": "et_series_a_ep01_001",
+        "start_time": 6.0,
+        "end_time": 9.0,
+        "cue_time": 8.0,
+        "ui_trigger_time": 8.5,
+        "expression_type": "爽点",
+        "interaction_mode": "single_tap",
+        "intensity": 0.8,
+        "confidence": 0.9,
+        "summary": "女主反击。",
+        "reason": "适合表达爽感。",
+    }
+    assert debug_payload["video_id"] == "series_a_ep01"
+    assert debug_payload["series_id"] == "series_a"
+    assert debug_payload["pipeline_type"] == "workflow_expression_trigger"
+    assert debug_payload["expression_candidates"][0]["candidate_id"] == "cand_series_a_ep01_001"
+    assert debug_payload["candidate_decisions"][0]["decision"] == "keep"
+    assert debug_payload["expression_triggers"][0]["candidate_id"] == "cand_series_a_ep01_001"
+    assert debug_payload["resonance_cues"][0]["emotion_type"] == "爽点"
+    assert debug_payload["highlight_assets"][0]["emotion"] == "爽点"
+    assert debug_payload["llm_call"]["candidate_generation"]["usage"]["total_tokens"] == 10
+    assert debug_payload["llm_call"]["candidate_filtering"]["usage"]["total_tokens"] == 20
+    assert not (output_root / "series_a_ep01" / "highlight_recognition.json").exists()
     assert fake_pipeline.call["video_file_path"] == data_root / "series_a" / "ep01" / "video.mp4"
     assert fake_pipeline.call["metadata"]["title"] == "series_a ep01"
 

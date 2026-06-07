@@ -137,11 +137,11 @@ def test_main_reads_annotation_directory_and_writes_report(tmp_path: Path) -> No
         annotations=[],
     )
     write_algorithm_output(
-        algorithm_output_root / "demo_ep01" / "highlight_recognition.json",
+        algorithm_output_root / "demo_ep01" / "expression_triggers.json",
         video_id="demo_ep01",
         triggers=[
-            {"trigger_id": "et_demo_ep01_001", "cue_time": 11.0, "primary_expression": "笑死"},
-            {"trigger_id": "et_demo_ep01_002", "cue_time": 90.0, "primary_expression": "震惊"},
+            {"trigger_id": "et_demo_ep01_001", "cue_time": 11.0, "expression_type": "笑点"},
+            {"trigger_id": "et_demo_ep01_002", "cue_time": 90.0, "expression_type": "爽点"},
         ],
     )
 
@@ -166,5 +166,8 @@ def test_main_reads_annotation_directory_and_writes_report(tmp_path: Path) -> No
     assert report["summary"]["matched_count"] == 1
     assert report["summary"]["false_positive_count"] == 1
     assert report["episodes"][0]["video_id"] == "demo_ep01"
+    assert report["episodes"][0]["algorithm_output_path"] == str(
+        algorithm_output_root / "demo_ep01" / "expression_triggers.json"
+    )
     assert report["episodes"][1]["video_id"] == "demo_ep02"
     assert report["episodes"][1]["missing_algorithm_output"] is True

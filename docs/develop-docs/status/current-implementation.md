@@ -12,7 +12,7 @@ pipelines/story_chapter/
 pipelines/inner_voice_danmaku/
 ```
 
-旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger 输出仍可写入 `highlight_recognition.json`，这是为了兼容现有评估和复核工具的 artifact 文件名，不代表旧高光识别 pipeline 仍在维护。
+旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger workflow 当前写出干净资产 `expression_triggers.json` 和调试产物 `expression_triggers.debug.json`；旧 baseline 脚本仍可能写出 `highlight_recognition.json`，评估和复核工具会优先读取新资产并兼容旧文件名。
 
 ## 2. 当前脚本入口
 
@@ -42,6 +42,11 @@ Story Chapter subtitle-scene aligned workflow 当前会写出两类产物：
 
 - `story_chapters.json`：干净最终产物，用于上传或被前端/评估脚本消费，只包含 `video_id`、`series_id`、`created_at` 和 `story_chapters`。每个章节只包含 `chapter_id`、`start_time`、`end_time`、`title`、`summary`、`reason`。
 - `story_chapters.debug.json`：完整诊断产物，保留字幕、场景、稀疏帧抽取信息、边界复核任务、MLLM raw response、warnings 等调试字段。`apps/story-chapter-viewer/` 会继续读取 `story_chapters.json` 中的章节；如果同目录存在 debug 产物，则从 debug 产物读取 warnings 用于本地复核。
+
+Expression Trigger workflow 当前会写出两类产物：
+
+- `expression_triggers.json`：干净最终产物，用于上传或被播放器/评估脚本消费，只包含 `video_id`、`series_id`、`created_at` 和 `expression_triggers`。每个触发点只包含 `trigger_id`、`start_time`、`end_time`、`cue_time`、`ui_trigger_time`、`expression_type`、`interaction_mode`、`intensity`、`confidence`、`summary`、`reason`。
+- `expression_triggers.debug.json`：完整诊断产物，保留输入路径、LLM 调用诊断、候选点、候选复核决策、原始最终触发点、前端 resonance cue 和 legacy `highlight_assets` 兼容转换结果。
 
 ## 3. 当前样例数据
 

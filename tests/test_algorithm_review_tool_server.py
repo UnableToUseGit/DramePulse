@@ -65,7 +65,7 @@ def test_review_server_scans_dataset_and_resolves_algorithm_output(tmp_path: Pat
     make_episode(data_root)
     output_dir = output_root / "demo_series_ep01"
     output_dir.mkdir(parents=True)
-    (output_dir / "highlight_recognition.json").write_text(
+    (output_dir / "expression_triggers.json").write_text(
         json.dumps({"expression_triggers": [{"trigger_id": "et_001"}]}, ensure_ascii=False),
         encoding="utf-8",
     )
@@ -80,9 +80,74 @@ def test_review_server_scans_dataset_and_resolves_algorithm_output(tmp_path: Pat
     assert episode["video_id"] == "demo_series_ep01"
     assert episode["title"] == "测试短剧 第一集"
     assert episode["has_danmaku"] is True
-    assert episode["algorithm_output_type"] == "highlight_recognition"
-    assert episode["algorithm_output_path"] == str(output_dir / "highlight_recognition.json")
-    assert episode["feedback_path"] == str(output_dir / "expression_trigger_feedback.json")
+    assert episode["algorithm_output_type"] == "expression_triggers"
+    assert episode["algorithm_output_path"] == str(output_dir / "expression_triggers.json")
+
+
+def test_review_server_loads_expression_trigger_gold_annotations(tmp_path: Path) -> None:
+    from scripts.serve_algorithm_review_tool import load_gold_annotation_payload
+
+    annotation_dir = tmp_path / "annotations"
+    annotation_dir.mkdir()
+    (annotation_dir / "demo_series_ep01.annotation.json").write_text(
+        json.dumps(
+            {
+                "video_id": "demo_series_ep01",
+                "annotations": [
+                    {
+                        "annotation_id": "gold_001",
+                        "cue_time": 12.3456,
+                        "primary_expression": "笑点",
+                        "reason": "这里是台词包袱。",
+                        "payoff_window": {"start_time": 11.0, "end_time": 13.5},
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    payload = load_gold_annotation_payload(video_id="demo_series_ep01", annotation_dir=annotation_dir)
+
+    assert payload["video_id"] == "demo_series_ep01"
+    assert payload["annotation_count"] == 1
+    assert payload["annotations"][0] == {
+        "annotation_id": "gold_001",
+        "cue_time": 12.346,
+        "payoff_time": 12.346,
+        "primary_expression": "笑点",
+        "reason": "这里是台词包袱。",
+        "payoff_window": {"start_time": 11.0, "end_time": 13.5},
+    }
+
+
+def test_review_server_episode_index_includes_gold_annotation_status(tmp_path: Path) -> None:
+    data_root = tmp_path / "DataForAlgorithm"
+    output_root = tmp_path / "output"
+    annotation_dir = tmp_path / "annotations"
+    make_episode(data_root)
+    annotation_dir.mkdir()
+    annotation_path = annotation_dir / "demo_series_ep01.annotation.json"
+    annotation_path.write_text(
+        json.dumps(
+            {
+                "video_id": "demo_series_ep01",
+                "annotations": [{"annotation_id": "gold_001", "cue_time": 12.0, "primary_expression": "笑点"}],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    from scripts.serve_algorithm_review_tool import build_episode_index
+
+    index = build_episode_index(data_root=data_root, output_root=output_root, annotation_dir=annotation_dir)
+
+    episode = index["episodes"][0]
+    assert episode["has_gold_annotations"] is True
+    assert episode["gold_annotation_count"] == 1
+    assert episode["gold_annotation_path"] == str(annotation_path)
 
 
 def test_review_server_indexes_danmaku_csv_when_available(tmp_path: Path) -> None:
@@ -144,25 +209,6 @@ def test_review_server_serves_csv_danmaku_before_douyin_json(tmp_path: Path) -> 
     assert payload["items"][0]["digg_count"] == 3
 
 
-def test_review_server_saves_feedback_under_output_root(tmp_path: Path) -> None:
-    data_root = tmp_path / "DataForAlgorithm"
-    output_root = tmp_path / "output"
-    make_episode(data_root)
-
-    from scripts.serve_algorithm_review_tool import save_feedback_payload
-
-    output_path = save_feedback_payload(
-        video_id="demo_series_ep01",
-        output_root=output_root,
-        payload={"video_id": "demo_series_ep01", "trigger_reviews": []},
-    )
-
-    assert output_path == output_root / "demo_series_ep01" / "expression_trigger_feedback.json"
-    saved = json.loads(output_path.read_text(encoding="utf-8"))
-    assert saved["video_id"] == "demo_series_ep01"
-    assert "saved_at" in saved
-
-
 def test_review_server_loads_subtitle_density_payload(tmp_path: Path) -> None:
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -208,7 +254,7 @@ def test_review_server_ignores_client_disconnect_during_range_video(tmp_path: Pa
     assert ("Content-Range", "bytes 1000-1999/4096") in handler.headers_sent
 
 
-def test_review_server_http_serves_range_video_and_feedback_api(tmp_path: Path) -> None:
+def test_review_server_http_serves_range_video_api(tmp_path: Path) -> None:
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
     video_file = make_episode(data_root) / "video.mp4"
@@ -263,30 +309,9 @@ def test_review_server_http_serves_range_video_and_feedback_api(tmp_path: Path) 
             assert response.headers.get("Content-Range") == "bytes 1000-1999/4096"
             assert body == video_file.read_bytes()[1000:2000]
 
-        save_request = Request(
-            f"http://127.0.0.1:{port}/api/episodes/demo_series_ep01/feedback",
-            data=json.dumps({"video_id": "demo_series_ep01", "trigger_reviews": []}).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with opener.open(save_request, timeout=5) as response:
-            saved_response = json.loads(response.read().decode("utf-8"))
-        assert saved_response["ok"] is True
-        assert (output_root / "demo_series_ep01" / "expression_trigger_feedback.json").exists()
     finally:
         server.terminate()
         try:
             server.wait(timeout=3)
         except subprocess.TimeoutExpired:
             server.kill()
-
-
-def test_review_server_rejects_unknown_video_feedback(tmp_path: Path) -> None:
-    from scripts.serve_algorithm_review_tool import save_feedback_payload
-
-    try:
-        save_feedback_payload(video_id="../bad", output_root=tmp_path / "output", payload={"video_id": "../bad"})
-    except ValueError as exc:
-        assert "Invalid video_id" in str(exc)
-    else:
-        raise AssertionError("expected invalid video_id to be rejected")

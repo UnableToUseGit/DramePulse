@@ -16,6 +16,7 @@ from pipelines.expression_trigger_detection import normalize_plot_primary_expres
 DEFAULT_ANNOTATION_DIR = Path("data/annotations/expression_trigger_gold")
 DEFAULT_ALGORITHM_OUTPUT_ROOT = Path("output/expression_trigger")
 DEFAULT_REPORT_PATH = Path("output/expression_trigger_annotation_eval/report.json")
+ALGORITHM_OUTPUT_FILENAMES = ("expression_triggers.json", "highlight_recognition.json")
 
 
 def now_iso() -> str:
@@ -105,7 +106,9 @@ def _valid_predictions(payload: Any) -> list[dict[str, Any]]:
         payoff_time = _time_value(item)
         if payoff_time is None:
             continue
-        primary_expression = normalize_plot_primary_expression(item.get("primary_expression") or item.get("emotion"))
+        primary_expression = normalize_plot_primary_expression(
+            item.get("expression_type") or item.get("primary_expression") or item.get("emotion")
+        )
         if payoff_time < 0 or not primary_expression:
             continue
         predictions.append(
@@ -214,11 +217,19 @@ def load_annotation_episodes(annotation_dir: Path) -> list[tuple[str, list[dict[
     return episodes
 
 
-def load_algorithm_predictions(algorithm_output_root: Path, video_id: str) -> tuple[list[dict[str, Any]], bool]:
-    output_path = algorithm_output_root / video_id / "highlight_recognition.json"
-    if not output_path.exists():
-        return [], True
-    return _valid_predictions(read_json(output_path)), False
+def resolve_algorithm_output_path(algorithm_output_root: Path, video_id: str) -> Path | None:
+    for filename in ALGORITHM_OUTPUT_FILENAMES:
+        output_path = algorithm_output_root / video_id / filename
+        if output_path.exists():
+            return output_path
+    return None
+
+
+def load_algorithm_predictions(algorithm_output_root: Path, video_id: str) -> tuple[list[dict[str, Any]], bool, Path | None]:
+    output_path = resolve_algorithm_output_path(algorithm_output_root, video_id)
+    if output_path is None:
+        return [], True, None
+    return _valid_predictions(read_json(output_path)), False, output_path
 
 
 def summarize_episode_results(episodes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -245,7 +256,7 @@ def summarize_episode_results(episodes: list[dict[str, Any]]) -> dict[str, Any]:
 def build_report(*, annotation_dir: Path, algorithm_output_root: Path, tolerance_sec: float) -> dict[str, Any]:
     episode_results: list[dict[str, Any]] = []
     for video_id, annotations, annotation_path in load_annotation_episodes(annotation_dir):
-        predictions, missing_algorithm_output = load_algorithm_predictions(algorithm_output_root, video_id)
+        predictions, missing_algorithm_output, algorithm_output_path = load_algorithm_predictions(algorithm_output_root, video_id)
         result = evaluate_episode(
             video_id=video_id,
             gold_annotations=annotations,
@@ -254,9 +265,7 @@ def build_report(*, annotation_dir: Path, algorithm_output_root: Path, tolerance
             missing_algorithm_output=missing_algorithm_output,
         )
         result["annotation_path"] = str(annotation_path)
-        result["algorithm_output_path"] = (
-            None if missing_algorithm_output else str(algorithm_output_root / video_id / "highlight_recognition.json")
-        )
+        result["algorithm_output_path"] = None if missing_algorithm_output or algorithm_output_path is None else str(algorithm_output_path)
         episode_results.append(result)
 
     return {

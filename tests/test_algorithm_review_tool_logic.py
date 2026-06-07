@@ -28,7 +28,7 @@ const items = logic.normalizeAlgorithmOutput({
       end_time: 13,
       cue_time: 11.5,
       source_type: 'plot',
-      primary_expression: '爽到了',
+      expression_type: '爽到了',
       interaction_mode: 'single_tap',
       confidence: 0.83,
       summary: '女主反击',
@@ -122,57 +122,72 @@ if (item.confidence !== 0.61) throw new Error('confidence mismatch');
     assert result.returncode == 0, result.stderr
 
 
-def test_review_tool_builds_feedback_payload_with_reviews_and_missed_triggers() -> None:
+def test_review_tool_normalizes_gold_annotations() -> None:
     script = """
 const logic = require('./apps/algorithm-review-tool/review_tool.js');
 
-const payload = logic.buildFeedbackPayload({
-  videoId: 'demo_ep01',
-  datasetEpisodeDir: '/tmp/data/demo/ep01',
-  algorithmOutputPath: 'output/demo_ep01/highlight_recognition.json',
-  reviews: {
-    et_demo_001: {
-      verdict: 'timing_early',
-      corrected_start_time: '12.3456',
-      corrected_end_time: '15.2',
-      corrected_primary_expression: '爽到了',
-      corrected_interaction_mode: 'single_tap',
-      note: '触发应稍微后移'
-    }
-  },
-  missedTriggers: [
+const items = logic.normalizeGoldAnnotations({
+  annotations: [
     {
-      cue_time: '42.199',
-      source_type: 'plot',
-      primary_expression: '震惊',
-      interaction_mode: 'single_tap',
-      note: '身份反转漏检'
+      annotation_id: 'gold_demo_001',
+      cue_time: '12.3456',
+      primary_expression: '笑点',
+      reason: '这里是台词包袱。',
+      payoff_window: { start_time: 11, end_time: 13.5 }
     }
-  ],
-  episodeReview: { status: 'done', note: '第一轮完成' }
-});
+  ]
+}, 'demo_ep01');
 
-if (payload.video_id !== 'demo_ep01') throw new Error('video_id mismatch');
-if (payload.trigger_reviews.length !== 1) throw new Error('review count mismatch');
-if (payload.trigger_reviews[0].corrected_start_time !== 12.346) throw new Error('rounded start mismatch');
-if (payload.missed_triggers[0].missed_id !== 'missed_demo_ep01_001') throw new Error('missed id mismatch');
-if (payload.missed_triggers[0].cue_time !== 42.199) throw new Error('missed time mismatch');
-if (payload.episode_review.status !== 'done') throw new Error('episode status mismatch');
+if (items.length !== 1) throw new Error(`expected one gold annotation, got ${items.length}`);
+const item = items[0];
+if (item.id !== 'gold_demo_001') throw new Error('annotation id mismatch');
+if (item.kind !== 'gold_annotation') throw new Error('kind mismatch');
+if (item.cue_time !== 12.346) throw new Error(`cue time mismatch: ${item.cue_time}`);
+if (item.primary_expression !== '笑点') throw new Error('expression mismatch');
+if (item.reason !== '这里是台词包袱。') throw new Error('reason mismatch');
+if (item.payoff_window.start_time !== 11 || item.payoff_window.end_time !== 13.5) throw new Error('window mismatch');
 """
     result = run_node(script)
 
     assert result.returncode == 0, result.stderr
 
 
-def test_review_tool_renders_trigger_list_with_reason_text() -> None:
+def test_review_tool_exports_comparison_only_helpers() -> None:
+    script = """
+const logic = require('./apps/algorithm-review-tool/review_tool.js');
+
+if (typeof logic.normalizeAlgorithmOutput !== 'function') throw new Error('missing prediction normalizer');
+if (typeof logic.normalizeGoldAnnotations !== 'function') throw new Error('missing gold normalizer');
+if (typeof logic.buildFeedbackPayload !== 'undefined') throw new Error('feedback builder should be removed');
+if (typeof logic.normalizeReviewMap !== 'undefined') throw new Error('review map normalizer should be removed');
+if (typeof logic.normalizeMissedTriggers !== 'undefined') throw new Error('missed trigger normalizer should be removed');
+if (typeof logic.VERDICTS !== 'undefined') throw new Error('verdict constants should be removed');
+"""
+    result = run_node(script)
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_review_tool_renders_prediction_groundtruth_comparison_only() -> None:
     html = Path("apps/algorithm-review-tool/index.html").read_text(encoding="utf-8")
 
+    assert "/api/episodes/${videoId}/gold-annotations" in html
+    assert "state.goldAnnotations" in html
+    assert "groundtruthList" in html
+    assert "predictionList" in html
+    assert "Groundtruth" in html
+    assert "Prediction" in html
+    assert "marker gold" in html
+    assert "renderComparisonLists" in html
+    assert "renderSelectedDetail" in html
     assert "trigger-reason" in html
-    assert "${escapeHtml(item.reason || \"无原因\")}" in html
-    assert "trigger-release" in html
-    assert "${escapeHtml(item.setup || \"未提供\")}" in html
-    assert "${escapeHtml(item.turning_point || \"未提供\")}" in html
-    assert "${escapeHtml(item.expression_release || \"未提供\")}" in html
+    assert "saveFeedback" not in html
+    assert "addMissed" not in html
+    assert "filterSelect" not in html
+    assert "verdictButton" not in html
+    assert "renderMissedEditor" not in html
+    assert "buildFeedbackPayload" not in html
+    assert "danmakuList" not in html
 
 
 def test_review_tool_normalizes_release_structure_fields() -> None:
