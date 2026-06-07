@@ -47,9 +47,17 @@ class Settings:
     chroma_collection: str
     similarity_top_k: int
     story_qa_backend: str
+    lightrag_working_root: Path
     lightrag_working_dir: Path
     lightrag_query_mode: str
     lightrag_enable_rerank: bool
+    lightrag_top_k: int
+    lightrag_chunk_top_k: int
+    lightrag_cosine_threshold: float
+    lightrag_max_entity_tokens: int
+    lightrag_max_relation_tokens: int
+    lightrag_max_total_tokens: int
+    lightrag_response_type: str
     lightrag_embedding_model: str
     lightrag_embedding_dim: int
     lightrag_embedding_api_base: str
@@ -57,6 +65,9 @@ class Settings:
     lightrag_embedding_send_dim: bool
     story_chapter_output_root: Path
     storyboard_root: Path
+    watch_assistant_asr_backend: str
+    watch_assistant_asr_model: str
+    watch_assistant_asr_max_bytes: int
 
     @property
     def oss_endpoint_url(self) -> str:
@@ -93,12 +104,20 @@ def get_settings() -> Settings:
         chroma_collection=_getenv("CHROMA_COLLECTION", "dramepulse_story_qa"),
         similarity_top_k=int(_getenv("SIMILARITY_TOP_K", "8")),
         story_qa_backend=_getenv("STORY_QA_BACKEND", "chroma").lower(),
+        lightrag_working_root=repo_root / _getenv("LIGHTRAG_WORKING_ROOT", "data/story_qa"),
         lightrag_working_dir=repo_root / _getenv(
             "LIGHTRAG_WORKING_DIR",
             "data/story_qa/demo-drama/episode-001/lightrag",
         ),
         lightrag_query_mode=_getenv("LIGHTRAG_QUERY_MODE", "hybrid"),
         lightrag_enable_rerank=_getenv("LIGHTRAG_ENABLE_RERANK", "false").lower() in {"1", "true", "yes"},
+        lightrag_top_k=int(_getenv("LIGHTRAG_TOP_K", "20")),
+        lightrag_chunk_top_k=int(_getenv("LIGHTRAG_CHUNK_TOP_K", "10")),
+        lightrag_cosine_threshold=float(_getenv("LIGHTRAG_COSINE_THRESHOLD", "0.0")),
+        lightrag_max_entity_tokens=int(_getenv("LIGHTRAG_MAX_ENTITY_TOKENS", "6000")),
+        lightrag_max_relation_tokens=int(_getenv("LIGHTRAG_MAX_RELATION_TOKENS", "8000")),
+        lightrag_max_total_tokens=int(_getenv("LIGHTRAG_MAX_TOTAL_TOKENS", "30000")),
+        lightrag_response_type=_getenv("LIGHTRAG_RESPONSE_TYPE", "一句话短回答，最多60个中文字，不要引用来源，不要输出References，不要输出思考过程"),
         lightrag_embedding_model=_getenv("LIGHTRAG_EMBEDDING_MODEL", _getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")),
         lightrag_embedding_dim=int(_getenv("LIGHTRAG_EMBEDDING_DIM", "1536")),
         lightrag_embedding_api_base=_getenv("LIGHTRAG_EMBEDDING_API_BASE", _getenv("OPENAI_API_BASE", "https://api.openai.com/v1")),
@@ -106,6 +125,9 @@ def get_settings() -> Settings:
         lightrag_embedding_send_dim=_getenv("LIGHTRAG_EMBEDDING_SEND_DIM", "false").lower() in {"1", "true", "yes"},
         story_chapter_output_root=repo_root / _getenv("STORY_CHAPTER_OUTPUT_ROOT", "output/story_chapter_validation"),
         storyboard_root=repo_root / _getenv("STORYBOARD_ROOT", "output/storyboards"),
+        watch_assistant_asr_backend=_getenv("WATCH_ASSISTANT_ASR_BACKEND", "mock").lower(),
+        watch_assistant_asr_model=_getenv("WATCH_ASSISTANT_ASR_MODEL", "whisper-1"),
+        watch_assistant_asr_max_bytes=int(_getenv("WATCH_ASSISTANT_ASR_MAX_BYTES", str(2 * 1024 * 1024))),
     )
 
 

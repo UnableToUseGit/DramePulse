@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from ..schemas import (
     StoryQaAskRequest,
@@ -29,6 +30,15 @@ def ingest_story_qa(payload: StoryQaIngestRequest) -> dict[str, Any]:
 def ask_story_qa(payload: StoryQaAskRequest) -> dict[str, Any]:
     try:
         return service.ask(payload.question, payload.series_id, payload.current_episode, payload.current_time)
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@router.post("/story-qa/ask-stream")
+def ask_story_qa_stream(payload: StoryQaAskRequest) -> StreamingResponse:
+    try:
+        stream = service.ask_stream(payload.question, payload.series_id, payload.current_episode, payload.current_time)
+        return StreamingResponse(stream, media_type="text/plain; charset=utf-8")
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

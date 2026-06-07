@@ -1,0 +1,1 @@
+"""Lightweight watch assistant orchestration."""

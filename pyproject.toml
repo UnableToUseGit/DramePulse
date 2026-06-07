@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",
+  "python-multipart>=0.0.9",
   "uvicorn>=0.30.0",
   "pymysql>=1.1.0",
   "python-dotenv>=1.0.0",
@@ -14,7 +15,6 @@ dependencies = [
   "oss2>=2.19.0",
   "volcengine-python-sdk>=5.0.0",
   "opencv-python>=4.8.0",
-  "scenedetect>=0.6,<0.8",
   "chromadb>=0.5.0",
   "pysqlite3-binary>=0.5.4",
   "llama-index>=0.10.0",
