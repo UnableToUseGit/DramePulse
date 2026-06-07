@@ -50,6 +50,8 @@ def test_explore_danmaku_csv_builds_profiles_windows_and_review_candidates(tmp_p
     assert first_window["danmaku_count"] >= 3
     assert first_window["resonance_score"] > first_window["burst_score"]
     assert first_window["top_comments"][0]["text"] == "太帅了这个眼神"
+    assert len(first_window["comments"]) == first_window["danmaku_count"]
+    assert first_window["comments"] == sorted(first_window["comments"], key=lambda comment: comment["time_sec"])
 
     candidate_texts = [candidate["text"] for candidate in result["inner_voice_review_candidates"]]
     assert "太帅了这个眼神" in candidate_texts

@@ -201,6 +201,13 @@ def _top_comments(items: list[ExplorationDanmakuItem], *, limit: int = 8) -> lis
     return comments
 
 
+def _window_comments(items: list[ExplorationDanmakuItem]) -> list[dict[str, Any]]:
+    return [
+        _item_to_comment(item)
+        for item in sorted(items, key=lambda value: (value.time_sec, value.comment_id))
+    ]
+
+
 def build_episode_profiles(items_by_video: dict[str, list[ExplorationDanmakuItem]]) -> list[dict[str, Any]]:
     profiles: list[dict[str, Any]] = []
     for video_id, items in sorted(items_by_video.items()):
@@ -300,6 +307,7 @@ def _build_windows_for_episode(
                     "recall_reason": "actor_charm_ratio" if actor_charm_qualified else "selected",
                     "burst_score": _round_time(burst_score),
                     "resonance_score": _round_time(resonance_score),
+                    "comments": _window_comments(window_items),
                     "top_comments": _top_comments(window_items),
                     "_items": window_items,
                 }
