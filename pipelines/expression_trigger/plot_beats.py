@@ -19,7 +19,23 @@ PLOT_BEAT_TYPES = {
 }
 
 
+PLOT_BEAT_TYPE_DEFINITIONS = [
+    ("conflict_start", "A new central conflict is introduced or breaks out."),
+    ("conflict_escalation", "An existing conflict becomes more serious through higher stakes, stronger action, or sharper opposition."),
+    ("face_slap", "A character is publicly disproved, embarrassed, or defeated by facts, identity, ability, or outcome."),
+    ("payback", "A previously pressured side actively strikes back, punishes, or gets justice."),
+    ("reversal", "The story direction, power relation, or viewer expectation clearly flips."),
+    ("rescue_success", "A character is successfully saved and the immediate crisis is resolved."),
+    ("relationship_advance", "A relationship becomes closer, clearer, or enters a new stage."),
+    ("family_emotional_payoff", "A family-related emotional setup pays off through a specific line or action."),
+]
+
+
 MAX_PLOT_BEAT_SECONDS = 15.0
+
+
+def plot_beat_type_definitions_block() -> str:
+    return "\n".join(f"- {beat_type}: {definition}" for beat_type, definition in PLOT_BEAT_TYPE_DEFINITIONS)
 
 
 def build_plot_beat_prompt(
@@ -44,7 +60,7 @@ def build_plot_beat_prompt(
             "[/METADATA]",
             "",
             "## CANDIDATE_TYPES",
-            ", ".join(sorted(PLOT_BEAT_TYPES)),
+            plot_beat_type_definitions_block(),
             "",
             "## RULES",
             "- A plot beat is an atomic story-state change carried by one shot or one/two adjacent subtitle lines.",
@@ -135,7 +151,9 @@ def parse_plot_beat_candidates(raw: Any, *, video_id: str, duration_sec: float) 
 
 __all__ = [
     "PLOT_BEAT_TYPES",
+    "PLOT_BEAT_TYPE_DEFINITIONS",
     "MAX_PLOT_BEAT_SECONDS",
+    "plot_beat_type_definitions_block",
     "build_plot_beat_prompt",
     "parse_plot_beat_candidates",
 ]

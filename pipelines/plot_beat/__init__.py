@@ -1,0 +1,2 @@
+"""Plot beat detection pipelines."""
+

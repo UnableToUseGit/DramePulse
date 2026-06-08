@@ -93,6 +93,8 @@ def test_build_plot_beat_prompt_contains_branch_contract() -> None:
     assert "expression-trigger" not in prompt
     assert "Expression Trigger" not in prompt
     assert "conflict_start" in prompt
+    assert "conflict_start: A new central conflict is introduced or breaks out." in prompt
+    assert "family_emotional_payoff: A family-related emotional setup pays off through a specific line or action." in prompt
     assert "trigger_time" not in prompt
     assert "turning_point" not in prompt
     assert "`setup`" not in prompt
