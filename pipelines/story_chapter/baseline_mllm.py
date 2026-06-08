@@ -14,7 +14,7 @@ from pipelines.story_chapter.baseline_text import (
     load_utterances_from_transcription,
     parse_chapter_drafts,
 )
-from pipelines.utils import FrameExtractionResult, extract_frames_at_timestamps
+from pipelines.common import FrameExtractionResult, extract_frames_at_timestamps
 
 
 class MultimodalLlmClientProtocol(Protocol):

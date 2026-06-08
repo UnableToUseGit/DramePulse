@@ -83,12 +83,12 @@ python scripts/serve_algorithm_review_tool.py \
 当前主流程文件：
 
 - `pipelines/expression_trigger/workflow.py`
-- `scripts/run_expression_trigger_workflow_batch.py`
+- `scripts/expression_trigger/run_workflow_batch.py`
 
 运行示例：
 
 ```bash
-python scripts/run_expression_trigger_workflow_batch.py \
+python scripts/expression_trigger/run_workflow_batch.py \
   --data-root /Users/qinminghao/Desktop/ByteDance/DataForAlgorithm \
   --output-root output/workflow_expression_trigger \
   --series-id beiwang nanian_dongzhi tianxia_diyi_wanku \
@@ -135,7 +135,7 @@ python scripts/run_expression_trigger_workflow_batch.py \
 当前也保留纯文本版本：
 
 - `pipelines/expression_trigger/baseline_text.py`
-- `scripts/run_expression_trigger_text_baseline_batch.py`
+- `scripts/expression_trigger/run_text_baseline_batch.py`
 
 观察结论：
 

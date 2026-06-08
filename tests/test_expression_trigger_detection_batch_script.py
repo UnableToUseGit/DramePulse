@@ -57,7 +57,7 @@ def write_danmaku_csv(data_root: Path) -> Path:
 
 
 def test_discover_episodes_scans_dataset_shape_with_filters_and_limit(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import discover_episodes
+    from scripts.expression_trigger.run_mllm_baseline_batch import discover_episodes
 
     data_root = tmp_path / "DataForAlgorithm"
     make_episode(data_root, series_id="series_a", episode_id="ep01")
@@ -74,13 +74,13 @@ def test_discover_episodes_scans_dataset_shape_with_filters_and_limit(tmp_path: 
 
 
 def test_new_mllm_baseline_batch_script_exports_main() -> None:
-    from scripts.run_expression_trigger_mllm_baseline_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     assert callable(main)
 
 
 def test_algorithm_common_exports_dataset_and_output_helpers() -> None:
-    from scripts.algorithm.common import (
+    from scripts.common import (
         DEFAULT_DATA_ROOT,
         EpisodeInput,
         discover_episodes,
@@ -103,7 +103,7 @@ def test_algorithm_common_exports_dataset_and_output_helpers() -> None:
 
 def test_new_mllm_baseline_batch_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/run_expression_trigger_mllm_baseline_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_mllm_baseline_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -117,7 +117,7 @@ def test_new_mllm_baseline_batch_script_runs_when_executed_directly() -> None:
 
 def test_new_mllm_baseline_algorithm_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/algorithm/expression_trigger/run_mllm_baseline_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_mllm_baseline_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -130,7 +130,7 @@ def test_new_mllm_baseline_algorithm_script_runs_when_executed_directly() -> Non
 
 
 def test_discover_episodes_filters_multiple_series_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import discover_episodes
+    from scripts.expression_trigger.run_mllm_baseline_batch import discover_episodes
 
     data_root = tmp_path / "DataForAlgorithm"
     make_episode(data_root, series_id="series_a", episode_id="ep01")
@@ -146,7 +146,7 @@ def test_discover_episodes_filters_multiple_series_ids(tmp_path: Path) -> None:
 
 
 def test_discover_episodes_filters_multiple_episode_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import discover_episodes
+    from scripts.expression_trigger.run_mllm_baseline_batch import discover_episodes
 
     data_root = tmp_path / "DataForAlgorithm"
     make_episode(data_root, series_id="series_a", episode_id="ep01")
@@ -163,7 +163,7 @@ def test_discover_episodes_filters_multiple_episode_ids(tmp_path: Path) -> None:
 
 
 def test_discover_episodes_filters_exact_video_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import discover_episodes
+    from scripts.expression_trigger.run_mllm_baseline_batch import discover_episodes
 
     data_root = tmp_path / "DataForAlgorithm"
     make_episode(data_root, series_id="beiwang", episode_id="ep01")
@@ -180,7 +180,7 @@ def test_discover_episodes_filters_exact_video_ids(tmp_path: Path) -> None:
 
 
 def test_batch_main_writes_expression_trigger_outputs_for_dataset_episodes(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -262,7 +262,7 @@ def test_batch_main_writes_expression_trigger_outputs_for_dataset_episodes(tmp_p
 
 
 def test_batch_main_accepts_multiple_series_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -299,7 +299,7 @@ def test_batch_main_accepts_multiple_series_ids(tmp_path: Path) -> None:
 
 
 def test_batch_main_accepts_repeated_series_id_arguments(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -336,7 +336,7 @@ def test_batch_main_accepts_repeated_series_id_arguments(tmp_path: Path) -> None
 
 
 def test_batch_main_accepts_multiple_episode_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -374,7 +374,7 @@ def test_batch_main_accepts_multiple_episode_ids(tmp_path: Path) -> None:
 
 
 def test_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -411,7 +411,7 @@ def test_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
 
 
 def test_build_pipeline_can_disable_danmaku_enhancement() -> None:
-    from scripts.run_expression_trigger_detection_batch import build_pipeline
+    from scripts.expression_trigger.run_mllm_baseline_batch import build_pipeline
 
     class FakePipeline:
         def __init__(self, **kwargs: object) -> None:
@@ -420,16 +420,16 @@ def test_build_pipeline_can_disable_danmaku_enhancement() -> None:
     class FakeClient:
         pass
 
-    import scripts.run_expression_trigger_detection_batch as batch
+    import scripts.expression_trigger.run_mllm_baseline_batch as batch
 
     original_client_builder = batch.build_llm_client
     original_pipeline = None
     try:
         batch.build_llm_client = lambda *, env_path: FakeClient()  # type: ignore[assignment]
-        from pipelines import expression_trigger_detection
+        from pipelines.expression_trigger import baseline_mllm
 
-        original_pipeline = expression_trigger_detection.ExpressionTriggerPipeline
-        expression_trigger_detection.ExpressionTriggerPipeline = FakePipeline  # type: ignore[assignment]
+        original_pipeline = baseline_mllm.ExpressionTriggerPipeline
+        baseline_mllm.ExpressionTriggerPipeline = FakePipeline  # type: ignore[assignment]
 
         pipeline = build_pipeline(
             env_path=Path(".env"),
@@ -440,14 +440,14 @@ def test_build_pipeline_can_disable_danmaku_enhancement() -> None:
     finally:
         batch.build_llm_client = original_client_builder  # type: ignore[assignment]
         if original_pipeline is not None:
-            expression_trigger_detection.ExpressionTriggerPipeline = original_pipeline  # type: ignore[assignment]
+            baseline_mllm.ExpressionTriggerPipeline = original_pipeline  # type: ignore[assignment]
 
     assert isinstance(pipeline, FakePipeline)
     assert pipeline.kwargs["enable_danmaku_enhancement"] is False
 
 
 def test_build_llm_client_defaults_to_ark_with_generic_env_values(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import build_llm_client
+    from scripts.expression_trigger.run_mllm_baseline_batch import build_llm_client
 
     env_path = tmp_path / ".env"
     env_path.write_text(
@@ -478,7 +478,7 @@ def test_build_llm_client_defaults_to_ark_with_generic_env_values(tmp_path: Path
 
 
 def test_build_llm_client_selects_openai_with_generic_env_values(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import build_llm_client
+    from scripts.expression_trigger.run_mllm_baseline_batch import build_llm_client
 
     env_path = tmp_path / ".env"
     env_path.write_text(
@@ -510,7 +510,7 @@ def test_build_llm_client_selects_openai_with_generic_env_values(tmp_path: Path)
 
 
 def test_batch_main_prefers_root_csv_danmaku_over_douyin_json(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -546,7 +546,7 @@ def test_batch_main_prefers_root_csv_danmaku_over_douyin_json(tmp_path: Path) ->
 
 
 def test_batch_main_skips_existing_outputs_unless_force(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -566,7 +566,7 @@ def test_batch_main_skips_existing_outputs_unless_force(tmp_path: Path) -> None:
 
 
 def test_batch_main_continues_after_episode_failure_and_returns_nonzero(tmp_path: Path) -> None:
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -612,7 +612,7 @@ def test_batch_main_continues_after_episode_failure_and_returns_nonzero(tmp_path
 
 def test_batch_main_writes_failure_diagnostics_with_raw_llm_response(tmp_path: Path) -> None:
     from pipelines.client import LlmResponseError
-    from scripts.run_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_mllm_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"

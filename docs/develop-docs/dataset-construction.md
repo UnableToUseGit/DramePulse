@@ -297,7 +297,7 @@ Stage 2: 后续再接 MLLM 审核 target_scene 是否真实承载情感/价值�
 早期 Stage 1 / Stage 1.5 的 `highlight_candidate_generation` 脚本已废弃。当前 Expression Trigger 主链路运行入口为：
 
 ```bash
-python scripts/run_expression_trigger_workflow_batch.py \
+python scripts/expression_trigger/run_workflow_batch.py \
   --video-id beipai_xunbao_biji_ep02 \
   --force
 ```

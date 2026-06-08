@@ -30,7 +30,7 @@ def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:
 
 
 def test_workflow_batch_main_writes_clean_asset_and_debug_outputs(tmp_path: Path) -> None:
-    from scripts.run_workflow_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_workflow_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -158,7 +158,7 @@ def test_workflow_batch_main_writes_clean_asset_and_debug_outputs(tmp_path: Path
 
 
 def test_workflow_batch_parser_defaults_to_dual_branch() -> None:
-    from scripts.run_workflow_expression_trigger_detection_batch import build_parser
+    from scripts.expression_trigger.run_workflow_batch import build_parser
 
     args = build_parser().parse_args([])
 
@@ -166,7 +166,7 @@ def test_workflow_batch_parser_defaults_to_dual_branch() -> None:
 
 
 def test_expression_trigger_to_asset_item_supports_legacy_cue_time() -> None:
-    from scripts.run_workflow_expression_trigger_detection_batch import expression_trigger_to_asset_item
+    from scripts.expression_trigger.run_workflow_batch import expression_trigger_to_asset_item
 
     item = expression_trigger_to_asset_item(
         {
@@ -195,14 +195,14 @@ def test_expression_trigger_to_asset_item_supports_legacy_cue_time() -> None:
 
 
 def test_new_workflow_batch_script_exports_main() -> None:
-    from scripts.run_expression_trigger_workflow_batch import main
+    from scripts.expression_trigger.run_workflow_batch import main
 
     assert callable(main)
 
 
 def test_new_workflow_batch_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/run_expression_trigger_workflow_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_workflow_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -216,7 +216,7 @@ def test_new_workflow_batch_script_runs_when_executed_directly() -> None:
 
 def test_new_workflow_algorithm_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/algorithm/expression_trigger/run_workflow_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_workflow_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -229,8 +229,8 @@ def test_new_workflow_algorithm_script_runs_when_executed_directly() -> None:
 
 
 def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
-    from pipelines.workflow_expression_trigger_detection import WorkflowExpressionTriggerResult
-    from scripts.run_workflow_expression_trigger_detection_batch import main
+    from pipelines.expression_trigger.workflow import WorkflowExpressionTriggerResult
+    from scripts.expression_trigger.run_workflow_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -272,7 +272,7 @@ def test_workflow_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
 
 
 def test_build_pipeline_passes_filter_sampling_options_to_legacy_pipeline(monkeypatch) -> None:
-    import scripts.run_workflow_expression_trigger_detection_batch as batch
+    import scripts.expression_trigger.run_workflow_batch as batch
 
     captured: dict[str, object] = {}
 
@@ -282,7 +282,7 @@ def test_build_pipeline_passes_filter_sampling_options_to_legacy_pipeline(monkey
 
     monkeypatch.setattr(batch, "build_llm_client", lambda *, env_path: "fake-client")
     monkeypatch.setattr(
-        "pipelines.workflow_expression_trigger_detection.WorkflowExpressionTriggerPipeline",
+        "pipelines.expression_trigger.workflow.WorkflowExpressionTriggerPipeline",
         FakePipeline,
     )
 
@@ -322,7 +322,7 @@ def test_build_pipeline_passes_filter_sampling_options_to_legacy_pipeline(monkey
 
 
 def test_build_pipeline_builds_dual_branch_pipeline(monkeypatch) -> None:
-    import scripts.run_workflow_expression_trigger_detection_batch as batch
+    import scripts.expression_trigger.run_workflow_batch as batch
 
     captured: dict[str, object] = {}
 
@@ -372,7 +372,7 @@ def test_build_pipeline_builds_dual_branch_pipeline(monkeypatch) -> None:
 
 
 def test_print_workflow_progress_accepts_dual_branch_visual_window_fields(capsys) -> None:
-    from scripts.run_workflow_expression_trigger_detection_batch import print_workflow_progress
+    from scripts.expression_trigger.run_workflow_batch import print_workflow_progress
 
     print_workflow_progress(
         "prepared",
@@ -399,7 +399,7 @@ def test_print_workflow_progress_accepts_dual_branch_visual_window_fields(capsys
 
 
 def test_print_workflow_progress_formats_key_events(capsys) -> None:
-    from scripts.run_workflow_expression_trigger_detection_batch import print_workflow_progress
+    from scripts.expression_trigger.run_workflow_batch import print_workflow_progress
 
     print_workflow_progress(
         "preprocess_subtitles_loaded",

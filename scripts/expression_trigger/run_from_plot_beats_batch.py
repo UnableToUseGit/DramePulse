@@ -7,11 +7,11 @@ import sys
 from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.client.factory import build_llm_client
 from pipelines.expression_trigger.from_plot_beats import PlotBeatTriggerabilityPipeline
-from scripts.algorithm.common import DEFAULT_DATA_ROOT, discover_episodes, now_iso, write_failure_diagnostics
+from scripts.common import DEFAULT_DATA_ROOT, discover_episodes, now_iso, write_failure_diagnostics
 
 
 DEFAULT_PLOT_BEAT_ROOT = Path("output/plot_beat/chapter_aligned")

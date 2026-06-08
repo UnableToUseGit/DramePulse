@@ -10,7 +10,7 @@ from typing import Any, Callable, Protocol
 
 from pipelines.expression_trigger.baseline_mllm import _clean_text, _round_time
 from pipelines.expression_trigger.plot_beats import plot_beat_type_definitions_block
-from pipelines.utils import (
+from pipelines.common import (
     extract_frames_at_timestamps,
     load_subtitle_segments,
     probe_video_duration_seconds,

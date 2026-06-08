@@ -18,9 +18,9 @@ pipelines/danmaku_exploration.py
 ## 2. 当前脚本入口
 
 - `scripts/transcribe_video.py`
-- `scripts/run_expression_trigger_workflow_batch.py`
-- `scripts/run_expression_trigger_mllm_baseline_batch.py`
-- `scripts/run_expression_trigger_text_baseline_batch.py`
+- `scripts/expression_trigger/run_workflow_batch.py`
+- `scripts/expression_trigger/run_mllm_baseline_batch.py`
+- `scripts/expression_trigger/run_text_baseline_batch.py`
 - `scripts/story_chapter/run_text.py`
 - `scripts/story_chapter/run_text_batch.py`
 - `scripts/story_chapter/run_mllm.py`

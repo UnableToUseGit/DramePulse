@@ -7,7 +7,7 @@ import sys
 from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.expression_trigger.interaction_plan import build_expression_interaction_plan
 

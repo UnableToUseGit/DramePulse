@@ -40,7 +40,7 @@ def make_expression_triggers(root: Path, *, video_id: str, series_id: str) -> No
 
 
 def test_interaction_plan_batch_writes_plan_from_expression_triggers(tmp_path: Path) -> None:
-    from scripts.algorithm.expression_trigger.run_interaction_plan_batch import main
+    from scripts.expression_trigger.run_interaction_plan_batch import main
 
     expression_root = tmp_path / "expression_trigger"
     output_root = tmp_path / "interaction_plan"
@@ -80,7 +80,7 @@ def test_interaction_plan_batch_writes_plan_from_expression_triggers(tmp_path: P
 
 
 def test_interaction_plan_batch_skips_existing_output(tmp_path: Path, capsys) -> None:
-    from scripts.algorithm.expression_trigger.run_interaction_plan_batch import main
+    from scripts.expression_trigger.run_interaction_plan_batch import main
 
     expression_root = tmp_path / "expression_trigger"
     output_root = tmp_path / "interaction_plan"
@@ -106,7 +106,7 @@ def test_interaction_plan_batch_skips_existing_output(tmp_path: Path, capsys) ->
 
 def test_interaction_plan_batch_help_runs() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/algorithm/expression_trigger/run_interaction_plan_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_interaction_plan_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,

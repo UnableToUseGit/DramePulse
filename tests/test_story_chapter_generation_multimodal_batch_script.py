@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 class StoryChapterGenerationMultimodalBatchScriptTest(unittest.TestCase):
     def test_new_story_chapter_mllm_batch_algorithm_script_runs_when_executed_directly(self) -> None:
         result = subprocess.run(
-            [sys.executable, "scripts/algorithm/story_chapter/run_mllm_batch.py", "--help"],
+            [sys.executable, "scripts/story_chapter/run_mllm_batch.py", "--help"],
             cwd=REPO_ROOT,
             text=True,
             stdout=subprocess.PIPE,

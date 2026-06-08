@@ -8,7 +8,7 @@ import tempfile
 from typing import Any, Callable, Protocol, Sequence
 
 from pipelines.story_chapter.baseline_text import Utterance, _round_time, load_scenes, load_utterances_from_transcription
-from pipelines.utils import FrameExtractionResult, extract_frames_at_timestamps
+from pipelines.common import FrameExtractionResult, extract_frames_at_timestamps
 
 
 class SubtitleSceneAlignedLlmClientProtocol(Protocol):

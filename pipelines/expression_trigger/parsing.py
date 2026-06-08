@@ -9,7 +9,7 @@ from pipelines.expression_trigger.labels import (
     SUPPORTED_SOURCE_TYPES,
     normalize_plot_primary_expression,
 )
-from pipelines.utils import SubtitleSegment
+from pipelines.common import SubtitleSegment
 
 
 def _now_iso() -> str:

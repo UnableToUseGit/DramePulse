@@ -5,8 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipelines.story_chapter_generation import Utterance
-from pipelines.story_chapter_generation_multimodal import (
+from pipelines.story_chapter.baseline_text import Utterance
+from pipelines.story_chapter.baseline_mllm import (
     StoryChapterMultimodalPipeline,
     build_frame_timestamps,
     build_multimodal_user_prompt,

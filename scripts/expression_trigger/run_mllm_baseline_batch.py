@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
-from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+import sys
+from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from pipelines.client.factory import build_llm_client
+from pipelines.client.factory import build_ark_client, build_llm_client
 from pipelines.inner_voice_danmaku.danmaku_csv import load_danmaku_csv_items
-from scripts.algorithm.common import (
+from scripts.common import (
     DEFAULT_DATA_ROOT,
     EpisodeInput,
     discover_episodes,
@@ -22,6 +21,7 @@ from scripts.algorithm.common import (
     now_iso,
     write_failure_diagnostics,
 )
+
 
 DEFAULT_OUTPUT_ROOT = Path("output")
 
@@ -33,7 +33,7 @@ def build_pipeline(
     max_frames: int | None,
     enable_danmaku_enhancement: bool,
 ):
-    from pipelines.expression_trigger_detection import ExpressionTriggerPipeline
+    from pipelines.expression_trigger.baseline_mllm import ExpressionTriggerPipeline
 
     return ExpressionTriggerPipeline(
         llm_client=build_llm_client(env_path=env_path),
@@ -41,30 +41,6 @@ def build_pipeline(
         max_frames=max_frames,
         enable_danmaku_enhancement=enable_danmaku_enhancement,
     )
-
-
-def write_episode_output(
-    *,
-    episode: EpisodeInput,
-    output_root: Path,
-    expression_triggers: list[dict[str, Any]],
-    llm_call: dict[str, Any] | None = None,
-) -> Path:
-    output_dir = output_root / episode.video_id
-    output_dir.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "video_id": episode.video_id,
-        "video_path": str(episode.video_path),
-        "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
-        "subtitle_path": str(episode.subtitle_path),
-        "created_at": now_iso(),
-        "llm_call": llm_call or {},
-        "expression_triggers": expression_triggers,
-        "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
-    }
-    output_path = output_dir / "highlight_recognition.json"
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return output_path
 
 
 def expression_trigger_to_highlight_asset(trigger: dict[str, Any], *, index: int) -> dict[str, Any]:
@@ -95,6 +71,30 @@ def expression_triggers_to_highlight_assets(triggers: list[dict[str, Any]]) -> l
     return [expression_trigger_to_highlight_asset(trigger, index=index) for index, trigger in enumerate(triggers, start=1)]
 
 
+def write_episode_output(
+    *,
+    episode: EpisodeInput,
+    output_root: Path,
+    expression_triggers: list[dict[str, Any]],
+    llm_call: dict[str, Any] | None = None,
+) -> Path:
+    output_dir = output_root / episode.video_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "video_id": episode.video_id,
+        "video_path": str(episode.video_path),
+        "source_json_path": str(episode.source_json_path) if episode.source_json_path else None,
+        "subtitle_path": str(episode.subtitle_path),
+        "created_at": now_iso(),
+        "llm_call": llm_call or {},
+        "expression_triggers": expression_triggers,
+        "highlight_assets": expression_triggers_to_highlight_assets(expression_triggers),
+    }
+    output_path = output_dir / "highlight_recognition.json"
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Batch run Expression Trigger Detection over DataForAlgorithm episodes.")
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
@@ -104,7 +104,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--series-id",
         nargs="+",
         action="append",
-        help="Only process selected series directories, for example --series-id beiwang nanian_dongzhi.",
+        help="Only process selected series directories, for example --series-id beiwang naniandongzhi.",
     )
     parser.add_argument(
         "--episode-id",
@@ -116,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--video-id",
         nargs="+",
         action="append",
-        help="Only process exact video ids, for example --video-id beiwang_ep01 nanian_dongzhi_ep02.",
+        help="Only process exact video ids, for example --video-id beiwang_ep01 naniandongzhi_ep02.",
     )
     parser.add_argument("--limit", type=int, default=0, help="Process at most N episodes. Default: all.")
     parser.add_argument("--force", action="store_true", help="Regenerate outputs that already exist.")
@@ -206,6 +206,27 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         for video_id, error in failed:
             print(f"- {video_id}: {error}", file=sys.stderr)
     return 1 if failed else 0
+
+
+__all__ = [
+    "DEFAULT_DATA_ROOT",
+    "DEFAULT_OUTPUT_ROOT",
+    "EpisodeInput",
+    "build_ark_client",
+    "build_llm_client",
+    "build_parser",
+    "build_pipeline",
+    "discover_episodes",
+    "extract_danmaku_items",
+    "extract_video_metadata",
+    "expression_trigger_to_highlight_asset",
+    "expression_triggers_to_highlight_assets",
+    "load_source_payload",
+    "main",
+    "now_iso",
+    "write_episode_output",
+    "write_failure_diagnostics",
+]
 
 
 if __name__ == "__main__":

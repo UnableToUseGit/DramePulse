@@ -11,7 +11,7 @@ if __package__ is None or __package__ == "":
 
 from pipelines.client.factory import build_llm_client
 from pipelines.plot_beat.chapter_aligned import ChapterAlignedPlotBeatPipeline
-from scripts.algorithm.common import DEFAULT_DATA_ROOT, discover_episodes
+from scripts.common import DEFAULT_DATA_ROOT, discover_episodes
 
 
 DEFAULT_STORY_CHAPTER_ROOT = Path("output/story_chapter")

@@ -182,7 +182,7 @@ scripts/run_highlight_recognition.py
 当前 Expression Trigger 主链路入口：
 
 ```bash
-python scripts/run_expression_trigger_workflow_batch.py --video-id case1_ep01 --force
+python scripts/expression_trigger/run_workflow_batch.py --video-id case1_ep01 --force
 ```
 
 输出写入：

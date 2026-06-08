@@ -85,14 +85,14 @@ ARK_MODEL=Doubao-Seed-2.0-pro
 运行 Expression Trigger 主链路：
 
 ```bash
-python scripts/run_expression_trigger_workflow_batch.py --video-id case1_ep01 --force
+python scripts/expression_trigger/run_workflow_batch.py --video-id case1_ep01 --force
 ```
 
 运行 Expression Trigger baseline：
 
 ```bash
-python scripts/run_expression_trigger_mllm_baseline_batch.py --video-id case1_ep01 --force
-python scripts/run_expression_trigger_text_baseline_batch.py --video-id case1_ep01 --force
+python scripts/expression_trigger/run_mllm_baseline_batch.py --video-id case1_ep01 --force
+python scripts/expression_trigger/run_text_baseline_batch.py --video-id case1_ep01 --force
 ```
 
 运行 Story Chapter baseline：

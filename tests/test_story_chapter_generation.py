@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipelines.story_chapter_generation import (
+from pipelines.story_chapter.baseline_text import (
     StoryChapterPipeline,
     Utterance,
     build_system_prompt,

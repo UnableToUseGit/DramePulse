@@ -11,7 +11,7 @@ from typing import Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from pipelines.story_chapter_generation import StoryChapterPipeline
+from pipelines.story_chapter.baseline_text import StoryChapterPipeline
 from scripts.story_chapter.run_text import build_ark_client, load_video_metadata_from_scene_detection
 
 

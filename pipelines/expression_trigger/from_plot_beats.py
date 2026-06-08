@@ -9,7 +9,7 @@ from typing import Any, Callable, Protocol
 
 from pipelines.expression_trigger.baseline_mllm import _clean_text, _round_time
 from pipelines.expression_trigger.triggerability import parse_triggerability_decisions, select_top_expression_triggers
-from pipelines.utils import load_subtitle_segments
+from pipelines.common import load_subtitle_segments
 
 
 class PlotBeatTriggerabilityLlmClientProtocol(Protocol):

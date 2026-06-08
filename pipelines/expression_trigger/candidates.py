@@ -12,7 +12,7 @@ from pipelines.expression_trigger.labels import (
     SUPPORTED_PLOT_PRIMARY_EXPRESSIONS,
     normalize_plot_primary_expression,
 )
-from pipelines.utils import SubtitleSegment, build_sample_timestamps
+from pipelines.common import SubtitleSegment, build_sample_timestamps
 
 
 def _metadata_block(metadata: dict[str, Any] | None) -> str:

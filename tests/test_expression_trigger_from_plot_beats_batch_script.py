@@ -36,7 +36,7 @@ def make_plot_beats(plot_beat_root: Path, *, video_id: str, series_id: str) -> N
 
 
 def test_from_plot_beats_batch_writes_expression_triggers_and_debug_output(tmp_path: Path) -> None:
-    from scripts.algorithm.expression_trigger.run_from_plot_beats_batch import main
+    from scripts.expression_trigger.run_from_plot_beats_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     plot_beat_root = tmp_path / "plot_beat"
@@ -144,7 +144,7 @@ def test_from_plot_beats_batch_writes_expression_triggers_and_debug_output(tmp_p
 
 
 def test_from_plot_beats_batch_skips_existing_output(tmp_path: Path, capsys) -> None:
-    from scripts.algorithm.expression_trigger.run_from_plot_beats_batch import main
+    from scripts.expression_trigger.run_from_plot_beats_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     plot_beat_root = tmp_path / "plot_beat"
@@ -179,7 +179,7 @@ def test_from_plot_beats_batch_skips_existing_output(tmp_path: Path, capsys) -> 
 
 def test_from_plot_beats_batch_help_runs() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/algorithm/expression_trigger/run_from_plot_beats_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_from_plot_beats_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,

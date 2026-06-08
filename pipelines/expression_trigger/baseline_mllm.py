@@ -24,7 +24,7 @@ from pipelines.expression_trigger.parsing import (
     format_expression_subtitle_timeline_seconds,
     parse_expression_triggers,
 )
-from pipelines.utils import (
+from pipelines.common import (
     build_sample_timestamps,
     extract_frames_at_timestamps,
     load_subtitle_segments,

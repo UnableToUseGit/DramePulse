@@ -6,24 +6,24 @@ import sys
 from typing import Any, Sequence
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.client.factory import build_llm_client
-from scripts.algorithm.common import (
+from scripts.common import (
     DEFAULT_DATA_ROOT,
     discover_episodes,
     extract_video_metadata,
     load_source_payload,
     write_failure_diagnostics,
 )
-from scripts.run_expression_trigger_detection_batch import write_episode_output
+from scripts.expression_trigger.run_mllm_baseline_batch import write_episode_output
 
 
 DEFAULT_OUTPUT_ROOT = Path("output/text_expression_trigger")
 
 
 def build_pipeline(*, env_path: Path, max_output_tokens: int):
-    from pipelines.text_expression_trigger_detection import TextExpressionTriggerPipeline
+    from pipelines.expression_trigger.baseline_text import TextExpressionTriggerPipeline
 
     return TextExpressionTriggerPipeline(
         llm_client=build_llm_client(env_path=env_path),
@@ -40,7 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--series-id",
         nargs="+",
         action="append",
-        help="Only process selected series directories, for example --series-id beiwang nanian_dongzhi.",
+        help="Only process selected series directories, for example --series-id beiwang naniandongzhi.",
     )
     parser.add_argument(
         "--episode-id",
@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--video-id",
         nargs="+",
         action="append",
-        help="Only process exact video ids, for example --video-id beiwang_ep01 nanian_dongzhi_ep02.",
+        help="Only process exact video ids, for example --video-id beiwang_ep01 naniandongzhi_ep02.",
     )
     parser.add_argument("--limit", type=int, default=0, help="Process at most N episodes. Default: all.")
     parser.add_argument("--force", action="store_true", help="Regenerate outputs that already exist.")
@@ -126,6 +126,14 @@ def main(argv: Sequence[str] | None = None, *, pipeline: Any | None = None) -> i
         for video_id, error in failed:
             print(f"- {video_id}: {error}", file=sys.stderr)
     return 1 if failed else 0
+
+
+__all__ = [
+    "build_parser",
+    "build_pipeline",
+    "main",
+    "write_episode_output",
+]
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from pipelines.expression_trigger_detection import (
+from pipelines.expression_trigger.baseline_mllm import (
     ExpressionTriggerPipeline,
     _build_user_prompt,
     detect_danmaku_expression_triggers,

@@ -13,7 +13,7 @@ from pipelines.expression_trigger.parsing import (
     format_expression_subtitle_timeline_seconds,
     parse_expression_triggers,
 )
-from pipelines.utils import load_subtitle_segments
+from pipelines.common import load_subtitle_segments
 
 
 def _build_text_user_prompt(

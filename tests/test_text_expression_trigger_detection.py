@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipelines.text_expression_trigger_detection import TextExpressionTriggerPipeline, _build_text_user_prompt
+from pipelines.expression_trigger.baseline_text import TextExpressionTriggerPipeline, _build_text_user_prompt
 
 
 class TextExpressionTriggerPromptTest(unittest.TestCase):

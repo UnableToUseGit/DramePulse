@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from pipelines.client import LlmResponseError
-from pipelines.workflow_expression_trigger_detection import (
+from pipelines.expression_trigger.workflow import (
     WorkflowExpressionTriggerPipeline,
     _build_candidate_generation_prompt,
     _build_candidate_filter_prompt,
@@ -277,7 +277,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertEqual([trigger["trigger_id"] for trigger in consolidated], ["t2", "t4"])
 
     def test_build_visual_candidate_windows_uses_only_fixed_low_density_windows(self) -> None:
-        from pipelines.utils import SubtitleSegment
+        from pipelines.common import SubtitleSegment
 
         windows = build_visual_candidate_windows(
             subtitle_segments=[
@@ -300,7 +300,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         )
 
     def test_build_visual_candidate_windows_does_not_rescan_all_subtitles_per_window(self) -> None:
-        from pipelines.utils import SubtitleSegment
+        from pipelines.common import SubtitleSegment
 
         subtitle_segments = [
             SubtitleSegment(start=float(index * 2), end=float(index * 2 + 1), text=f"line {index}")
@@ -323,7 +323,7 @@ class WorkflowExpressionTriggerPipelineTest(unittest.TestCase):
         self.assertLess(overlap_seconds.call_count, 1000)
 
     def test_build_visual_candidate_windows_terminates_when_duration_has_sub_millisecond_tail(self) -> None:
-        from pipelines.utils import SubtitleSegment
+        from pipelines.common import SubtitleSegment
 
         subtitle_segments = [
             SubtitleSegment(start=0.0, end=196.245011, text="full coverage"),

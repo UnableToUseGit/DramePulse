@@ -11,14 +11,14 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def test_new_text_baseline_batch_script_exports_main() -> None:
-    from scripts.run_expression_trigger_text_baseline_batch import main
+    from scripts.expression_trigger.run_text_baseline_batch import main
 
     assert callable(main)
 
 
 def test_new_text_baseline_batch_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/run_expression_trigger_text_baseline_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_text_baseline_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -32,7 +32,7 @@ def test_new_text_baseline_batch_script_runs_when_executed_directly() -> None:
 
 def test_new_text_baseline_algorithm_script_runs_when_executed_directly() -> None:
     result = subprocess.run(
-        [sys.executable, "scripts/algorithm/expression_trigger/run_text_baseline_batch.py", "--help"],
+        [sys.executable, "scripts/expression_trigger/run_text_baseline_batch.py", "--help"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -64,7 +64,7 @@ def make_episode(data_root: Path, *, series_id: str, episode_id: str) -> None:
 
 
 def test_text_batch_main_writes_review_tool_compatible_outputs(tmp_path: Path) -> None:
-    from scripts.run_text_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_text_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"
@@ -133,7 +133,7 @@ def test_text_batch_main_writes_review_tool_compatible_outputs(tmp_path: Path) -
 
 
 def test_text_batch_main_accepts_exact_video_ids(tmp_path: Path) -> None:
-    from scripts.run_text_expression_trigger_detection_batch import main
+    from scripts.expression_trigger.run_text_baseline_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
     output_root = tmp_path / "output"

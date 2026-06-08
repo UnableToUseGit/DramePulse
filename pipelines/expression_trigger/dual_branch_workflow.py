@@ -21,7 +21,7 @@ from pipelines.expression_trigger.triggerability import (
     parse_triggerability_decisions,
     select_top_expression_triggers,
 )
-from pipelines.utils import (
+from pipelines.common import (
     extract_frames_at_timestamps,
     load_subtitle_segments,
     probe_video_duration_seconds,

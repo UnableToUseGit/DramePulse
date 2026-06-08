@@ -1,6 +1,6 @@
 from pipelines.expression_trigger import ExpressionTriggerPipeline, TextExpressionTriggerPipeline, WorkflowExpressionTriggerPipeline
 from pipelines.story_chapter import StoryChapterMultimodalPipeline, StoryChapterPipeline
-from pipelines.utils import SubtitleSegment, build_sample_timestamps, format_subtitle_timeline
+from pipelines.common import SubtitleSegment, build_sample_timestamps, format_subtitle_timeline
 
 __all__ = [
     "ExpressionTriggerPipeline",
