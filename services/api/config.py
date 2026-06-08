@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import os
 from pathlib import Path
+import sys
 
 try:  # pragma: no cover
     from dotenv import load_dotenv
@@ -133,8 +134,8 @@ def get_settings() -> Settings:
         watch_assistant_asr_backend=_getenv("WATCH_ASSISTANT_ASR_BACKEND", "mock").lower(),
         watch_assistant_asr_model=_getenv("WATCH_ASSISTANT_ASR_MODEL", "whisper-1"),
         watch_assistant_asr_max_bytes=int(_getenv("WATCH_ASSISTANT_ASR_MAX_BYTES", str(2 * 1024 * 1024))),
-        video_analyzer_python=_getenv("VIDEO_ANALYZER_PYTHON"),
-        video_analyzer_project=Path(_getenv("VIDEO_ANALYZER_PROJECT", str(repo_root))).resolve(),
+        video_analyzer_python=_getenv("VIDEO_ANALYZER_PYTHON", sys.executable),
+        video_analyzer_project=(repo_root / _getenv("VIDEO_ANALYZER_PROJECT", "third_party/video-analyzer")).resolve(),
         video_analyzer_result_root=repo_root / _getenv("VIDEO_ANALYZER_RESULT_ROOT", "video-analyzer_result"),
         video_analyzer_client=_getenv("VIDEO_ANALYZER_CLIENT", "openai_api"),
         video_analyzer_api_base=_getenv("VIDEO_ANALYZER_API_BASE", _getenv("OPENAI_API_BASE", "https://api.openai.com/v1")),

@@ -48,6 +48,12 @@ docs/
 
 存放项目文档，例如 PRD、系统设计、模块契约、API 说明、数据格式说明、实验评估、答辩方案等。它用于沉淀项目设计思路，方便团队协作和后续汇报。
 
+```text
+third_party/
+```
+
+存放 DramePulse 集成但不作为主产品代码维护的外部源码。当前内置的 `third_party/video-analyzer` 是后台“视频解析/剧情资料生成”流程使用的离线视频理解引擎，负责生成 `transcript.json`、`frame_analyses.jsonl`、`analysis.json` 和 `fusion_result.md`。复现方式见 `docs/develop-docs/video-analyzer-integration.md`。
+
 ## 共享数据契约
 
 系统设计中的三个核心数据结构已经提前放在 `packages/contracts/`：
