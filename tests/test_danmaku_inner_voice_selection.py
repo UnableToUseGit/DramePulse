@@ -91,7 +91,7 @@ def semantic_clusters_payload() -> dict[str, object]:
 
 
 def test_build_inner_voice_selection_prompt_uses_full_transcription_and_top_clusters(tmp_path: Path) -> None:
-    from pipelines.danmaku_inner_voice_selection import build_inner_voice_selection_prompt
+    from pipelines.inner_voice_danmaku.selection import build_inner_voice_selection_prompt
     from pipelines.story_chapter.baseline_text import load_utterances_from_transcription
 
     transcription_path = tmp_path / "video.transcription.json"
@@ -130,7 +130,7 @@ def test_build_inner_voice_selection_prompt_uses_full_transcription_and_top_clus
 
 
 def test_select_inner_voice_candidates_from_semantic_clusters_filters_invalid_outputs(tmp_path: Path) -> None:
-    from pipelines.danmaku_inner_voice_selection import select_inner_voice_candidates_from_semantic_clusters
+    from pipelines.inner_voice_danmaku.selection import select_inner_voice_candidates_from_semantic_clusters
 
     transcription_path = tmp_path / "video.transcription.json"
     write_transcription(transcription_path)
@@ -184,7 +184,7 @@ def test_select_inner_voice_candidates_from_semantic_clusters_filters_invalid_ou
 
 
 def test_inner_voice_selection_script_resolves_transcription_from_assets_root(tmp_path: Path) -> None:
-    from scripts.run_danmaku_inner_voice_selection import main
+    from scripts.inner_voice_danmaku.select_candidates import main
 
     semantic_path = tmp_path / "semantic_clusters.json"
     output_path = tmp_path / "inner_voice_selection.json"

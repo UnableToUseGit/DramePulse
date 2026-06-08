@@ -25,7 +25,7 @@ def write_exploration_csv(path: Path) -> None:
 
 
 def test_explore_danmaku_csv_builds_profiles_windows_and_review_candidates(tmp_path: Path) -> None:
-    from pipelines.danmaku_exploration import explore_danmaku_csv
+    from pipelines.inner_voice_danmaku.exploration import explore_danmaku_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     write_exploration_csv(csv_path)
@@ -63,7 +63,7 @@ def test_explore_danmaku_csv_builds_profiles_windows_and_review_candidates(tmp_p
 
 
 def test_explore_danmaku_csv_filters_windows_with_only_simple_emotion(tmp_path: Path) -> None:
-    from pipelines.danmaku_exploration import explore_danmaku_csv
+    from pipelines.inner_voice_danmaku.exploration import explore_danmaku_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     csv_path.write_text(
@@ -101,7 +101,7 @@ def test_explore_danmaku_csv_filters_windows_with_only_simple_emotion(tmp_path: 
 
 
 def test_actor_charm_single_hit_does_not_override_dense_emotion_burst(tmp_path: Path) -> None:
-    from pipelines.danmaku_exploration import explore_danmaku_csv
+    from pipelines.inner_voice_danmaku.exploration import explore_danmaku_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     csv_path.write_text(
@@ -130,7 +130,7 @@ def test_actor_charm_single_hit_does_not_override_dense_emotion_burst(tmp_path: 
 
 
 def test_explore_danmaku_csv_filters_emoji_marker_only_rows(tmp_path: Path) -> None:
-    from pipelines.danmaku_exploration import explore_danmaku_csv
+    from pipelines.inner_voice_danmaku.exploration import explore_danmaku_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     csv_path.write_text(
@@ -166,7 +166,7 @@ def test_explore_danmaku_csv_filters_emoji_marker_only_rows(tmp_path: Path) -> N
 
 
 def test_danmaku_exploration_cli_writes_three_artifacts(tmp_path: Path) -> None:
-    from scripts.run_danmaku_exploration import main
+    from scripts.inner_voice_danmaku.explore import main
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     output_root = tmp_path / "danmaku_exploration"

@@ -6,9 +6,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from pipelines.danmaku_interaction_plan import (
+from pipelines.inner_voice_danmaku.interaction_plan import (
     build_inner_voice_interaction_plan,
     load_inner_voice_selection_payload,
     write_interaction_plan_output,

@@ -2,23 +2,23 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
+import sys
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import json
 from pathlib import Path
-import sys
-from typing import Any, Sequence
+from typing import Any
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.algorithm_danmaku_csv import (
+from pipelines.inner_voice_danmaku.danmaku_csv import (
     DANMAKU_CSV_ENCODINGS,
     SERIES_SLUGS,
     normalize_episode_id,
 )
-
 
 DEFAULT_CSV_PATH = Path("data/圈选剧前5集弹幕.csv")
 DEFAULT_OUTPUT_ROOT = Path("output/danmaku_expression_analysis")

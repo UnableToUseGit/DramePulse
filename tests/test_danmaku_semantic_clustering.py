@@ -60,7 +60,7 @@ class CapturePrint:
 
 
 def test_cluster_episode_danmaku_groups_semantic_texts_and_peak_intervals(tmp_path: Path) -> None:
-    from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv
+    from pipelines.inner_voice_danmaku.semantic_clustering import cluster_danmaku_semantics_from_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     write_semantic_cluster_csv(csv_path)
@@ -123,7 +123,7 @@ def test_cluster_episode_danmaku_groups_semantic_texts_and_peak_intervals(tmp_pa
 
 
 def test_cluster_episode_selects_strong_clusters_before_time_order(tmp_path: Path) -> None:
-    from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv
+    from pipelines.inner_voice_danmaku.semantic_clustering import cluster_danmaku_semantics_from_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     rows = ["剧名称,group_title,发弹幕时刻相对于视频起始时间偏移量,累计点赞数,弹幕内容"]
@@ -163,7 +163,7 @@ def test_cluster_episode_selects_strong_clusters_before_time_order(tmp_path: Pat
 
 
 def test_hdbscan_scores_top_clusters_and_selects_representative_comments(tmp_path: Path) -> None:
-    from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv
+    from pipelines.inner_voice_danmaku.semantic_clustering import cluster_danmaku_semantics_from_csv
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     rows = ["剧名称,group_title,发弹幕时刻相对于视频起始时间偏移量,累计点赞数,弹幕内容"]
@@ -228,7 +228,7 @@ def test_hdbscan_scores_top_clusters_and_selects_representative_comments(tmp_pat
 
 
 def test_danmaku_semantic_clustering_cli_writes_artifact(tmp_path: Path) -> None:
-    from scripts.run_danmaku_semantic_clustering import main
+    from scripts.inner_voice_danmaku.semantic_clustering import main
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     output_path = tmp_path / "semantic_clusters.json"
@@ -260,7 +260,7 @@ def test_danmaku_semantic_clustering_cli_writes_artifact(tmp_path: Path) -> None
 
 
 def test_danmaku_semantic_clustering_cli_prints_progress(tmp_path: Path, capsys) -> None:
-    from scripts.run_danmaku_semantic_clustering import main
+    from scripts.inner_voice_danmaku.semantic_clustering import main
 
     csv_path = tmp_path / "圈选剧前5集弹幕.csv"
     output_path = tmp_path / "semantic_clusters.json"
@@ -297,7 +297,7 @@ def test_danmaku_semantic_clustering_cli_prints_progress(tmp_path: Path, capsys)
 
 
 def test_semantic_clustering_progress_prints_flush(monkeypatch) -> None:
-    from scripts.run_danmaku_semantic_clustering import print_embedding_progress
+    from scripts.inner_voice_danmaku.semantic_clustering import print_embedding_progress
 
     capture = CapturePrint()
     monkeypatch.setattr("builtins.print", capture)
@@ -311,7 +311,7 @@ def test_semantic_clustering_progress_prints_flush(monkeypatch) -> None:
 
 
 def test_danmaku_semantic_clustering_cli_builds_openrouter_embedding_client(tmp_path: Path) -> None:
-    from scripts.run_danmaku_semantic_clustering import build_embedding_client_from_args, build_parser
+    from scripts.inner_voice_danmaku.semantic_clustering import build_embedding_client_from_args, build_parser
 
     env_path = tmp_path / ".env"
     env_path.write_text(
@@ -341,7 +341,7 @@ def test_danmaku_semantic_clustering_cli_builds_openrouter_embedding_client(tmp_
 
 
 def test_danmaku_semantic_clustering_cli_wraps_embedding_client_with_cache(tmp_path: Path) -> None:
-    from scripts.run_danmaku_semantic_clustering import build_embedding_client_from_args, build_parser
+    from scripts.inner_voice_danmaku.semantic_clustering import build_embedding_client_from_args, build_parser
 
     env_path = tmp_path / ".env"
     cache_path = tmp_path / "embedding_cache.sqlite"
@@ -374,7 +374,7 @@ def test_danmaku_semantic_clustering_cli_wraps_embedding_client_with_cache(tmp_p
 
 
 def test_danmaku_semantic_clustering_cli_can_disable_embedding_cache(tmp_path: Path) -> None:
-    from scripts.run_danmaku_semantic_clustering import build_embedding_client_from_args, build_parser
+    from scripts.inner_voice_danmaku.semantic_clustering import build_embedding_client_from_args, build_parser
 
     env_path = tmp_path / ".env"
     env_path.write_text(
@@ -396,7 +396,7 @@ def test_danmaku_semantic_clustering_cli_can_disable_embedding_cache(tmp_path: P
 
 
 def test_danmaku_semantic_clustering_cli_normalizes_openrouter_base_url(tmp_path: Path) -> None:
-    from scripts.run_danmaku_semantic_clustering import build_embedding_client_from_args, build_parser
+    from scripts.inner_voice_danmaku.semantic_clustering import build_embedding_client_from_args, build_parser
 
     env_path = tmp_path / ".env"
     env_path.write_text(

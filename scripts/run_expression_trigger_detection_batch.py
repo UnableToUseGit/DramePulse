@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
+from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipelines.client.factory import build_ark_client, build_llm_client
+from pipelines.client.factory import build_llm_client
+from pipelines.inner_voice_danmaku.danmaku_csv import load_danmaku_csv_items
 from scripts.algorithm.common import (
     DEFAULT_DATA_ROOT,
     EpisodeInput,
@@ -20,8 +22,6 @@ from scripts.algorithm.common import (
     now_iso,
     write_failure_diagnostics,
 )
-from scripts.algorithm_danmaku_csv import load_danmaku_csv_items
-
 
 DEFAULT_OUTPUT_ROOT = Path("output")
 

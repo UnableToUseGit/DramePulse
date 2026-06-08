@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.client.factory import build_llm_client
-from pipelines.danmaku_inner_voice_selection import (
+from pipelines.inner_voice_danmaku.selection import (
     load_semantic_clusters_payload,
     select_inner_voice_candidates_from_semantic_clusters,
     write_inner_voice_selection_output,

@@ -47,7 +47,7 @@ def selection_payload() -> dict[str, object]:
 
 
 def test_build_inner_voice_interaction_plan_uses_peak_interval_timing_without_debug() -> None:
-    from pipelines.danmaku_interaction_plan import build_inner_voice_interaction_plan
+    from pipelines.inner_voice_danmaku.interaction_plan import build_inner_voice_interaction_plan
 
     plan = build_inner_voice_interaction_plan(
         selection_payload(),
@@ -85,7 +85,7 @@ def test_build_inner_voice_interaction_plan_uses_peak_interval_timing_without_de
 
 
 def test_build_inner_voice_interaction_plan_skips_candidates_without_peak_interval() -> None:
-    from pipelines.danmaku_interaction_plan import build_inner_voice_interaction_plan
+    from pipelines.inner_voice_danmaku.interaction_plan import build_inner_voice_interaction_plan
 
     payload = selection_payload()
     payload["candidates"] = [
@@ -103,7 +103,7 @@ def test_build_inner_voice_interaction_plan_skips_candidates_without_peak_interv
 
 
 def test_interaction_plan_script_writes_plain_list(tmp_path: Path) -> None:
-    from scripts.run_danmaku_interaction_plan import main
+    from scripts.inner_voice_danmaku.build_interaction_plan import main
 
     selection_path = tmp_path / "selection.json"
     output_path = tmp_path / "interaction_plan.json"

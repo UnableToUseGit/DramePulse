@@ -7,10 +7,13 @@ from pathlib import Path
 from typing import Any
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from pipelines.client.embedding import CachedEmbeddingClient, OpenAICompatibleEmbeddingClient, OpenRouterEmbeddingClient
-from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv, write_semantic_clusters_output
+from pipelines.inner_voice_danmaku.semantic_clustering import (
+    cluster_danmaku_semantics_from_csv,
+    write_semantic_clusters_output,
+)
 from scripts.transcription.env import load_dotenv_values
 
 DEFAULT_CSV_PATH = Path("data/圈选剧前5集弹幕.csv")

@@ -14,7 +14,11 @@ from typing import Any
 import numpy as np
 
 from pipelines.client.embedding import EmbeddingClientProtocol
-from pipelines.danmaku_exploration import ExplorationDanmakuItem, classify_intent, load_exploration_danmaku_csv
+from pipelines.inner_voice_danmaku.exploration import (
+    ExplorationDanmakuItem,
+    classify_intent,
+    load_exploration_danmaku_csv,
+)
 
 SOURCE_COMMENT_ID_LIMIT = 10
 EXAMPLE_TEXT_LIMIT = 8

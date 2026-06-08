@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from collections import Counter, defaultdict
 import csv
-from dataclasses import dataclass
-from datetime import UTC, datetime
 import hashlib
 import json
-from pathlib import Path
 import re
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
-from scripts.algorithm_danmaku_csv import DANMAKU_CSV_ENCODINGS, SERIES_SLUGS, normalize_episode_id
-
+from pipelines.inner_voice_danmaku.danmaku_csv import DANMAKU_CSV_ENCODINGS, SERIES_SLUGS, normalize_episode_id
 
 REQUIRED_COLUMNS = (
     "剧名称",

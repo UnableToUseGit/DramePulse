@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
-from typing import Sequence
+from collections.abc import Sequence
+from pathlib import Path
 
 if __package__ is None or __package__ == "":
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from pipelines.danmaku_exploration import explore_danmaku_csv, write_danmaku_exploration_output
-
+from pipelines.inner_voice_danmaku.exploration import explore_danmaku_csv, write_danmaku_exploration_output
 
 DEFAULT_CSV_PATH = Path("data/圈选剧前5集弹幕.csv")
 DEFAULT_OUTPUT_ROOT = Path("output/danmaku_exploration")
