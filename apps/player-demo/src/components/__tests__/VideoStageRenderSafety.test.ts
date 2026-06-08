@@ -27,16 +27,17 @@ describe("VideoStage render safety", () => {
     expect(source).toContain("allowsVideoFrameAnalysis={false}");
   });
 
-  it("bubbles the first rendered video frame out of VideoStage and PlayerPage", () => {
+  it("bubbles playback readiness out of VideoStage and PlayerPage", () => {
     const fs = require("fs");
     const videoStageSource = fs.readFileSync("src/components/VideoStage.tsx", "utf8");
     const playerPageSource = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
     const playerFeedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
 
-    expect(videoStageSource).toContain("onFirstFrameRender?: () => void");
-    expect(videoStageSource).toContain("onFirstFrameRender?.()");
-    expect(playerPageSource).toContain("onFirstFrameRender={onFirstFrameRender}");
-    expect(playerFeedSource).toContain("onInitialVideoFirstFrameRender");
+    expect(videoStageSource).toContain("onPlaybackReady?: () => void");
+    expect(videoStageSource).toContain("reduceVideoReadinessState");
+    expect(videoStageSource).toContain("onPlaybackReady?.()");
+    expect(playerPageSource).toContain("onPlaybackReady={onPlaybackReady}");
+    expect(playerFeedSource).toContain("onInitialVideoPlaybackReady");
   });
 
   it("loads lightweight playback assets in PlayerPage and renders controls from the enhanced video", () => {
@@ -49,6 +50,14 @@ describe("VideoStage render safety", () => {
     expect(source).toContain("setPlaybackAssetVideo(assets.video)");
     expect(source).toContain("const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video");
     expect(source).toContain("storyboard={displayVideo.storyboard}");
+  });
+
+  it("keeps the storyboard preview image mounted while controls are mounted", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerControls.tsx", "utf8");
+
+    expect(source).toContain("<StoryboardPreview cell={storyboardCell} isVisible={isDragging && storyboardCell !== undefined}");
+    expect(source).not.toContain("{storyboardCell ? <StoryboardPreview");
   });
 
   it("does not enable remote danmaku loading from PlayerPage", () => {

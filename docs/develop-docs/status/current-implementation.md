@@ -111,7 +111,8 @@ npm start
 - Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
 - Home Feed 拖动期间会缓冲播放进度上报，等滚动结束后再同步到 App 顶层播放位置状态，减少滑动中的重渲染；
 - Home Feed 远程剧集视频启用 `expo-video` source caching 和保守前向 buffer 配置，`source_load` 观测会带上 `cacheEnabled` 与 `bufferedPosition`；
-- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard 和 interaction plans，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频回调 `first_frame_render`，避免启动页消失后直接露出黑屏；
+- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard 和 interaction plans，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频满足播放 ready 状态机（首帧已渲染、播放器进入 playing、播放时间已前进），避免启动页消失后只露出静止首帧；
+- 播放器进度条的 storyboard 预览层保持常驻，并用隐藏的 storyboard sheet warm layer 预挂载当前视频 sheet，避免用户开始拖动时才创建预览图片组件；
 - Home Feed 播放观测在开发模式下会批量写入本地 `logs/home-feed-playback.log`，前提是前端连接本地 FastAPI；
 - Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
 - 右侧操作栏、顶部/底部播放器 Chrome；

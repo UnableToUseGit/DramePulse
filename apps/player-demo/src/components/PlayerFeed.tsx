@@ -50,7 +50,7 @@ export function PlayerFeed({
   onChangePresentationType,
   onPlaybackPositionsChange,
   onActiveVideoChange,
-  onInitialVideoFirstFrameRender,
+  onInitialVideoPlaybackReady,
   onOpenTheater,
   onBack,
   onOpenSeriesDetail
@@ -65,7 +65,7 @@ export function PlayerFeed({
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
   onActiveVideoChange?: (video: PlayerVideo) => void;
-  onInitialVideoFirstFrameRender?: () => void;
+  onInitialVideoPlaybackReady?: () => void;
   onOpenTheater?: () => void;
   onBack?: () => void;
   onOpenSeriesDetail?: () => void;
@@ -432,8 +432,8 @@ export function PlayerFeed({
                 onChangePresentationType={onChangePresentationType}
                 onPlaybackPositionChange={handlePlaybackPositionChange}
                 onTimelineDragStateChange={setIsTimelineDragging}
-                onFirstFrameRender={
-                  mode === "home" && index === initialIndex ? onInitialVideoFirstFrameRender : undefined
+                onPlaybackReady={
+                  mode === "home" && index === initialIndex ? onInitialVideoPlaybackReady : undefined
                 }
                 onPlayNextEpisode={() => handlePlayNextItem(index)}
                 mode={mode}

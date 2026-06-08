@@ -9,14 +9,14 @@ export function HomeFeedScreen({
   playbackAssetCache,
   playbackPositions,
   onPlaybackPositionsChange,
-  onInitialVideoFirstFrameRender,
+  onInitialVideoPlaybackReady,
   onOpenTheater
 }: {
   videos: PlayerVideo[];
   playbackAssetCache: PlaybackAssetCache;
   playbackPositions: Record<string, number>;
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
-  onInitialVideoFirstFrameRender?: () => void;
+  onInitialVideoPlaybackReady?: () => void;
   onOpenTheater: () => void;
 }) {
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("action_rail_candy");
@@ -30,7 +30,7 @@ export function HomeFeedScreen({
       selectedPresentationType={selectedPresentationType}
       onChangePresentationType={setSelectedPresentationType}
       onPlaybackPositionsChange={onPlaybackPositionsChange}
-      onInitialVideoFirstFrameRender={onInitialVideoFirstFrameRender}
+      onInitialVideoPlaybackReady={onInitialVideoPlaybackReady}
       onOpenTheater={onOpenTheater}
     />
   );

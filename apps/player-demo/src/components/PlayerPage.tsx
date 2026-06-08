@@ -91,7 +91,7 @@ interface PlayerPageProps {
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onTimelineDragStateChange?: (isDragging: boolean) => void;
-  onFirstFrameRender?: () => void;
+  onPlaybackReady?: () => void;
   onPlayNextEpisode: () => void;
   mode?: "home" | "series";
   seriesEpisodeCount?: number;
@@ -126,7 +126,7 @@ export function PlayerPage({
   onChangePresentationType,
   onPlaybackPositionChange,
   onTimelineDragStateChange,
-  onFirstFrameRender,
+  onPlaybackReady,
   onPlayNextEpisode,
   mode = "home",
   seriesEpisodeCount,
@@ -597,7 +597,7 @@ export function PlayerPage({
             onDurationChange={handleDurationChange}
             onPlayToEnd={handlePlayToEnd}
             onSeekHandled={handleSeekHandled}
-            onFirstFrameRender={onFirstFrameRender}
+            onPlaybackReady={onPlaybackReady}
             playbackRate={speedControls.effectivePlaybackRate}
             bufferOptions={videoBufferOptions}
             enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}

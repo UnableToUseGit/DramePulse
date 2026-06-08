@@ -23,7 +23,7 @@ export default function App() {
   const [seriesResumeVideoIds, setSeriesResumeVideoIds] = useState<Record<string, string>>({});
   const [theaterScrollOffset, setTheaterScrollOffset] = useState(0);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
-  const [hasInitialVideoFirstFrame, setHasInitialVideoFirstFrame] = useState(false);
+  const [hasInitialVideoPlaybackReady, setHasInitialVideoPlaybackReady] = useState(false);
   const [loadError, setLoadError] = useState<string | undefined>();
   const playbackAssetCacheRef = useRef<PlaybackAssetCache | undefined>(undefined);
   if (playbackAssetCacheRef.current === undefined) {
@@ -39,7 +39,7 @@ export default function App() {
 
   const fetchVideos = useCallback(async () => {
     setLoadState("loading");
-    setHasInitialVideoFirstFrame(false);
+    setHasInitialVideoPlaybackReady(false);
     setLoadError(undefined);
     try {
       const startup = await loadStartupData({
@@ -108,7 +108,8 @@ export default function App() {
     }));
   }, []);
 
-  const shouldShowStartupOverlay = loadState === "loading" || (loadState === "ready" && !hasInitialVideoFirstFrame);
+  const shouldShowStartupOverlay =
+    loadState === "loading" || (loadState === "ready" && !hasInitialVideoPlaybackReady);
 
   const startupOverlay = shouldShowStartupOverlay ? (
     <View style={[styles.startupOverlay, styles.centerState]} pointerEvents="auto">
@@ -120,7 +121,7 @@ export default function App() {
       <Text style={styles.stateText}>
         {loadState === "loading"
           ? "首页 Feed、剧场卡片、首集分镜和封面缓存会在进入播放前准备好"
-          : "首个视频正在渲染第一帧，完成后进入播放"}
+          : "首个视频正在进入连续播放，完成后进入首页"}
       </Text>
       <View style={styles.bootChecklist}>
         {[
@@ -128,7 +129,7 @@ export default function App() {
           "GET /api/series",
           "GET /storyboard + interaction-plans",
           "Image.prefetch 全量首集分镜",
-          "等待首页视频首帧"
+          "等待首页视频开始播放"
         ].map((item) => (
           <View key={item} style={styles.bootChecklistRow}>
             <View style={styles.bootChecklistDot} />
@@ -193,7 +194,7 @@ export default function App() {
           playbackAssetCache={playbackAssetCache}
           playbackPositions={playbackPositions}
           onPlaybackPositionsChange={setPlaybackPositions}
-          onInitialVideoFirstFrameRender={() => setHasInitialVideoFirstFrame(true)}
+          onInitialVideoPlaybackReady={() => setHasInitialVideoPlaybackReady(true)}
           onOpenTheater={() => setRoute("theater")}
         />
       )}
