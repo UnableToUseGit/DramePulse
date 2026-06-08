@@ -68,11 +68,17 @@ def print_llm_refinement_progress(event: str, payload: dict[str, Any]) -> None:
         return
     if event == "llm_window_start":
         video_id = payload.get("video_id") or "unknown"
+        comment_count = payload.get("comment_count", 0)
+        sampled_comment_count = payload.get("sampled_comment_count")
+        sampled_text = ""
+        if sampled_comment_count is not None and sampled_comment_count != comment_count:
+            sampled_text = f" sampled={sampled_comment_count}"
         print(
             f"[{video_id}] llm_window_start: "
             f"{payload.get('window_index', 0)}/{payload.get('window_count', 0)} "
             f"window={payload.get('window_id')} "
-            f"comments={payload.get('comment_count', 0)}"
+            f"comments={comment_count}"
+            f"{sampled_text}"
         )
         return
     if event == "llm_window_done":

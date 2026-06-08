@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import hashlib
 import json
 from pathlib import Path
+import random
 from typing import Any, Callable
 
 from pipelines.client import LlmClientProtocol
@@ -10,6 +12,8 @@ from pipelines.client import LlmClientProtocol
 
 SUPPORTED_CLUSTER_TYPES = {"actor_charm", "scene_commentary", "meme", "other"}
 SIMPLE_EMOTION_TEXTS = {"哈哈", "哈哈哈", "哈哈哈哈", "爽", "啊啊啊", "笑死", "笑死了", "哭了"}
+COMMENT_SAMPLE_LIMIT = 120
+SOURCE_COMMENT_ID_LIMIT = 10
 ProgressCallback = Callable[[str, dict[str, Any]], None]
 
 
@@ -66,7 +70,23 @@ def _window_comments(window: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(normalized, key=lambda comment: (float(comment["timeSec"]), str(comment["commentId"])))
 
 
+def _stable_seed(value: Any) -> int:
+    digest = hashlib.sha1(str(value or "").encode("utf-8")).hexdigest()
+    return int(digest[:16], 16)
+
+
+def _prompt_comments(window: dict[str, Any]) -> list[dict[str, Any]]:
+    comments = _window_comments(window)
+    if len(comments) <= COMMENT_SAMPLE_LIMIT:
+        return comments
+    sampler = random.Random(_stable_seed(window.get("window_id") or window.get("windowId")))
+    sampled = sampler.sample(comments, COMMENT_SAMPLE_LIMIT)
+    return sorted(sampled, key=lambda comment: (float(comment["timeSec"]), str(comment["commentId"])))
+
+
 def build_window_semantic_prompt(window: dict[str, Any]) -> str:
+    all_comments = _window_comments(window)
+    prompt_comments = _prompt_comments(window)
     payload = {
         "windowId": window.get("window_id") or window.get("windowId"),
         "videoId": window.get("video_id") or window.get("videoId"),
@@ -75,13 +95,16 @@ def build_window_semantic_prompt(window: dict[str, Any]) -> str:
         "resonanceScore": window.get("resonance_score") or window.get("resonanceScore"),
         "actorCharmRatio": window.get("actor_charm_ratio") or window.get("actorCharmRatio"),
         "emotionBurstRatio": window.get("emotion_burst_ratio") or window.get("emotionBurstRatio"),
-        "comments": _window_comments(window),
+        "originalCommentCount": len(all_comments),
+        "sampledCommentCount": len(prompt_comments),
+        "comments": prompt_comments,
     }
     return "\n".join(
         [
             "你是短剧心里话弹幕语义簇判断器。",
             "任务：判断这个时间窗口内是否存在同语义弹幕簇，并抽取或轻微改写一条适合用户一推发送的心里话弹幕。",
             "只基于输入 comments 判断，不要凭空生成。每个 sourceCommentIds 必须来自输入 commentId。",
+            "每个簇的 sourceCommentIds 最多返回 10 个，选择最能代表该语义簇的 commentId。",
             "不要输出简单情绪表达，例如哈哈哈、爽、啊啊啊、纯表情。",
             "优先选择演员/角色魅力、具体剧情/角色评价、玩梗等有表达内容的弹幕。",
             "返回 JSON：{\"usable\":true|false,\"clusters\":[{\"clusterType\":\"actor_charm|scene_commentary|meme|other\",\"representativeText\":\"...\",\"sourceCommentIds\":[\"...\"],\"confidence\":0.0,\"reason\":\"...\"}]}",
@@ -126,7 +149,7 @@ def _parse_llm_clusters(
     raw_clusters = raw_result.get("clusters")
     if not isinstance(raw_clusters, list):
         return [], []
-    comments = _window_comments(window)
+    comments = _prompt_comments(window)
     valid_comment_ids = {str(comment["commentId"]) for comment in comments}
     time_by_comment_id = {str(comment["commentId"]): float(comment["timeSec"]) for comment in comments}
     candidates: list[dict[str, Any]] = []
@@ -164,14 +187,15 @@ def _parse_llm_clusters(
                 }
             )
             continue
+        limited_source_ids = source_ids[:SOURCE_COMMENT_ID_LIMIT]
         candidates.append(
             {
                 "window_id": window.get("window_id") or window.get("windowId"),
                 "video_id": window.get("video_id") or window.get("videoId"),
-                "trigger_time": _round_time(min(time_by_comment_id[source_id] for source_id in source_ids)),
+                "trigger_time": _round_time(min(time_by_comment_id[source_id] for source_id in limited_source_ids)),
                 "text": text,
                 "cluster_type": cluster_type,
-                "source_comment_ids": source_ids,
+                "source_comment_ids": limited_source_ids,
                 "confidence": _round_time(confidence),
                 "reason": reason,
             }
@@ -195,6 +219,7 @@ def refine_danmaku_windows_with_llm(
         progress_callback("prepared", {"window_count": len(windows)})
     for window_index, window in enumerate(windows, start=1):
         window_comments = _window_comments(window)
+        prompt_comments = _prompt_comments(window)
         if progress_callback is not None:
             progress_callback(
                 "llm_window_start",
@@ -204,6 +229,7 @@ def refine_danmaku_windows_with_llm(
                     "window_index": window_index,
                     "window_count": len(windows),
                     "comment_count": len(window_comments),
+                    "sampled_comment_count": len(prompt_comments),
                 },
             )
         raw_result = llm_client.generate_json_multimodal(

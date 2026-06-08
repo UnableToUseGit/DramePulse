@@ -75,6 +75,42 @@ def test_build_window_semantic_prompt_contains_all_window_comments() -> None:
     assert "sourceCommentIds" in prompt
 
 
+def test_build_window_semantic_prompt_samples_large_comment_windows() -> None:
+    from pipelines.danmaku_llm_refinement import build_window_semantic_prompt
+
+    window = {
+        "window_id": "dw_large_001",
+        "video_id": "beiwang_ep01",
+        "start_time": 0.0,
+        "end_time": 8.0,
+        "comments": [
+            {
+                "comment_id": f"dm_{index}",
+                "time_sec": float(index),
+                "text": f"第 {index} 条弹幕",
+                "digg_count": index % 3,
+            }
+            for index in range(150)
+        ],
+    }
+
+    first_prompt = build_window_semantic_prompt(window)
+    second_prompt = build_window_semantic_prompt(window)
+
+    assert first_prompt == second_prompt
+    assert first_prompt.count('"commentId"') == 120
+    assert "sampledCommentCount" in first_prompt
+    assert "originalCommentCount" in first_prompt
+
+
+def test_build_window_semantic_prompt_limits_requested_source_comment_ids() -> None:
+    from pipelines.danmaku_llm_refinement import build_window_semantic_prompt
+
+    prompt = build_window_semantic_prompt(make_window_payload()["windows"][0])
+
+    assert "sourceCommentIds 最多返回 10 个" in prompt
+
+
 def test_refine_danmaku_windows_with_llm_builds_grounded_candidates() -> None:
     from pipelines.danmaku_llm_refinement import refine_danmaku_windows_with_llm
 
@@ -120,6 +156,47 @@ def test_refine_danmaku_windows_with_llm_builds_grounded_candidates() -> None:
     assert candidate["cluster_type"] == "actor_charm"
     assert candidate["source_comment_ids"] == ["dm_1", "dm_2"]
     assert result["debug"]["filteredClusters"][0]["reason"] == "simple_emotion_text"
+
+
+def test_refine_danmaku_windows_limits_source_comment_ids() -> None:
+    from pipelines.danmaku_llm_refinement import refine_danmaku_windows_with_llm
+
+    comments = [
+        {"comment_id": f"dm_{index}", "time_sec": float(index), "text": f"这个眼神太帅了 {index}", "digg_count": 1}
+        for index in range(12)
+    ]
+    fake_client = FakeLlmClient(
+        {
+            "usable": True,
+            "clusters": [
+                {
+                    "clusterType": "actor_charm",
+                    "representativeText": "这个眼神太帅了",
+                    "sourceCommentIds": [f"dm_{index}" for index in range(12)],
+                    "confidence": 0.9,
+                    "reason": "多条弹幕都在夸眼神。",
+                }
+            ],
+        }
+    )
+
+    result = refine_danmaku_windows_with_llm(
+        {
+            "windows": [
+                {
+                    "window_id": "dw_beiwang_ep01_001",
+                    "video_id": "beiwang_ep01",
+                    "start_time": 0.0,
+                    "end_time": 8.0,
+                    "comments": comments,
+                }
+            ]
+        },
+        llm_client=fake_client,
+    )
+
+    assert len(result["candidates"][0]["source_comment_ids"]) == 10
+    assert result["candidates"][0]["source_comment_ids"] == [f"dm_{index}" for index in range(10)]
 
 
 def test_refine_danmaku_windows_filters_invalid_source_ids() -> None:
@@ -286,3 +363,45 @@ def test_danmaku_llm_refinement_cli_prints_window_progress(tmp_path: Path, capsy
     assert "[beiwang_ep01] llm_window_start: 1/1 window=dw_beiwang_ep01_001 comments=2" in captured.out
     assert "[beiwang_ep01] llm_window_done: 1/1 window=dw_beiwang_ep01_001 candidates=1 filtered=0 tokens=64" in captured.out
     assert "completed: windows=1 candidates=1 filtered=0" in captured.out
+
+
+def test_danmaku_llm_refinement_cli_prints_sampled_comment_count(tmp_path: Path, capsys) -> None:
+    from scripts.run_danmaku_llm_refinement import main
+
+    windows_path = tmp_path / "resonance_windows.json"
+    output_path = tmp_path / "inner_voice_llm_candidates.json"
+    payload = {
+        "windows": [
+            {
+                "window_id": "dw_beiwang_ep01_large",
+                "video_id": "beiwang_ep01",
+                "start_time": 10.0,
+                "end_time": 18.0,
+                "comments": [
+                    {
+                        "comment_id": f"dm_{index}",
+                        "time_sec": float(index),
+                        "text": f"第 {index} 条弹幕",
+                        "digg_count": index % 3,
+                    }
+                    for index in range(150)
+                ],
+            }
+        ],
+    }
+    windows_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    fake_client = FakeLlmClient({"usable": False, "clusters": []})
+
+    result = main(
+        [
+            "--windows-path",
+            str(windows_path),
+            "--output-path",
+            str(output_path),
+        ],
+        llm_client=fake_client,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert "[beiwang_ep01] llm_window_start: 1/1 window=dw_beiwang_ep01_large comments=150 sampled=120" in captured.out

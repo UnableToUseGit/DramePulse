@@ -243,6 +243,101 @@ class _FakeOpenAI:
         _FakeOpenAI.last_instance = self
 
 
+class _FakeEmbeddingData:
+    def __init__(self, embedding: list[float]) -> None:
+        self.embedding = embedding
+
+
+class _FakeEmbeddingResponse:
+    def __init__(self) -> None:
+        self.data = [_FakeEmbeddingData([1.0, 0.0]), _FakeEmbeddingData([0.0, 1.0])]
+        self.usage = types.SimpleNamespace(prompt_tokens=5, total_tokens=5)
+
+
+class _FakeEmbeddings:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> _FakeEmbeddingResponse:
+        self.calls.append(kwargs)
+        return _FakeEmbeddingResponse()
+
+
+class _FakeEmbeddingOpenAI:
+    last_instance: "_FakeEmbeddingOpenAI | None" = None
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.embeddings = _FakeEmbeddings()
+        _FakeEmbeddingOpenAI.last_instance = self
+
+
+class _FakeBatchEmbeddingData:
+    def __init__(self, embedding: list[float]) -> None:
+        self.embedding = embedding
+
+
+class _FakeBatchEmbeddingResponse:
+    def __init__(self, input_count: int) -> None:
+        self.data = [_FakeBatchEmbeddingData([float(index), 0.0]) for index in range(input_count)]
+        self.usage = types.SimpleNamespace(prompt_tokens=input_count, total_tokens=input_count)
+
+
+class _FakeBatchEmbeddings:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> _FakeBatchEmbeddingResponse:
+        self.calls.append(kwargs)
+        return _FakeBatchEmbeddingResponse(len(kwargs["input"]))
+
+
+class _FakeBatchEmbeddingOpenAI:
+    last_instance: "_FakeBatchEmbeddingOpenAI | None" = None
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.embeddings = _FakeBatchEmbeddings()
+        _FakeBatchEmbeddingOpenAI.last_instance = self
+
+
+class _FakeOpenRouterResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self._payload = payload
+        self.text = json_dumps_for_test(payload)
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict[str, object]:
+        return self._payload
+
+
+class _FakeOpenRouterRequests:
+    calls: list[dict[str, object]] = []
+
+    @classmethod
+    def post(cls, **kwargs: object) -> _FakeOpenRouterResponse:
+        cls.calls.append(kwargs)
+        input_payload = kwargs["json"]["input"]  # type: ignore[index]
+        input_count = len(input_payload) if isinstance(input_payload, list) else 1
+        return _FakeOpenRouterResponse(
+            {
+                "data": [
+                    {"embedding": [float(index), 1.0]}
+                    for index in range(input_count)
+                ],
+                "usage": {"prompt_tokens": input_count, "total_tokens": input_count},
+            }
+        )
+
+
+def json_dumps_for_test(value: object) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False)
+
+
 class OpenAiLlmClientTest(unittest.TestCase):
     def setUp(self) -> None:
         _FakeOpenAI.response_content = '{"ok": true}'
@@ -434,6 +529,162 @@ class OpenAiLlmClientTest(unittest.TestCase):
             client = OpenAiLlmClient()
 
         self.assertEqual(client.model_name, "gpt-5.5")
+
+
+class EmbeddingClientTest(unittest.TestCase):
+    def test_openai_compatible_embedding_client_reads_embedding_env_and_calls_embeddings_api(self) -> None:
+        from pipelines.client.embedding import OpenAICompatibleEmbeddingClient
+
+        with patch("pipelines.client.embedding.OpenAI", _FakeEmbeddingOpenAI), patch.dict(
+            "os.environ",
+            {
+                "EMBEDDING_API_KEY": "embedding-key",
+                "EMBEDDING_BASE_URL": "https://embedding.example.test/v1",
+                "EMBEDDING_MODEL": "baai/bge-m3",
+            },
+            clear=False,
+        ):
+            client = OpenAICompatibleEmbeddingClient()
+            vectors = client.embed_texts(["这个眼神太帅了", "女主终于怼回去了"])
+
+        assert _FakeEmbeddingOpenAI.last_instance is not None
+        self.assertEqual(_FakeEmbeddingOpenAI.last_instance.kwargs["api_key"], "embedding-key")
+        self.assertEqual(_FakeEmbeddingOpenAI.last_instance.kwargs["base_url"], "https://embedding.example.test/v1")
+        self.assertEqual(client.model_name, "baai/bge-m3")
+        self.assertEqual(vectors, [[1.0, 0.0], [0.0, 1.0]])
+        call = _FakeEmbeddingOpenAI.last_instance.embeddings.calls[0]
+        self.assertEqual(call["model"], "baai/bge-m3")
+        self.assertEqual(call["input"], ["这个眼神太帅了", "女主终于怼回去了"])
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 5)
+
+    def test_openai_compatible_embedding_client_batches_requests(self) -> None:
+        from pipelines.client.embedding import OpenAICompatibleEmbeddingClient
+
+        with patch("pipelines.client.embedding.OpenAI", _FakeBatchEmbeddingOpenAI):
+            client = OpenAICompatibleEmbeddingClient(api_key="test-key", model_name="baai/bge-m3", batch_size=2)
+            vectors = client.embed_texts(["a", "b", "c", "d", "e"])
+
+        assert _FakeBatchEmbeddingOpenAI.last_instance is not None
+        calls = _FakeBatchEmbeddingOpenAI.last_instance.embeddings.calls
+        self.assertEqual([call["input"] for call in calls], [["a", "b"], ["c", "d"], ["e"]])
+        self.assertEqual(vectors, [[0.0, 0.0], [1.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, 0.0]])
+        self.assertEqual(client.last_call_diagnostics["request_count"], 3)
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 5)
+
+    def test_cached_embedding_client_reuses_persisted_vectors(self) -> None:
+        from pipelines.client.embedding import CachedEmbeddingClient
+
+        class FakeInnerEmbeddingClient:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+                self.last_call_diagnostics: dict[str, object] = {}
+
+            def embed_texts(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(list(texts))
+                self.last_call_diagnostics = {"provider": "fake", "request_count": 1}
+                return [[float(len(text)), 1.0] for text in texts]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "embedding_cache.sqlite"
+            inner = FakeInnerEmbeddingClient()
+            first_client = CachedEmbeddingClient(
+                inner_client=inner,
+                cache_path=cache_path,
+                model_name="baai/bge-m3",
+            )
+
+            first_vectors = first_client.embed_texts(["这个眼神太帅了", "女主终于怼回去了"])
+
+            self.assertEqual(len(inner.calls), 1)
+            self.assertEqual(inner.calls[0], ["这个眼神太帅了", "女主终于怼回去了"])
+            self.assertEqual(first_vectors, [[7.0, 1.0], [8.0, 1.0]])
+            self.assertEqual(first_client.last_call_diagnostics["cache_hits"], 0)
+            self.assertEqual(first_client.last_call_diagnostics["cache_misses"], 2)
+
+            second_client = CachedEmbeddingClient(
+                inner_client=inner,
+                cache_path=cache_path,
+                model_name="baai/bge-m3",
+            )
+            second_vectors = second_client.embed_texts(["女主终于怼回去了", "这个眼神太帅了"])
+
+        self.assertEqual(len(inner.calls), 1)
+        self.assertEqual(second_vectors, [[8.0, 1.0], [7.0, 1.0]])
+        self.assertEqual(second_client.last_call_diagnostics["cache_hits"], 2)
+        self.assertEqual(second_client.last_call_diagnostics["cache_misses"], 0)
+
+    def test_cached_embedding_client_only_requests_missing_texts(self) -> None:
+        from pipelines.client.embedding import CachedEmbeddingClient
+
+        class FakeInnerEmbeddingClient:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+                self.last_call_diagnostics: dict[str, object] = {}
+
+            def embed_texts(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(list(texts))
+                self.last_call_diagnostics = {"provider": "fake", "request_count": 1}
+                return [[float(index), 2.0] for index, _text in enumerate(texts, start=1)]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "embedding_cache.sqlite"
+            inner = FakeInnerEmbeddingClient()
+            client = CachedEmbeddingClient(inner_client=inner, cache_path=cache_path, model_name="baai/bge-m3")
+
+            client.embed_texts(["a", "b"])
+            vectors = client.embed_texts(["b", "c", "a"])
+
+        self.assertEqual(inner.calls, [["a", "b"], ["c"]])
+        self.assertEqual(vectors, [[2.0, 2.0], [1.0, 2.0], [1.0, 2.0]])
+        self.assertEqual(client.last_call_diagnostics["cache_hits"], 2)
+        self.assertEqual(client.last_call_diagnostics["cache_misses"], 1)
+
+    def test_openrouter_embedding_client_posts_official_request_shape(self) -> None:
+        from pipelines.client.embedding import OpenRouterEmbeddingClient
+
+        _FakeOpenRouterRequests.calls = []
+        events: list[tuple[str, dict[str, object]]] = []
+        client = OpenRouterEmbeddingClient(
+            api_key="openrouter-key",
+            model_name="baai/bge-m3",
+            batch_size=2,
+            site_url="https://dramepulse.example",
+            site_name="DramePulse",
+            requests_module=_FakeOpenRouterRequests,
+            progress_callback=lambda event, payload: events.append((event, payload)),
+        )
+
+        vectors = client.embed_texts(["这个眼神太帅了", "女主终于怼回去了", "老公好帅"])
+
+        self.assertEqual(vectors, [[0.0, 1.0], [1.0, 1.0], [0.0, 1.0]])
+        self.assertEqual(len(_FakeOpenRouterRequests.calls), 2)
+        first_call = _FakeOpenRouterRequests.calls[0]
+        self.assertEqual(first_call["url"], "https://openrouter.ai/api/v1/embeddings")
+        self.assertEqual(first_call["timeout"], 90)
+        self.assertEqual(
+            first_call["headers"],
+            {
+                "Authorization": "Bearer openrouter-key",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://dramepulse.example",
+                "X-OpenRouter-Title": "DramePulse",
+            },
+        )
+        self.assertEqual(
+            first_call["json"],
+            {
+                "model": "baai/bge-m3",
+                "input": ["这个眼神太帅了", "女主终于怼回去了"],
+                "encoding_format": "float",
+            },
+        )
+        self.assertEqual(client.last_call_diagnostics["provider"], "openrouter")
+        self.assertEqual(client.last_call_diagnostics["request_count"], 2)
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 3)
+        self.assertEqual([event for event, _payload in events], ["embedding_batch", "embedding_batch"])
+        self.assertEqual(events[0][1]["batch_index"], 1)
+        self.assertEqual(events[0][1]["batch_count"], 2)
+        self.assertEqual(events[0][1]["batch_size"], 2)
 
 
 class LlmClientFactoryTest(unittest.TestCase):
