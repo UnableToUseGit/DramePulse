@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from http import HTTPStatus
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import argparse
 import json
-from pathlib import Path
 import re
 import sys
-from typing import Any, Sequence
+from collections.abc import Sequence
+from http import HTTPStatus
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from typing import Any
 from urllib.parse import unquote, urlparse
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scripts.algorithm_danmaku_csv import index_danmaku_csv_episodes, load_danmaku_csv_items
-
+from pipelines.inner_voice_danmaku.danmaku_csv import index_danmaku_csv_episodes, load_danmaku_csv_items
 
 DEFAULT_DATA_ROOT = Path("/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm")
 DEFAULT_OUTPUT_ROOT = Path("output")

@@ -5,18 +5,17 @@ import re
 from pathlib import Path
 from typing import Any
 
-
 SERIES_SLUGS = {
-    "云渺1：我修仙多年强亿点怎么了": "yunmiao_1",
+    "云渺1：我修仙多年强亿点怎么了": "yunmiao1",
     "北往": "beiwang",
     "北派寻宝笔记": "beipai_xunbao_biji",
     "十八岁太奶奶驾到，重整家族荣耀第三部": "shibasui_tainainai",
-    "天下第一纨绔": "tianxia_diyi_wanku",
-    "家里家外": "jiali_jiawai",
+    "天下第一纨绔": "tianxiadiyiwanku",
+    "家里家外": "jialijiawai",
     "幸得相遇离婚时": "xingde_xiangyu_lihunshi",
     "撕夜": "siye",
     "荒年全村啃树皮，我有系统满仓肉": "huangnian_quancun_kenshupi",
-    "那年冬至": "nanian_dongzhi",
+    "那年冬至": "naniandongzhi",
 }
 
 DANMAKU_CSV_ENCODINGS = ("utf-8-sig", "gb18030")
@@ -97,3 +96,13 @@ def index_danmaku_csv_episodes(data_root: Path) -> dict[tuple[str, str], Path]:
             key = (str(item["series_id"]), str(item["episode_id"]))
             episode_paths.setdefault(key, csv_path)
     return episode_paths
+
+
+__all__ = [
+    "DANMAKU_CSV_ENCODINGS",
+    "SERIES_SLUGS",
+    "discover_danmaku_csv_paths",
+    "index_danmaku_csv_episodes",
+    "load_danmaku_csv_items",
+    "normalize_episode_id",
+]

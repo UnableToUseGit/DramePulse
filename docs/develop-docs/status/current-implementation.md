@@ -4,12 +4,13 @@
 
 ## 1. 已实现链路
 
-当前算法侧保留三条已确定实现的算法线：
+当前算法侧保留四条已确定实现的算法线：
 
 ```text
 pipelines/expression_trigger/
 pipelines/story_chapter/
 pipelines/inner_voice_danmaku/
+pipelines/danmaku_exploration.py
 ```
 
 旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger workflow 当前写出干净资产 `expression_triggers.json` 和调试产物 `expression_triggers.debug.json`；旧 baseline 脚本仍可能写出 `highlight_recognition.json`，评估和复核工具会优先读取新资产并兼容旧文件名。
@@ -28,6 +29,7 @@ pipelines/inner_voice_danmaku/
 - `scripts/story_chapter/run_subtitle_scene_aligned_batch.py`
 - `scripts/story_chapter/evaluate_workflow.py`
 - `scripts/run_inner_voice_danmaku_generation.py`
+- `scripts/run_danmaku_exploration.py`
 
 ## 2.1 当前应用入口
 
@@ -47,6 +49,12 @@ Expression Trigger workflow 当前会写出两类产物：
 
 - `expression_triggers.json`：干净最终产物，用于上传或被播放器/评估脚本消费，只包含 `video_id`、`series_id`、`created_at` 和 `expression_triggers`。每个触发点只包含 `trigger_id`、`start_time`、`end_time`、`cue_time`、`ui_trigger_time`、`expression_type`、`interaction_mode`、`intensity`、`confidence`、`summary`、`reason`。
 - `expression_triggers.debug.json`：完整诊断产物，保留输入路径、LLM 调用诊断、候选点、候选复核决策、原始最终触发点、前端 resonance cue 和 legacy `highlight_assets` 兼容转换结果。
+
+Danmaku Exploration 当前从真实弹幕 CSV 生成三类探查产物：
+
+- `episode_profile.json`：每集弹幕规模、时间范围、点赞分布、低质文本数量、高频文本和高赞文本；
+- `resonance_windows.json`：按滑动窗口聚合出的弹幕共鸣窗口，包含窗口分数、弹幕数量、去重数量、点赞量、actor charm 命中数、emotion burst 命中数和 top comments；命中 actor charm 的高分窗口优先保留，纯简单情绪或表情堆出来的窗口不会进入该产物；
+- `inner_voice_review_candidates.json`：供人工复核的心里话弹幕候选，包含候选文案、source comment、表达意图、共鸣分、心里话适配分和推荐原因。
 
 ## 3. 当前样例数据
 
