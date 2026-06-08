@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-from collections import Counter, defaultdict
-from dataclasses import dataclass
-from datetime import UTC, datetime
 import json
 import math
-from pathlib import Path
 import re
-from typing import Any, Callable
+from collections import Counter, defaultdict
+from collections.abc import Callable
+from copy import deepcopy
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 from pipelines.client.embedding import EmbeddingClientProtocol
 from pipelines.danmaku_exploration import ExplorationDanmakuItem, classify_intent, load_exploration_danmaku_csv
-
 
 SOURCE_COMMENT_ID_LIMIT = 10
 EXAMPLE_TEXT_LIMIT = 8
@@ -109,6 +110,44 @@ def _connected_components(vectors: list[list[float]], *, threshold: float) -> li
     return list(components.values())
 
 
+def _normalized_matrix(vectors: list[list[float]]) -> np.ndarray:
+    matrix = np.asarray(vectors, dtype=np.float32)
+    if matrix.size == 0:
+        return matrix
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    norms[norms == 0.0] = 1.0
+    return matrix / norms
+
+
+def _hdbscan_components(
+    vectors: list[list[float]],
+    *,
+    min_cluster_size: int,
+    min_samples: int | None,
+    cluster_selection_method: str,
+) -> list[list[int]]:
+    if not vectors:
+        return []
+    from sklearn.cluster import HDBSCAN
+
+    normalized = _normalized_matrix(vectors)
+    clusterer = HDBSCAN(
+        min_cluster_size=max(2, int(min_cluster_size)),
+        min_samples=min_samples,
+        metric="euclidean",
+        cluster_selection_method=cluster_selection_method,
+        allow_single_cluster=False,
+        copy=True,
+    )
+    labels = clusterer.fit_predict(normalized)
+    components_by_label: dict[int, list[int]] = defaultdict(list)
+    for index, label in enumerate(labels):
+        if int(label) == -1:
+            continue
+        components_by_label[int(label)].append(index)
+    return list(components_by_label.values())
+
+
 def _build_expression_groups(items: list[ExplorationDanmakuItem]) -> list[ExpressionGroup]:
     by_canonical: dict[str, list[ExplorationDanmakuItem]] = defaultdict(list)
     for item in items:
@@ -169,7 +208,9 @@ def _cluster_payload(
     video_id: str,
     cluster_index: int,
     groups: list[ExpressionGroup],
+    group_vectors: list[list[float]],
     peak_window_sec: float,
+    representative_comment_count: int,
 ) -> dict[str, Any]:
     items = sorted(
         [item for group in groups for item in group.items],
@@ -185,17 +226,84 @@ def _cluster_payload(
         }
         for group in ranked_groups[:EXAMPLE_TEXT_LIMIT]
     ]
+    peak_intervals = _peak_intervals(items, peak_window_sec=peak_window_sec)
+    cluster_score = _cluster_score(
+        comment_count=len(items),
+        unique_text_count=len(text_counts),
+        digg_sum=sum(item.digg_count for item in items),
+        peak_intervals=peak_intervals,
+    )
     return {
         "clusterId": f"dsc_{video_id}_{cluster_index:03d}",
         "videoId": video_id,
         "commentCount": len(items),
         "uniqueTextCount": len(text_counts),
         "diggSum": sum(item.digg_count for item in items),
+        "clusterScore": cluster_score["score"],
+        "scoreBreakdown": cluster_score["breakdown"],
         "intentCounts": dict(Counter(classify_intent(item.clean_text, low_quality=item.low_quality) for item in items)),
         "examples": examples,
+        "representativeComments": _representative_comments(
+            groups=groups,
+            group_vectors=group_vectors,
+            limit=representative_comment_count,
+        ),
         "sourceCommentIds": [item.comment_id for item in items[:SOURCE_COMMENT_ID_LIMIT]],
-        "peakIntervals": _peak_intervals(items, peak_window_sec=peak_window_sec),
+        "peakIntervals": peak_intervals,
     }
+
+
+def _cluster_score(
+    *,
+    comment_count: int,
+    unique_text_count: int,
+    digg_sum: int,
+    peak_intervals: list[dict[str, Any]],
+) -> dict[str, Any]:
+    peak_count = max((int(interval["commentCount"]) for interval in peak_intervals), default=0)
+    score = comment_count * 1.0 + unique_text_count * 0.35 + min(digg_sum, 100) * 0.08 + peak_count * 1.4
+    return {
+        "score": _round_time(score),
+        "breakdown": {
+            "commentCount": comment_count,
+            "uniqueTextCount": unique_text_count,
+            "diggSum": digg_sum,
+            "peakCommentCount": peak_count,
+        },
+    }
+
+
+def _representative_comments(
+    *,
+    groups: list[ExpressionGroup],
+    group_vectors: list[list[float]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    if not groups or not group_vectors or limit <= 0:
+        return []
+    normalized = _normalized_matrix(group_vectors)
+    centroid = normalized.mean(axis=0)
+    centroid_norm = np.linalg.norm(centroid)
+    if centroid_norm != 0.0:
+        centroid = centroid / centroid_norm
+    ranked: list[tuple[float, ExpressionGroup]] = []
+    for index, group in enumerate(groups):
+        distance = float(np.linalg.norm(normalized[index] - centroid))
+        ranked.append((distance, group))
+    representatives: list[dict[str, Any]] = []
+    for distance, group in sorted(ranked, key=lambda value: (value[0], -value[1].comment_count, -value[1].digg_sum, value[1].first_time_sec))[:limit]:
+        source_items = sorted(group.items, key=lambda item: (item.time_sec, item.comment_id))
+        representatives.append(
+            {
+                "text": group.text,
+                "count": group.comment_count,
+                "diggSum": group.digg_sum,
+                "distanceToCentroid": _round_time(distance),
+                "sourceCommentIds": [item.comment_id for item in source_items[:SOURCE_COMMENT_ID_LIMIT]],
+                "timeSec": _round_time(source_items[0].time_sec),
+            }
+        )
+    return representatives
 
 
 def _cluster_episode_groups(
@@ -203,15 +311,31 @@ def _cluster_episode_groups(
     video_id: str,
     groups: list[ExpressionGroup],
     vectors: list[list[float]],
+    cluster_method: str,
     similarity_threshold: float,
     min_cluster_comment_count: int,
+    hdbscan_min_cluster_size: int,
+    hdbscan_min_samples: int | None,
+    hdbscan_cluster_selection_method: str,
     peak_window_sec: float,
-    max_clusters_per_episode: int,
-) -> list[dict[str, Any]]:
-    components = _connected_components(vectors, threshold=similarity_threshold)
+    top_k_clusters: int,
+    representative_comment_count: int,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if cluster_method == "connected_components":
+        components = _connected_components(vectors, threshold=similarity_threshold)
+    elif cluster_method == "hdbscan":
+        components = _hdbscan_components(
+            vectors,
+            min_cluster_size=hdbscan_min_cluster_size,
+            min_samples=hdbscan_min_samples,
+            cluster_selection_method=hdbscan_cluster_selection_method,
+        )
+    else:
+        raise ValueError(f"Unsupported cluster_method: {cluster_method}")
     clusters: list[dict[str, Any]] = []
     for component in components:
         component_groups = [groups[index] for index in component]
+        component_vectors = [vectors[index] for index in component]
         comment_count = sum(group.comment_count for group in component_groups)
         if comment_count < min_cluster_comment_count:
             continue
@@ -220,30 +344,35 @@ def _cluster_episode_groups(
                 video_id=video_id,
                 cluster_index=len(clusters) + 1,
                 groups=component_groups,
+                group_vectors=component_vectors,
                 peak_window_sec=peak_window_sec,
+                representative_comment_count=representative_comment_count,
             )
         )
     ranked_by_strength = sorted(
         clusters,
         key=lambda cluster: (
+            -float(cluster["clusterScore"]),
             -int(cluster["commentCount"]),
-            -int(cluster["diggSum"]),
             float(cluster["peakIntervals"][0]["startTime"]) if cluster.get("peakIntervals") else 0.0,
             str(cluster["clusterId"]),
         ),
     )
+    all_clusters_by_score = [deepcopy(cluster) for cluster in ranked_by_strength]
+    for index, cluster in enumerate(all_clusters_by_score, start=1):
+        cluster["scoreRank"] = index
+    selected_limit = max(0, int(top_k_clusters))
     selected = sorted(
-        ranked_by_strength[:max_clusters_per_episode],
+        [deepcopy(cluster) for cluster in ranked_by_strength[:selected_limit]],
         key=lambda cluster: (
             float(cluster["peakIntervals"][0]["startTime"]) if cluster.get("peakIntervals") else 0.0,
-            -int(cluster["commentCount"]),
-            -int(cluster["diggSum"]),
+            -float(cluster["clusterScore"]),
             str(cluster["clusterId"]),
         ),
     )
     for index, cluster in enumerate(selected, start=1):
         cluster["clusterId"] = f"dsc_{video_id}_{index:03d}"
-    return selected
+    return selected, all_clusters_by_score
 
 
 def _filter_items(
@@ -269,9 +398,15 @@ def cluster_danmaku_semantics_from_csv(
     series_id: str | None = None,
     episode_id: str | None = None,
     similarity_threshold: float = 0.82,
+    cluster_method: str = "hdbscan",
     min_cluster_comment_count: int = 3,
     peak_window_sec: float = 8.0,
     max_clusters_per_episode: int = 20,
+    top_k_clusters: int | None = None,
+    representative_comment_count: int = 5,
+    hdbscan_min_cluster_size: int = 5,
+    hdbscan_min_samples: int | None = 3,
+    hdbscan_cluster_selection_method: str = "eom",
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     items, diagnostics = load_exploration_danmaku_csv(csv_path)
@@ -281,7 +416,10 @@ def cluster_danmaku_semantics_from_csv(
         items_by_video[item.video_id].append(item)
 
     clusters: list[dict[str, Any]] = []
+    all_clusters_by_score: list[dict[str, Any]] = []
     embedding_calls: list[dict[str, Any]] = []
+    raw_cluster_count = 0
+    selected_top_k_clusters = max_clusters_per_episode if top_k_clusters is None else top_k_clusters
     if progress_callback is not None:
         progress_callback(
             "prepared",
@@ -329,19 +467,31 @@ def cluster_danmaku_semantics_from_csv(
                 {
                     "video_id": video_id,
                     "vector_count": len(vectors),
+                    "cluster_method": cluster_method,
                     "similarity_threshold": similarity_threshold,
+                    "hdbscan_min_cluster_size": hdbscan_min_cluster_size,
+                    "hdbscan_min_samples": hdbscan_min_samples,
+                    "hdbscan_cluster_selection_method": hdbscan_cluster_selection_method,
+                    "top_k_clusters": selected_top_k_clusters,
                 },
             )
-        episode_clusters = _cluster_episode_groups(
+        episode_clusters, episode_all_clusters_by_score = _cluster_episode_groups(
             video_id=video_id,
             groups=groups,
             vectors=vectors,
+            cluster_method=cluster_method,
             similarity_threshold=similarity_threshold,
             min_cluster_comment_count=min_cluster_comment_count,
+            hdbscan_min_cluster_size=hdbscan_min_cluster_size,
+            hdbscan_min_samples=hdbscan_min_samples,
+            hdbscan_cluster_selection_method=hdbscan_cluster_selection_method,
             peak_window_sec=peak_window_sec,
-            max_clusters_per_episode=max_clusters_per_episode,
+            top_k_clusters=selected_top_k_clusters,
+            representative_comment_count=representative_comment_count,
         )
+        raw_cluster_count += len(episode_all_clusters_by_score)
         clusters.extend(episode_clusters)
+        all_clusters_by_score.extend(episode_all_clusters_by_score)
         if progress_callback is not None:
             progress_callback(
                 "clustering_done",
@@ -360,16 +510,34 @@ def cluster_danmaku_semantics_from_csv(
             },
         )
 
+    all_clusters_by_score = sorted(
+        all_clusters_by_score,
+        key=lambda cluster: (
+            -float(cluster["clusterScore"]),
+            -int(cluster["commentCount"]),
+            float(cluster["peakIntervals"][0]["startTime"]) if cluster.get("peakIntervals") else 0.0,
+            str(cluster["clusterId"]),
+        ),
+    )
+    for index, cluster in enumerate(all_clusters_by_score, start=1):
+        cluster["scoreRank"] = index
+
     return {
         "createdAt": now_iso(),
         "sourceCsv": str(csv_path),
         "parameters": {
             "seriesId": series_id,
             "episodeId": episode_id,
+            "clusterMethod": cluster_method,
             "similarityThreshold": similarity_threshold,
             "minClusterCommentCount": min_cluster_comment_count,
             "peakWindowSec": peak_window_sec,
             "maxClustersPerEpisode": max_clusters_per_episode,
+            "topKClusters": selected_top_k_clusters,
+            "representativeCommentCount": representative_comment_count,
+            "hdbscanMinClusterSize": hdbscan_min_cluster_size,
+            "hdbscanMinSamples": hdbscan_min_samples,
+            "hdbscanClusterSelectionMethod": hdbscan_cluster_selection_method,
         },
         "diagnostics": {
             "encoding": diagnostics.get("encoding"),
@@ -378,10 +546,13 @@ def cluster_danmaku_semantics_from_csv(
             "skippedRowCount": diagnostics.get("skipped_row_count", 0),
             "skippedReasons": diagnostics.get("skipped_reasons", {}),
             "filteredCommentCount": len(filtered_items),
+            "rawClusterCount": raw_cluster_count,
             "embeddingCalls": embedding_calls,
         },
         "episodeCount": len(items_by_video),
         "clusterCount": len(clusters),
+        "topClusters": clusters,
+        "allClustersByScore": all_clusters_by_score,
         "clusters": clusters,
     }
 

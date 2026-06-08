@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import sys
-from typing import Any, Sequence
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -11,7 +12,6 @@ if __package__ is None or __package__ == "":
 from pipelines.client.embedding import CachedEmbeddingClient, OpenAICompatibleEmbeddingClient, OpenRouterEmbeddingClient
 from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv, write_semantic_clusters_output
 from scripts.transcription.env import load_dotenv_values
-
 
 DEFAULT_CSV_PATH = Path("data/圈选剧前5集弹幕.csv")
 DEFAULT_OUTPUT_PATH = Path("output/danmaku_exploration/semantic_clusters.json")
@@ -25,10 +25,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--series-id", help="Only process one series id, for example beiwang.")
     parser.add_argument("--episode-id", help="Only process one episode id, for example ep01.")
+    parser.add_argument("--cluster-method", choices=["hdbscan", "connected_components"], default="hdbscan")
     parser.add_argument("--similarity-threshold", type=float, default=0.82)
     parser.add_argument("--min-cluster-comment-count", type=int, default=3)
     parser.add_argument("--peak-window-sec", type=float, default=8.0)
     parser.add_argument("--max-clusters-per-episode", type=int, default=20)
+    parser.add_argument("--top-k-clusters", type=int, default=3)
+    parser.add_argument("--representative-comment-count", type=int, default=5)
+    parser.add_argument("--hdbscan-min-cluster-size", type=int, default=5)
+    parser.add_argument("--hdbscan-min-samples", type=int, default=3)
+    parser.add_argument("--hdbscan-cluster-selection-method", choices=["eom", "leaf"], default="eom")
     parser.add_argument("--embedding-base-url", help="OpenAI-compatible embeddings endpoint base URL.")
     parser.add_argument("--embedding-api-key", help="Embeddings API key.")
     parser.add_argument("--embedding-model", help="Embedding model name, for example baai/bge-m3.")
@@ -128,10 +134,20 @@ def print_semantic_clustering_progress(event: str, payload: dict[str, Any]) -> N
         print(f"[{payload.get('video_id')}] embedding_done: vectors={payload.get('vector_count', 0)}{token_text}", flush=True)
         return
     if event == "clustering_start":
+        method = payload.get("cluster_method")
+        if method == "hdbscan":
+            detail = (
+                f"method=hdbscan "
+                f"min_cluster_size={payload.get('hdbscan_min_cluster_size')} "
+                f"min_samples={payload.get('hdbscan_min_samples')} "
+                f"top_k={payload.get('top_k_clusters')}"
+            )
+        else:
+            detail = f"method=connected_components threshold={payload.get('similarity_threshold')}"
         print(
             f"[{payload.get('video_id')}] clustering_start: "
             f"vectors={payload.get('vector_count', 0)} "
-            f"threshold={payload.get('similarity_threshold')}",
+            f"{detail}",
             flush=True,
         )
         return
@@ -152,10 +168,16 @@ def main(argv: Sequence[str] | None = None, *, embedding_client: Any | None = No
         embedding_client=active_client,
         series_id=args.series_id,
         episode_id=args.episode_id,
+        cluster_method=args.cluster_method,
         similarity_threshold=args.similarity_threshold,
         min_cluster_comment_count=args.min_cluster_comment_count,
         peak_window_sec=args.peak_window_sec,
         max_clusters_per_episode=args.max_clusters_per_episode,
+        top_k_clusters=args.top_k_clusters,
+        representative_comment_count=args.representative_comment_count,
+        hdbscan_min_cluster_size=args.hdbscan_min_cluster_size,
+        hdbscan_min_samples=args.hdbscan_min_samples,
+        hdbscan_cluster_selection_method=args.hdbscan_cluster_selection_method,
         progress_callback=print_semantic_clustering_progress,
     )
     write_semantic_clusters_output(output_path=args.output_path, payload=payload)

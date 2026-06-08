@@ -21,6 +21,16 @@ class FakeEmbeddingClient:
         return vectors
 
 
+class CoordinateEmbeddingClient:
+    def __init__(self, vectors_by_text: dict[str, list[float]]) -> None:
+        self.vectors_by_text = vectors_by_text
+        self.calls: list[list[str]] = []
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
+        return [self.vectors_by_text[text] for text in texts]
+
+
 def write_semantic_cluster_csv(path: Path) -> None:
     path.write_text(
         "\n".join(
@@ -62,6 +72,7 @@ def test_cluster_episode_danmaku_groups_semantic_texts_and_peak_intervals(tmp_pa
         embedding_client=fake_client,
         series_id="beiwang",
         episode_id="ep01",
+        cluster_method="connected_components",
         similarity_threshold=0.8,
         min_cluster_comment_count=2,
         peak_window_sec=5.0,
@@ -140,6 +151,7 @@ def test_cluster_episode_selects_strong_clusters_before_time_order(tmp_path: Pat
         embedding_client=StrengthFakeEmbeddingClient(),
         series_id="beiwang",
         episode_id="ep01",
+        cluster_method="connected_components",
         similarity_threshold=0.8,
         min_cluster_comment_count=2,
         max_clusters_per_episode=1,
@@ -148,6 +160,71 @@ def test_cluster_episode_selects_strong_clusters_before_time_order(tmp_path: Pat
     assert result["clusterCount"] == 1
     assert result["clusters"][0]["commentCount"] == 8
     assert result["clusters"][0]["peakIntervals"][0]["startTime"] == 70.0
+
+
+def test_hdbscan_scores_top_clusters_and_selects_representative_comments(tmp_path: Path) -> None:
+    from pipelines.danmaku_semantic_clustering import cluster_danmaku_semantics_from_csv
+
+    csv_path = tmp_path / "圈选剧前5集弹幕.csv"
+    rows = ["剧名称,group_title,发弹幕时刻相对于视频起始时间偏移量,累计点赞数,弹幕内容"]
+    rows.extend(
+        [
+            "北往,第1集,10000,4,男主眼神太帅了",
+            "北往,第1集,10800,2,这个眼神好帅",
+            "北往,第1集,11600,1,老公这个眼神绝了",
+            "北往,第1集,70000,1,女主终于怼回去了",
+            "北往,第1集,70800,1,她这句太争气了",
+            "北往,第1集,71600,1,终于反击了",
+            "北往,第1集,90000,10,孤立高赞一句",
+            "北往,第1集,91000,0,孤立高赞另一句",
+        ]
+    )
+    csv_path.write_text("\n".join(rows) + "\n", encoding="gb18030")
+    embedding_client = CoordinateEmbeddingClient(
+        {
+            "男主眼神太帅了": [1.0, 0.0],
+            "这个眼神好帅": [0.99, 0.01],
+            "老公这个眼神绝了": [0.98, 0.02],
+            "女主终于怼回去了": [0.0, 1.0],
+            "她这句太争气了": [0.01, 0.99],
+            "终于反击了": [0.02, 0.98],
+            "孤立高赞一句": [-1.0, 0.0],
+            "孤立高赞另一句": [-0.99, 0.01],
+        }
+    )
+
+    result = cluster_danmaku_semantics_from_csv(
+        csv_path,
+        embedding_client=embedding_client,
+        series_id="beiwang",
+        episode_id="ep01",
+        cluster_method="hdbscan",
+        hdbscan_min_cluster_size=3,
+        hdbscan_min_samples=1,
+        top_k_clusters=1,
+        representative_comment_count=2,
+    )
+
+    assert result["parameters"]["clusterMethod"] == "hdbscan"
+    assert result["parameters"]["topKClusters"] == 1
+    assert result["diagnostics"]["rawClusterCount"] == 2
+    assert result["clusterCount"] == 1
+    assert result["topClusters"] == result["clusters"]
+    assert len(result["allClustersByScore"]) == 2
+    assert result["allClustersByScore"][0]["clusterScore"] >= result["allClustersByScore"][1]["clusterScore"]
+
+    cluster = result["clusters"][0]
+    assert cluster["commentCount"] == 3
+    assert cluster["clusterScore"] > 0
+    assert cluster["scoreBreakdown"]["commentCount"] == 3
+    assert len(cluster["representativeComments"]) == 2
+    assert cluster["representativeComments"][0]["text"] == "这个眼神好帅"
+    assert cluster["representativeComments"][0]["distanceToCentroid"] < cluster["representativeComments"][1]["distanceToCentroid"]
+    assert {example["text"] for example in cluster["examples"]} == {
+        "男主眼神太帅了",
+        "这个眼神好帅",
+        "老公这个眼神绝了",
+    }
 
 
 def test_danmaku_semantic_clustering_cli_writes_artifact(tmp_path: Path) -> None:
@@ -168,6 +245,8 @@ def test_danmaku_semantic_clustering_cli_writes_artifact(tmp_path: Path) -> None
             "beiwang",
             "--episode-id",
             "ep01",
+            "--cluster-method",
+            "connected_components",
             "--min-cluster-comment-count",
             "2",
         ],
@@ -198,6 +277,8 @@ def test_danmaku_semantic_clustering_cli_prints_progress(tmp_path: Path, capsys)
             "beiwang",
             "--episode-id",
             "ep01",
+            "--cluster-method",
+            "connected_components",
             "--min-cluster-comment-count",
             "2",
         ],
@@ -210,7 +291,7 @@ def test_danmaku_semantic_clustering_cli_prints_progress(tmp_path: Path, capsys)
     assert "[beiwang_ep01] episode_start: comments=7 expression_groups=6" in captured.out
     assert "[beiwang_ep01] embedding_start: expression_groups=6" in captured.out
     assert "[beiwang_ep01] embedding_done: vectors=6" in captured.out
-    assert "[beiwang_ep01] clustering_start: vectors=6 threshold=0.82" in captured.out
+    assert "[beiwang_ep01] clustering_start: vectors=6 method=connected_components threshold=0.82" in captured.out
     assert "[beiwang_ep01] clustering_done: clusters=2" in captured.out
     assert "completed: episodes=1 clusters=2" in captured.out
 
