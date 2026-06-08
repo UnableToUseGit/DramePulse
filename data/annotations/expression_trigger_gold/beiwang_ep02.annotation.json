@@ -1,0 +1,27 @@
+{
+  "video_id": "beiwang_ep02",
+  "series_id": "beiwang",
+  "video_path": "/api/episodes/beiwang_ep02/video",
+  "subtitle_path": "/api/episodes/beiwang_ep02/subtitle",
+  "source_json_path": "/api/episodes/beiwang_ep02/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_beiwang_ep02_001",
+      "cue_time": 34.331,
+      "primary_expression": "笑死",
+      "reason": "男主向男二说明了自己的北往回家过年计划，男二说了句俏皮话，很好笑"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep02_002",
+      "cue_time": 86.199,
+      "primary_expression": "笑死",
+      "reason": "两人上路后，两人刚立了 flag，说就算有人自杀都不敢，结果就遇到一个女的要跳河，男主说不管他，结果下一秒就说，下车，人命啊。"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep02_003",
+      "cue_time": 117.839,
+      "primary_expression": "笑死",
+      "reason": "男二劝说要自杀的女人，说想想你老公和你朋友，女人说就是我老公和我闺蜜出轨了，笑点拉满"
+    }
+  ]
+}

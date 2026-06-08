@@ -1,0 +1,50 @@
+{
+  "video_id": "nanian_dongzhi_ep02",
+  "duration_seconds": 196.24,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 54.4,
+      "ending_chapter_summary": "男女主调情了一会，感情升温"
+    },
+    {
+      "time": 71.7,
+      "ending_chapter_summary": "一段20秒的拍摄交代男女主亲吻调情后各自的反应"
+    },
+    {
+      "time": 163.4,
+      "ending_chapter_summary": "一段过渡镜头后，进入到这一集的主要情节，女主和婆婆，嫂子见面，期间嫂子的女儿对女主出言不逊，婆婆🦶女主反击"
+    }
+  ],
+  "final_chapter_summary": "女主听到嫂子女儿说男主喜欢许黛青后，进入一段回忆的剧情，剧情内容是男主的高中时期和许黛青恋爱",
+  "chapters": [
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep02_001",
+      "video_id": "nanian_dongzhi_ep02",
+      "start_time": 0.0,
+      "end_time": 54.4,
+      "summary": "男女主调情了一会，感情升温"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep02_002",
+      "video_id": "nanian_dongzhi_ep02",
+      "start_time": 54.4,
+      "end_time": 71.7,
+      "summary": "一段20秒的拍摄交代男女主亲吻调情后各自的反应"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep02_003",
+      "video_id": "nanian_dongzhi_ep02",
+      "start_time": 71.7,
+      "end_time": 163.4,
+      "summary": "一段过渡镜头后，进入到这一集的主要情节，女主和婆婆，嫂子见面，期间嫂子的女儿对女主出言不逊，婆婆🦶女主反击"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep02_004",
+      "video_id": "nanian_dongzhi_ep02",
+      "start_time": 163.4,
+      "end_time": 196.24,
+      "summary": "女主听到嫂子女儿说男主喜欢许黛青后，进入一段回忆的剧情，剧情内容是男主的高中时期和许黛青恋爱"
+    }
+  ]
+}

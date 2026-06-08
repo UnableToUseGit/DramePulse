@@ -76,35 +76,41 @@ ARK_API_KEY=你的 API Key
 ARK_MODEL=Doubao-Seed-2.0-pro
 ```
 
-运行高光点识别：
+当前保留三条算法线：
+
+- Expression Trigger：识别前端四按钮触发点；
+- Story Chapter：生成剧情章节划分；
+- Inner Voice Danmaku：生成心里话弹幕候选。
+
+运行 Expression Trigger 主链路：
 
 ```bash
-python scripts/run_highlight_recognition.py case1_ep01
+python scripts/expression_trigger/run_workflow_batch.py --video-id case1_ep01 --force
 ```
 
-运行交互方案生成：
+运行 Expression Trigger baseline：
 
 ```bash
-python scripts/run_interaction_plan_generation.py case1_ep01
+python scripts/expression_trigger/run_mllm_baseline_batch.py --video-id case1_ep01 --force
+python scripts/expression_trigger/run_text_baseline_batch.py --video-id case1_ep01 --force
 ```
 
-默认输出目录为：
+运行 Story Chapter baseline：
 
-```text
-output/case1_ep01/highlight_recognition.json
-output/case1_ep01/interaction_plan_generation.json
+```bash
+python scripts/story_chapter/run_text.py case1_ep01
+python scripts/story_chapter/run_mllm.py case1_ep01
 ```
 
-仓库中也保留了一份可查看的样例输出：
+Expression Trigger 默认输出仍写入每集目录下的兼容文件名：
 
 ```text
-example_output/case1_ep01/
+highlight_recognition.json
 ```
 
 更多模块设计说明见：
 
-- `docs/develop-docs/module-designs/highlight-recognition.md`
-- `docs/develop-docs/module-designs/interaction-plan-generation.md`
+- `docs/develop-docs/status/algorithm-validation-current-status.md`
 - `docs/develop-docs/module-designs/mobile-player-demo.md`
 - `docs/develop-docs/status/current-implementation.md`
 

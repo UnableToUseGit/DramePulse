@@ -1,0 +1,27 @@
+{
+  "video_id": "naniandongzhi_ep02",
+  "series_id": "naniandongzhi",
+  "video_path": "/api/episodes/naniandongzhi_ep02/video",
+  "subtitle_path": "/api/episodes/naniandongzhi_ep02/subtitle",
+  "source_json_path": "/api/episodes/naniandongzhi_ep02/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_naniandongzhi_ep02_001",
+      "cue_time": 30.611,
+      "primary_expression": "笑死",
+      "reason": "女主调戏男主说“我就是亲了你一下，你怎么这么大反应，该不会是没经验吧”，好笑"
+    },
+    {
+      "annotation_id": "gold_naniandongzhi_ep02_002",
+      "cue_time": 63.566,
+      "primary_expression": "笑死",
+      "reason": "女主调戏完男主回到房间，说“刚才我亲了他，就算他一年后要死了，我也赚了”"
+    },
+    {
+      "annotation_id": "gold_naniandongzhi_ep02_003",
+      "cue_time": 139.071,
+      "primary_expression": "爽到了",
+      "reason": "女主的小外甥怼女主，说他是冲着钱来的，结果女主的婆婆反击说“谁不喜欢钱啊，你不喜欢吗”"
+    }
+  ]
+}

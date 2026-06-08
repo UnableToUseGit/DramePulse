@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipelines.story_chapter_generation import (
+from pipelines.story_chapter.baseline_text import (
     StoryChapterPipeline,
     Utterance,
     build_system_prompt,
@@ -27,6 +27,11 @@ class FakeTextLlmClient:
 
 
 class StoryChapterGenerationTest(unittest.TestCase):
+    def test_story_chapter_text_baseline_imports_from_new_package(self) -> None:
+        from pipelines.story_chapter.baseline_text import StoryChapterPipeline
+
+        self.assertIsNotNone(StoryChapterPipeline)
+
     def test_build_system_prompt_sets_role_and_json_boundary(self) -> None:
         prompt = build_system_prompt()
 

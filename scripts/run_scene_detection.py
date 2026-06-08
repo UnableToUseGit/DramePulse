@@ -108,18 +108,24 @@ def detect_video(
     video: LocalVideo,
     *,
     output_root: Path,
+    output_dir: Path | None = None,
     threshold: float,
     min_scene_len: int,
     show_progress: bool,
+    split_segments: bool = True,
     detect_scenes: DetectScenes = run_pyscenedetect,
     split_scenes: SplitScenes = split_video_segments,
 ) -> Path:
-    video_output_dir = output_root / video.video_id
+    video_output_dir = output_dir if output_dir is not None else output_root / video.video_id
     scenes_output_dir = video_output_dir / "scenes"
     video_output_dir.mkdir(parents=True, exist_ok=True)
 
     scenes = list(detect_scenes(video.video_path, threshold, min_scene_len, show_progress))
-    clip_paths = split_scenes(video.video_path, scenes, scenes_output_dir, video.video_id, show_progress)
+    clip_paths = (
+        split_scenes(video.video_path, scenes, scenes_output_dir, video.video_id, show_progress)
+        if split_segments
+        else []
+    )
 
     payload = {
         "video_id": video.video_id,
@@ -144,9 +150,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("video_path", type=Path, help="Path to the local video file.")
     parser.add_argument("--video-id", help="Output video_id. Defaults to the video file stem.")
     parser.add_argument("--output-root", type=Path, default=Path("output"), help="Directory for scene detection outputs.")
+    parser.add_argument("--output-dir", type=Path, default=None, help="Exact directory for scene_detection.json. Overrides --output-root.")
     parser.add_argument("--threshold", type=float, default=27.0, help="PySceneDetect ContentDetector threshold.")
     parser.add_argument("--min-scene-len", type=int, default=15, help="Minimum scene length in frames.")
     parser.add_argument("--show-progress", action="store_true", help="Show PySceneDetect/ffmpeg progress bars.")
+    parser.add_argument("--no-split-scenes", action="store_true", help="Only write scene_detection.json; do not export scene mp4 clips.")
     return parser
 
 
@@ -156,9 +164,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     output_path = detect_video(
         video,
         output_root=args.output_root,
+        output_dir=args.output_dir,
         threshold=args.threshold,
         min_scene_len=args.min_scene_len,
         show_progress=args.show_progress,
+        split_segments=not args.no_split_scenes,
     )
     print(f"Wrote scene detection for {video.video_id}: {output_path}")
     return 0

@@ -1,0 +1,39 @@
+{
+  "video_id": "tianxia_diyi_wanku_ep01",
+  "duration_seconds": 308.98,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 84.2,
+      "ending_chapter_summary": "皇帝和大臣在青楼袒露对比武招亲的担忧，谈论的后期叫如烟姑娘来快活了一下"
+    },
+    {
+      "time": 224.9,
+      "ending_chapter_summary": "男主初登场，看起来非常纨绔，皇帝震怒表露担忧"
+    }
+  ],
+  "final_chapter_summary": "蛮人大街上欺负老百姓，皇帝的保镖前去解决，1结果被男主暗中一招秒杀",
+  "chapters": [
+    {
+      "chapter_id": "gold_tianxia_diyi_wanku_ep01_001",
+      "video_id": "tianxia_diyi_wanku_ep01",
+      "start_time": 0.0,
+      "end_time": 84.2,
+      "summary": "皇帝和大臣在青楼袒露对比武招亲的担忧，谈论的后期叫如烟姑娘来快活了一下"
+    },
+    {
+      "chapter_id": "gold_tianxia_diyi_wanku_ep01_002",
+      "video_id": "tianxia_diyi_wanku_ep01",
+      "start_time": 84.2,
+      "end_time": 224.9,
+      "summary": "男主初登场，看起来非常纨绔，皇帝震怒表露担忧"
+    },
+    {
+      "chapter_id": "gold_tianxia_diyi_wanku_ep01_003",
+      "video_id": "tianxia_diyi_wanku_ep01",
+      "start_time": 224.9,
+      "end_time": 308.98,
+      "summary": "蛮人大街上欺负老百姓，皇帝的保镖前去解决，1结果被男主暗中一招秒杀"
+    }
+  ]
+}

@@ -10,8 +10,8 @@ from typing import Sequence
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from pipelines.story_chapter_generation_multimodal import build_frame_timestamps
-from pipelines.utils import extract_frames_at_timestamps, probe_video_duration_seconds
+from pipelines.common import extract_frames_at_timestamps, probe_video_duration_seconds
+from pipelines.story_chapter.baseline_mllm import build_frame_timestamps
 
 try:  # pragma: no cover
     import cv2  # type: ignore

@@ -1,0 +1,21 @@
+{
+  "video_id": "jialijiawai_ep01",
+  "series_id": "jialijiawai",
+  "video_path": "/api/episodes/jialijiawai_ep01/video",
+  "subtitle_path": "/api/episodes/jialijiawai_ep01/subtitle",
+  "source_json_path": "/api/episodes/jialijiawai_ep01/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_jialijiawai_ep01_001",
+      "cue_time": 67.979,
+      "primary_expression": "笑死",
+      "reason": "女主要带着医生去救治受伤严重的人，结果领导在这头破皮了一点就要医生留下给他治，还说“万一感染了毒素进到脑子里怎么办”，语言夸张，女主起的用口水沾满双手去给领导“消毒”。这一部分明显是个笑点。"
+    },
+    {
+      "annotation_id": "gold_jialijiawai_ep01_002",
+      "cue_time": 118.505,
+      "primary_expression": "爽到了",
+      "reason": "女主走了之后，那个领导追出来说要处分女主，男主看到后，指着领导说，年底的评优不用来了。也就是说男主提女主出气了"
+    }
+  ]
+}

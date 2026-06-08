@@ -5,8 +5,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from pipelines.story_chapter_generation import Utterance
-from pipelines.story_chapter_generation_multimodal import (
+from pipelines.story_chapter.baseline_text import Utterance
+from pipelines.story_chapter.baseline_mllm import (
     StoryChapterMultimodalPipeline,
     build_frame_timestamps,
     build_multimodal_user_prompt,
@@ -40,6 +40,11 @@ class FakeMultimodalClient:
 
 
 class StoryChapterGenerationMultimodalTest(unittest.TestCase):
+    def test_story_chapter_mllm_baseline_imports_from_new_package(self) -> None:
+        from pipelines.story_chapter.baseline_mllm import StoryChapterMultimodalPipeline
+
+        self.assertIsNotNone(StoryChapterMultimodalPipeline)
+
     def test_build_frame_timestamps_uses_one_frame_per_second(self) -> None:
         self.assertEqual(build_frame_timestamps(3.2), [0.0, 1.0, 2.0, 3.0])
 

@@ -1,0 +1,28 @@
+{
+  "video_id": "tianxia_diyi_wanku_ep02",
+  "duration_seconds": 75.46,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 30.1,
+      "ending_chapter_summary": "皇帝保镖回去汇报，说敌人被神秘高手一招秒杀，但是不知道是谁，众人开始讨论"
+    }
+  ],
+  "final_chapter_summary": "皇帝让保镖去调查一下现在朝廷里有没有什么可用之才",
+  "chapters": [
+    {
+      "chapter_id": "gold_tianxia_diyi_wanku_ep02_001",
+      "video_id": "tianxia_diyi_wanku_ep02",
+      "start_time": 0.0,
+      "end_time": 30.1,
+      "summary": "皇帝保镖回去汇报，说敌人被神秘高手一招秒杀，但是不知道是谁，众人开始讨论"
+    },
+    {
+      "chapter_id": "gold_tianxia_diyi_wanku_ep02_002",
+      "video_id": "tianxia_diyi_wanku_ep02",
+      "start_time": 30.1,
+      "end_time": 75.46,
+      "summary": "皇帝让保镖去调查一下现在朝廷里有没有什么可用之才"
+    }
+  ]
+}

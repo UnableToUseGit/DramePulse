@@ -160,3 +160,5 @@ apps/player-demo/node_modules/
 .env
 __pycache__/
 *.pyc
+
+圈选剧前5集弹幕.csv

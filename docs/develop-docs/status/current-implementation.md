@@ -140,65 +140,57 @@ npm start
 
 ## 4. 算法 Pipeline
 
-脚本入口：
+当前算法侧保留三条主要实现线：
+
+```text
+pipelines/expression_trigger/
+pipelines/story_chapter/
+pipelines/inner_voice_danmaku/
+```
+
+旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger workflow 当前写出干净资产 `expression_triggers.json` 和调试产物 `expression_triggers.debug.json`；旧 baseline 脚本仍可能写出 `highlight_recognition.json`，评估和复核工具会优先读取新资产并兼容旧文件名。
+
+当前脚本入口：
 
 ```text
 scripts/transcribe_video.py
-scripts/run_highlight_recognition.py
-scripts/run_interaction_plan_generation.py
-```
-
-核心实现：
-
-```text
-pipelines/highlight_recognition.py
-pipelines/interaction_plan_generation.py
-pipelines/client.py
-```
-
-样例链路：
-
-```text
-data/case1/ep01.mp4
-data/case1/ep01.srt
-data/case1/ep01.json
-  ↓
-python scripts/run_highlight_recognition.py case1_ep01
-  ↓
-output/case1_ep01/highlight_recognition.json
-  ↓
-python scripts/run_interaction_plan_generation.py case1_ep01
-  ↓
-output/case1_ep01/interaction_plan_generation.json
+scripts/expression_trigger/run_workflow_batch.py
+scripts/expression_trigger/run_mllm_baseline_batch.py
+scripts/expression_trigger/run_text_baseline_batch.py
+scripts/expression_trigger/run_interaction_plan_batch.py
+scripts/story_chapter/run_text.py
+scripts/story_chapter/run_text_batch.py
+scripts/story_chapter/run_mllm.py
+scripts/story_chapter/run_mllm_batch.py
+scripts/story_chapter/run_subtitle_scene_aligned.py
+scripts/story_chapter/run_subtitle_scene_aligned_batch.py
+scripts/story_chapter/evaluate_workflow.py
+scripts/story_chapter/viewer_server.py
+scripts/inner_voice_danmaku/run_batch.py
+scripts/inner_voice_danmaku/semantic_clustering.py
+scripts/inner_voice_danmaku/select_candidates.py
+scripts/inner_voice_danmaku/build_interaction_plan.py
 ```
 
 当前能力：
 
-- 高光点识别使用字幕、多图理解和 LLM 结构化输出；
-- 互动方案生成消费 `Highlight Asset`、字幕窗口、关键帧和弹幕上下文；
-- 当前互动方案生成以 `danmaku_poll` 为主；
-- 生成失败时有 fallback 模板；
-- 剧情导航章节生成支持 text-only baseline 和 multimodal 高成本版本；
-- 剧情导航验证 viewer 可用于播放视频、对照 scene 边界和 story chapter 边界；
-- 样例输出保存在 `example_output/case1_ep01/`。
+- Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核，输出前端可消费的表达触发资产；
+- Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕和稀疏视频帧生成语义章节草稿，再对相邻章节边界单独调用 MLLM 复核；
+- Inner Voice Danmaku pipeline 支持从真实弹幕 CSV 做语义聚类、候选筛选，并生成心里话弹幕互动方案；
+- 剧情导航验证 viewer 位于 `apps/story-chapter-viewer/`，由 `scripts/story_chapter/viewer_server.py` 提供数据和视频服务，支持查看算法生成章节并标注人工 gold chapter boundary；
+- 算法复核工具位于 `apps/algorithm-review-tool/`，用于对照 Expression Trigger 结果和人工标注；
+- 字幕密度工具位于 `apps/subtitle-density-tool/`，用于辅助检查低台词密度视觉窗口。
 
-剧情导航章节生成入口：
+当前产物约定：
 
-```text
-scripts/run_story_chapter_generation.py
-scripts/run_story_chapter_generation_batch.py
-scripts/run_story_chapter_generation_multimodal.py
-scripts/run_story_chapter_generation_multimodal_batch.py
-scripts/story_chapter_viewer_server.py
-```
-
-剧情导航章节生成的当前实现与验证结论见：
-
-- `docs/develop-docs/module-designs/story-chapter-generation.md`
+- `story_chapters.json`：干净最终产物，用于上传或被前端/评估脚本消费；
+- `story_chapters.debug.json`：完整诊断产物，保留字幕、场景、抽帧、MLLM raw response 和 warnings；
+- `expression_triggers.json`：干净最终产物，用于上传或被播放器/评估脚本消费；
+- `expression_triggers.debug.json`：完整诊断产物，保留 LLM 调用诊断、候选点、复核决策和 legacy `highlight_assets` 兼容转换结果。
 
 运行前提：
 
-- `.env` 中配置 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL`；
+- `.env` 中配置 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL`；也可通过 `LLM_PROVIDER=openai` 切换 OpenAI 兼容 client；
 - `data/case1/ep01.srt` 和 `data/case1/ep01.json` 已在仓库中；
 - `data/case1/ep01.mp4` 如不存在，需要从本地样例视频或外部数据源补齐。
 
