@@ -177,7 +177,7 @@ class StoryChapterSubtitleSceneAlignedScriptTest(unittest.TestCase):
         self.assertEqual(summary["succeeded"], 1)
         self.assertEqual(summary["failed"], 0)
 
-    def test_batch_discovery_falls_back_when_scene_detection_video_id_is_generic_video(self) -> None:
+    def test_batch_discovery_uses_series_episode_video_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             dataset_root = Path(tmpdir) / "dataset"
             for episode_id in ("ep04", "ep05"):
@@ -186,7 +186,7 @@ class StoryChapterSubtitleSceneAlignedScriptTest(unittest.TestCase):
                 (episode_dir / "video.mp4").write_bytes(b"video")
                 (episode_dir / "video.transcription.json").write_text("{}", encoding="utf-8")
                 (episode_dir / "scene_detection.json").write_text(
-                    json.dumps({"video_id": "video", "scenes": [{"start_time": 0.0, "end_time": 9.25}]}),
+                    json.dumps({"video_id": "scene_detection_video_id", "scenes": [{"start_time": 0.0, "end_time": 9.25}]}),
                     encoding="utf-8",
                 )
 

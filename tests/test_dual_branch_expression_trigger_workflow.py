@@ -117,25 +117,27 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
                 "triggerability_decisions": [
                     {
                         "candidate_id": "plot_demo_ep01_001",
-                        "decision": "keep",
                         "expression_type": "爽点",
-                        "importance_score": 0.92,
-                        "start_time": 10.0,
-                        "end_time": 22.0,
-                        "trigger_time": 20.2,
+                        "rubric_scores": {
+                            "semantic_fit": 2,
+                            "emotional_release": 2,
+                            "viewer_impulse": 2,
+                            "type_specific": 2,
+                        },
+                        "disqualifier": "",
                         "reason": "掀桌反击，爽感明确。",
-                        "rank_reason": "强爽点。",
                     },
                     {
                         "candidate_id": "punchline_demo_ep01_001",
-                        "decision": "keep",
                         "expression_type": "笑点",
-                        "importance_score": 0.81,
-                        "start_time": 58.0,
-                        "end_time": 64.0,
-                        "trigger_time": 62.2,
+                        "rubric_scores": {
+                            "semantic_fit": 2,
+                            "emotional_release": 2,
+                            "viewer_impulse": 2,
+                            "type_specific": 2,
+                        },
+                        "disqualifier": "",
                         "reason": "包袱落地。",
-                        "rank_reason": "清晰笑点。",
                     },
                 ]
             },
@@ -156,7 +158,7 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
     assert len(result.expression_candidates) == 2
     assert len(result.triggerability_decisions) == 2
     assert [trigger["expression_type"] for trigger in result.expression_triggers] == ["爽点", "笑点"]
-    assert [trigger["trigger_time"] for trigger in result.expression_triggers] == [20.2, 62.2]
+    assert [trigger["trigger_time"] for trigger in result.expression_triggers] == [22.0, 64.0]
     assert result.resonance_cues == []
     assert len(llm.calls) == 3
     assert "plot beat annotator" in llm.calls[0]["system_prompt"]
@@ -172,4 +174,11 @@ def test_dual_branch_workflow_runs_three_llm_stages(tmp_path: Path, monkeypatch:
     assert "punchline_text" in llm.calls[1]["user_prompt"]
     assert "expression-trigger" not in llm.calls[1]["user_prompt"]
     assert "triggerability judge" in llm.calls[2]["system_prompt"]
+    assert "choose final timing" not in llm.calls[2]["system_prompt"]
     assert "Triggerability Judge" in llm.calls[2]["user_prompt"]
+    assert "Do not output or adjust timing fields" in llm.calls[2]["user_prompt"]
+    assert "Each decision must contain exactly these keys: `candidate_id`, `expression_type`, `rubric_scores`, `disqualifier`, `reason`." in llm.calls[2]["user_prompt"]
+    assert "`start_time`" not in llm.calls[2]["user_prompt"]
+    assert "`end_time`" not in llm.calls[2]["user_prompt"]
+    assert "`trigger_time`" not in llm.calls[2]["user_prompt"]
+    assert "timing_clarity" not in llm.calls[2]["user_prompt"]

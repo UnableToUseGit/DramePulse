@@ -42,7 +42,7 @@ class StoryChapterGenerationMultimodalBatchScriptTest(unittest.TestCase):
             inputs = discover_multimodal_inputs(root)
 
         self.assertEqual(len(inputs), 1)
-        self.assertEqual(inputs[0].video_id, "scene_video_id")
+        self.assertEqual(inputs[0].video_id, "demo_series_ep01")
         self.assertEqual(inputs[0].video_path, episode_dir / "video.mp4")
 
     def test_main_runs_pipeline_and_writes_summary(self) -> None:

@@ -41,7 +41,7 @@ class StoryChapterGenerationBatchScriptTest(unittest.TestCase):
             inputs = discover_story_chapter_inputs(root)
 
         self.assertEqual(len(inputs), 1)
-        self.assertEqual(inputs[0].video_id, "scene_video_id")
+        self.assertEqual(inputs[0].video_id, "demo_series_ep01")
         self.assertEqual(inputs[0].series_slug, "demo_series")
         self.assertEqual(inputs[0].episode_slug, "ep01")
 

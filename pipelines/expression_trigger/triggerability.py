@@ -7,6 +7,14 @@ from pipelines.expression_trigger.baseline_mllm import _clean_text, _round_time
 
 
 SUPPORTED_FINAL_EXPRESSIONS = {"爽点", "甜点", "泪点", "笑点"}
+RUBRIC_SCORE_KEYS = (
+    "semantic_fit",
+    "emotional_release",
+    "viewer_impulse",
+    "type_specific",
+)
+MAX_TOTAL_SCORE = len(RUBRIC_SCORE_KEYS) * 2
+MIN_TOTAL_SCORE_TO_KEEP = 7
 
 
 def build_triggerability_prompt(
@@ -23,13 +31,12 @@ def build_triggerability_prompt(
         [
             "## TASK",
             "You are the Triggerability Judge of a dual-branch expression-trigger pipeline.",
-            "Decide which candidates can become final player expression triggers.",
-            "You must judge semantic triggerability, final expression type, importance ranking, and timing refinement.",
+            "Score every candidate with a fixed rubric for player expression trigger suitability.",
+            "Do not decide keep/reject and do not rank or perform top-k selection. Downstream code will do that deterministically.",
             "",
             "## INPUT",
             f"VIDEO_ID: {video_id}",
             f"VIDEO_DURATION_SECONDS: {video_duration_seconds:.3f}",
-            f"SELECTION_LIMITS: top_k={top_k}, min_gap_seconds={min_gap_seconds:.3f}",
             "",
             "## FINAL_EXPRESSIONS",
             "- 爽点: a hated antagonist, bully, oppressor, or unfair side first hurts/humiliates/suppresses the protagonist or sympathetic side, then gets counterattacked, exposed, face-slapped, punished, loses power, or publicly eats the loss.",
@@ -38,37 +45,45 @@ def build_triggerability_prompt(
             "- 笑点: a clear comedic mechanism such as punchline, comic reveal, comic reversal, awkward misunderstanding, absurd wording/action, or sharp teasing.",
             "",
             "## RULES",
-            "- Keep only candidates whose semantic content can naturally become one of the four final expressions.",
+            "- Judge every candidate independently.",
+            "- Do not perform top-k selection, do not enforce min_gap, and do not omit low-quality candidates.",
+            "- If a candidate does not fit any final expression, set `expression_type` to `none` and use low rubric scores.",
             "- 爽点 requires a hated antagonist/oppressor and a payoff where that side is countered, defeated, embarrassed, or punished. Mere justice, benevolent repayment, a kind boss solving a debt, misunderstanding resolution, or things simply getting better is not 爽点.",
             "- 泪点 requires emotional accumulation and release; ordinary family logistics, casual care, or merely sending money home is not enough.",
             "- 笑点 requires a specific joke mechanism; do not treat sincere family or moving dialogue as comedy.",
             "- 甜点 is mainly romantic/intimate; ordinary friendship, family warmth, or generic relationship improvement is not enough.",
-            "- Reject positive resolutions that do not fit any of the four expression types instead of forcing a label.",
-            "- Reject unsupported shock-only moments instead of forcing them into 笑点.",
-            "- Reject setup-only conflict starts or escalations without expression payoff.",
-            "- Refine `start_time`, `end_time`, and `trigger_time` when needed.",
-            "- `trigger_time` must be the best single player trigger time after the expression is understandable.",
-            "- Score all kept candidates with `importance_score` from 0.0 to 1.0.",
+            "- Positive resolutions that do not fit any of the four expression types should be scored low instead of forcing a label.",
+            "- Unsupported shock-only moments should be scored low instead of forcing them into 笑点.",
+            "- Setup-only conflict starts or escalations without expression payoff should be scored low.",
+            "- Do not output or adjust timing fields. Timing refinement is handled by a separate downstream step.",
+            "",
+            "## RUBRIC_SCORES",
+            "Each score must be an integer 0, 1, or 2.",
+            "- semantic_fit: 0=no valid final expression, 1=partial/ambiguous fit, 2=precise fit.",
+            "- emotional_release: 0=setup/transition/logistics only, 1=some emotional value, 2=clear release/payoff.",
+            "- viewer_impulse: 0=viewer unlikely to tap, 1=moderate impulse, 2=strong immediate impulse.",
+            "- type_specific: 0=misses the core mechanism, 1=weak mechanism, 2=strong mechanism for the chosen type.",
             "",
             "## CANDIDATES",
             candidates_json,
             "",
             "## OUTPUT",
             "Return JSON only. The top-level object must contain exactly one key: `triggerability_decisions`.",
-            "Each decision must contain exactly these keys: `candidate_id`, `decision`, `expression_type`, `importance_score`, `start_time`, `end_time`, `trigger_time`, `reason`, `rank_reason`.",
+            "Each decision must contain exactly these keys: `candidate_id`, `expression_type`, `rubric_scores`, `disqualifier`, `reason`.",
             json.dumps(
                 {
                     "triggerability_decisions": [
                         {
                             "candidate_id": "plot_demo_ep01_001",
-                            "decision": "keep",
                             "expression_type": "爽点",
-                            "importance_score": 0.91,
-                            "start_time": 10.0,
-                            "end_time": 20.0,
-                            "trigger_time": 18.5,
+                            "rubric_scores": {
+                                "semantic_fit": 2,
+                                "emotional_release": 2,
+                                "viewer_impulse": 2,
+                                "type_specific": 2,
+                            },
+                            "disqualifier": "",
                             "reason": "反击完成，解气明确。",
-                            "rank_reason": "本集强爽点。",
                         }
                     ]
                 },
@@ -83,15 +98,34 @@ def build_triggerability_prompt(
 
 
 def _iter_decision_items(raw: Any) -> list[Any]:
-    if isinstance(raw, dict) and isinstance(raw.get("triggerability_decisions"), list):
-        return raw["triggerability_decisions"]
+    if isinstance(raw, dict):
+        for key in ("triggerability_decisions", "rubric_evaluations", "rubric_decisions", "decisions", "evaluations"):
+            if isinstance(raw.get(key), list):
+                return raw[key]
     if isinstance(raw, list):
         return raw
     return []
 
 
 def _candidate_by_id(candidates: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {str(candidate.get("candidate_id") or ""): candidate for candidate in candidates if candidate.get("candidate_id")}
+    candidates_by_id: dict[str, dict[str, Any]] = {}
+    for candidate in candidates:
+        for key in ("candidate_id", "source_beat_id", "beat_id"):
+            candidate_id = str(candidate.get(key) or "")
+            if candidate_id:
+                candidates_by_id[candidate_id] = candidate
+    return candidates_by_id
+
+
+def _item_candidate_id(item: dict[str, Any]) -> str:
+    for key in ("candidate_id", "source_beat_id", "beat_id", "plot_beat_id"):
+        raw_candidate_id = item.get(key)
+        if raw_candidate_id is None:
+            continue
+        candidate_id = _clean_text(raw_candidate_id)
+        if candidate_id:
+            return candidate_id
+    return ""
 
 
 def _reject_decision(candidate: dict[str, Any], reason: str) -> dict[str, Any]:
@@ -102,14 +136,49 @@ def _reject_decision(candidate: dict[str, Any], reason: str) -> dict[str, Any]:
         "candidate_type": str(candidate.get("candidate_type") or ""),
         "decision": "reject",
         "expression_type": "",
+        "rubric_scores": {key: 0 for key in RUBRIC_SCORE_KEYS},
+        "total_score": 0,
         "importance_score": 0.0,
         "start_time": float(candidate.get("start_time", 0.0) or 0.0),
         "end_time": float(candidate.get("end_time", 0.0) or 0.0),
         "trigger_time": float(candidate.get("trigger_time", 0.0) or 0.0),
+        "disqualifier": reason,
         "summary": str(candidate.get("summary") or ""),
         "reason": reason,
         "rank_reason": "",
     }
+
+
+def _parse_rubric_scores(value: Any) -> dict[str, int] | None:
+    if not isinstance(value, dict):
+        return None
+    scores: dict[str, int] = {}
+    for key in RUBRIC_SCORE_KEYS:
+        try:
+            score = int(value[key])
+        except (KeyError, TypeError, ValueError):
+            return None
+        if score < 0 or score > 2:
+            return None
+        scores[key] = score
+    return scores
+
+
+def _total_score(scores: dict[str, int]) -> int:
+    return sum(scores[key] for key in RUBRIC_SCORE_KEYS)
+
+
+def _candidate_timing(candidate: dict[str, Any]) -> tuple[float, float, float] | None:
+    try:
+        start_time = float(candidate["start_time"])
+        end_time = float(candidate["end_time"])
+        trigger_time = float(candidate.get("trigger_time", end_time))
+    except (KeyError, TypeError, ValueError):
+        return None
+    if start_time < 0.0 or end_time <= start_time:
+        return None
+    trigger_time = min(max(start_time, trigger_time), end_time)
+    return _round_time(start_time), _round_time(end_time), _round_time(trigger_time)
 
 
 def parse_triggerability_decisions(raw: Any, *, candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -119,31 +188,53 @@ def parse_triggerability_decisions(raw: Any, *, candidates: list[dict[str, Any]]
     for item in _iter_decision_items(raw):
         if not isinstance(item, dict):
             continue
-        candidate_id = _clean_text(item.get("candidate_id"))
+        candidate_id = _item_candidate_id(item)
         candidate = candidates_by_id.get(candidate_id)
         if candidate is None or candidate_id in seen:
             continue
         seen.add(candidate_id)
         expression_type = _clean_text(item.get("expression_type"))
-        decision = _clean_text(item.get("decision")).lower()
-        try:
-            start_time = float(item.get("start_time", candidate.get("start_time")))
-            end_time = float(item.get("end_time", candidate.get("end_time")))
-            trigger_time = float(item.get("trigger_time", candidate.get("trigger_time")))
-            importance_score = float(item.get("importance_score", 0.0))
-        except (TypeError, ValueError):
-            decisions.append(_reject_decision(candidate, "invalid triggerability timing or score"))
+        if expression_type.lower() == "none":
+            expression_type = ""
+        rubric_scores = _parse_rubric_scores(item.get("rubric_scores"))
+        if rubric_scores is None:
+            decisions.append(_reject_decision(candidate, "invalid rubric scores"))
             continue
-        invalid_time = start_time < 0.0 or end_time <= start_time or trigger_time < start_time or trigger_time > end_time
+        candidate_timing = _candidate_timing(candidate)
+        if candidate_timing is None:
+            decisions.append(_reject_decision(candidate, "invalid candidate timing"))
+            continue
+        start_time, end_time, trigger_time = candidate_timing
         unsupported = expression_type not in SUPPORTED_FINAL_EXPRESSIONS
-        if decision != "keep" or invalid_time or unsupported:
-            if invalid_time:
-                reason = "invalid triggerability timing"
-            elif unsupported:
+        total_score = _total_score(rubric_scores)
+        below_threshold = (
+            rubric_scores["semantic_fit"] < 2
+            or rubric_scores["type_specific"] < 2
+            or total_score < MIN_TOTAL_SCORE_TO_KEEP
+        )
+        if unsupported or below_threshold:
+            if unsupported:
                 reason = "unsupported expression type"
+            elif below_threshold:
+                reason = "semantic/type rubric below keep threshold"
             else:
-                reason = _clean_text(item.get("reason")) or "candidate rejected by triggerability judge"
-            decisions.append(_reject_decision(candidate, reason))
+                reason = _clean_text(item.get("disqualifier")) or _clean_text(item.get("reason")) or "candidate rejected by rubric"
+            rejected = _reject_decision(candidate, reason)
+            rejected.update(
+                {
+                    "expression_type": expression_type if expression_type in SUPPORTED_FINAL_EXPRESSIONS else "",
+                    "rubric_scores": rubric_scores,
+                    "total_score": total_score,
+                    "importance_score": _round_time(total_score / MAX_TOTAL_SCORE),
+                    "start_time": _round_time(start_time),
+                    "end_time": _round_time(end_time),
+                    "trigger_time": _round_time(trigger_time),
+                    "disqualifier": _clean_text(item.get("disqualifier")) or reason,
+                    "summary": _clean_text(item.get("summary") or candidate.get("summary")),
+                    "reason": reason,
+                }
+            )
+            decisions.append(rejected)
             continue
         decisions.append(
             {
@@ -152,13 +243,16 @@ def parse_triggerability_decisions(raw: Any, *, candidates: list[dict[str, Any]]
                 "candidate_type": str(candidate.get("candidate_type") or ""),
                 "decision": "keep",
                 "expression_type": expression_type,
-                "importance_score": max(0.0, min(1.0, importance_score)),
+                "rubric_scores": rubric_scores,
+                "total_score": total_score,
+                "importance_score": _round_time(total_score / MAX_TOTAL_SCORE),
                 "start_time": _round_time(start_time),
                 "end_time": _round_time(end_time),
                 "trigger_time": _round_time(trigger_time),
+                "disqualifier": _clean_text(item.get("disqualifier")),
                 "summary": _clean_text(item.get("summary") or candidate.get("summary")),
                 "reason": _clean_text(item.get("reason")),
-                "rank_reason": _clean_text(item.get("rank_reason")),
+                "rank_reason": "",
             }
         )
     for candidate in candidates:
@@ -170,7 +264,7 @@ def parse_triggerability_decisions(raw: Any, *, candidates: list[dict[str, Any]]
 
 def _decision_score(decision: dict[str, Any]) -> float:
     try:
-        return float(decision.get("importance_score", 0.0))
+        return float(decision.get("total_score", decision.get("importance_score", 0.0)))
     except (TypeError, ValueError):
         return 0.0
 
@@ -220,7 +314,10 @@ def select_top_expression_triggers(
                 "end_time": float(decision.get("end_time", 0.0)),
                 "trigger_time": float(decision.get("trigger_time", 0.0)),
                 "expression_type": str(decision.get("expression_type") or ""),
+                "rubric_scores": decision.get("rubric_scores") if isinstance(decision.get("rubric_scores"), dict) else {},
+                "total_score": int(decision.get("total_score", 0) or 0),
                 "importance_score": float(decision.get("importance_score", 0.0)),
+                "disqualifier": str(decision.get("disqualifier") or ""),
                 "summary": str(decision.get("summary") or ""),
                 "reason": str(decision.get("reason") or ""),
             }
@@ -230,6 +327,7 @@ def select_top_expression_triggers(
 
 __all__ = [
     "SUPPORTED_FINAL_EXPRESSIONS",
+    "RUBRIC_SCORE_KEYS",
     "build_triggerability_prompt",
     "parse_triggerability_decisions",
     "select_top_expression_triggers",

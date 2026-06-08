@@ -78,7 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--force", action="store_true", help="Regenerate outputs that already exist.")
     parser.add_argument("--top-k", type=int, default=4)
     parser.add_argument("--min-gap-seconds", type=float, default=30.0)
-    parser.add_argument("--max-output-tokens", type=int, default=2400)
+    parser.add_argument("--max-output-tokens", type=int, default=6000)
     return parser
 
 

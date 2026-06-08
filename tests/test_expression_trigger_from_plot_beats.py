@@ -102,25 +102,27 @@ def test_plot_beat_triggerability_pipeline_selects_expression_triggers(tmp_path:
             "triggerability_decisions": [
                 {
                     "candidate_id": "pb_ch_series_a_ep01_001_001",
-                    "decision": "keep",
                     "expression_type": "爽点",
-                    "importance_score": 0.93,
-                    "start_time": 10.0,
-                    "end_time": 12.0,
-                    "trigger_time": 11.8,
+                    "rubric_scores": {
+                        "semantic_fit": 2,
+                        "emotional_release": 2,
+                        "viewer_impulse": 2,
+                        "type_specific": 2,
+                    },
+                    "disqualifier": "",
                     "reason": "反击完成，适合触发表达。",
-                    "rank_reason": "本章强爽点。",
                 },
                 {
                     "candidate_id": "pb_ch_series_a_ep01_001_002",
-                    "decision": "reject",
-                    "expression_type": "",
-                    "importance_score": 0.0,
-                    "start_time": 20.0,
-                    "end_time": 22.0,
-                    "trigger_time": 21.0,
+                    "expression_type": "none",
+                    "rubric_scores": {
+                        "semantic_fit": 0,
+                        "emotional_release": 0,
+                        "viewer_impulse": 0,
+                        "type_specific": 0,
+                    },
+                    "disqualifier": "只是冲突开始，没有表达释放。",
                     "reason": "只是冲突开始，没有表达释放。",
-                    "rank_reason": "",
                 },
             ]
         }
@@ -141,8 +143,13 @@ def test_plot_beat_triggerability_pipeline_selects_expression_triggers(tmp_path:
     assert len(result.expression_triggers) == 1
     assert result.expression_triggers[0]["trigger_id"] == "et_series_a_ep01_001"
     assert result.expression_triggers[0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
-    assert result.expression_triggers[0]["trigger_time"] == 11.8
+    assert result.expression_triggers[0]["start_time"] == 10.0
+    assert result.expression_triggers[0]["end_time"] == 12.0
+    assert result.expression_triggers[0]["trigger_time"] == 12.0
+    assert result.expression_triggers[0]["total_score"] == 8
+    assert result.expression_triggers[0]["rubric_scores"]["semantic_fit"] == 2
     assert result.llm_calls["triggerability"]["usage"]["total_tokens"] == 123
+    assert result.llm_calls["triggerability"]["parsed_response"] == llm.response
     assert len(llm.calls) == 1
     assert "raw plot beat" in llm.calls[0]["system_prompt"]
     assert "player expression trigger" in llm.calls[0]["user_prompt"]
@@ -173,9 +180,18 @@ def test_build_prompt_rejects_setup_only_conflict_starts() -> None:
     )
 
     assert "raw plot beat" in prompt
-    assert "Reject setup-only conflict starts" in prompt
+    assert "Setup-only conflict starts" in prompt
     assert "hated antagonist" in prompt
     assert "benevolent repayment" in prompt
     assert "kissing" in prompt
+    assert "rubric_scores" in prompt
+    assert "Judge every candidate independently" in prompt
+    assert "Do not perform top-k selection" in prompt
+    assert "Do not output or adjust timing fields" in prompt
+    assert "top_k=4" not in prompt
+    assert "`start_time`" not in prompt
+    assert "`end_time`" not in prompt
+    assert "`trigger_time`" not in prompt
+    assert "timing_clarity" not in prompt
     assert "泪点" in prompt
     assert "甜点" in prompt

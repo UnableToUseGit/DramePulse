@@ -62,7 +62,8 @@ def _build_punchline_system_prompt() -> str:
 def _build_triggerability_system_prompt() -> str:
     return (
         "You are a triggerability judge for short-drama player interactions. "
-        "Select final expression triggers, rank them, and choose final timing. "
+        "Score every candidate with the triggerability rubric. "
+        "Do not rank candidates or refine timings. "
         "Return JSON only."
     )
 

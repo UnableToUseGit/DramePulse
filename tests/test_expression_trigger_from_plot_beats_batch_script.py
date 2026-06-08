@@ -87,7 +87,13 @@ def test_from_plot_beats_batch_writes_clean_asset_and_debug_output(tmp_path: Pat
                 "reason": "反击完成。",
             }
         ]
-        llm_calls = {"triggerability": {"status": "success", "usage": {"total_tokens": 23}}}
+        llm_calls = {
+            "triggerability": {
+                "status": "success",
+                "usage": {"total_tokens": 23},
+                "parsed_response": {"triggerability_decisions": [{"candidate_id": "pb_ch_series_a_ep01_001_001"}]},
+            }
+        }
 
     class FakePipeline:
         def run(self, *, plot_beats_path: Path, subtitle_file_path: Path) -> FakeResult:
@@ -131,6 +137,7 @@ def test_from_plot_beats_batch_writes_clean_asset_and_debug_output(tmp_path: Pat
     assert debug_payload["triggerability_decisions"][0]["decision"] == "keep"
     assert debug_payload["expression_triggers"][0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
     assert debug_payload["llm_calls"]["triggerability"]["usage"]["total_tokens"] == 23
+    assert debug_payload["llm_calls"]["triggerability"]["parsed_response"]["triggerability_decisions"][0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
     assert fake_pipeline.call["plot_beats_path"] == plot_beat_root / "series_a_ep01" / "plot_beats.json"
     assert fake_pipeline.call["subtitle_file_path"] == data_root / "series_a" / "ep01" / "video.srt"
 

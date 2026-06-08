@@ -32,14 +32,7 @@ def _now_iso() -> str:
 
 
 def _safe_video_id(scene_detection_path: Path, fallback: str) -> str:
-    try:
-        payload = json.loads(scene_detection_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return fallback
-    if not isinstance(payload, dict):
-        return fallback
-    video_id = str(payload.get("video_id") or "").strip()
-    return fallback if video_id in {"", "video"} else video_id
+    return fallback
 
 
 def discover_story_chapter_inputs(dataset_root: Path) -> list[StoryChapterInput]:
