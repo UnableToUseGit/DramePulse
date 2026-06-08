@@ -1,6 +1,8 @@
 import {
   loadHomeFeedVideos,
-  loadPlaybackAssets,
+  loadLightweightPlaybackAssets,
+  loadVideoInteractionPlans,
+  loadVideoStoryboard,
   loadTheaterSeriesGroups,
   loadSeriesEpisodes,
   loadTheaterSeries
@@ -284,7 +286,7 @@ describe("playerDataApi", () => {
       }
     });
 
-    const assets = await loadPlaybackAssets({
+    const assets = await loadLightweightPlaybackAssets({
       apiBaseUrl: "http://api.test",
       videoId: "beiwang_ep01",
       fetcher
@@ -295,6 +297,48 @@ describe("playerDataApi", () => {
     expect(assets.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
     expect(assets.video.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
     expect(assets.interactionPlans).toEqual([]);
+  });
+
+  it("loads storyboard without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/storyboard": {
+        video_id: "beiwang_ep01",
+        available: true,
+        interval_seconds: 1,
+        frame_width: 120,
+        frame_height: 212,
+        columns: 5,
+        rows: 5,
+        sheets: [{ url: "/storyboards/beiwang_ep01/sheet_000.jpg", start_time: 0, frame_count: 25 }]
+      }
+    });
+
+    const storyboard = await loadVideoStoryboard({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/storyboard"]);
+  });
+
+  it("loads interaction plans without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
+        video_id: "beiwang_ep01",
+        interaction_plans: [{ interaction_id: "i1" }]
+      }
+    });
+
+    const plans = await loadVideoInteractionPlans({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(plans).toEqual([{ interaction_id: "i1" }]);
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/interaction-plans"]);
   });
 
   it("falls back to /api/videos when the single video playback asset endpoint is unavailable", async () => {
@@ -319,7 +363,7 @@ describe("playerDataApi", () => {
       }
     });
 
-    const assets = await loadPlaybackAssets({
+    const assets = await loadLightweightPlaybackAssets({
       apiBaseUrl: "http://api.test",
       videoId: "beiwang_ep01",
       fetcher

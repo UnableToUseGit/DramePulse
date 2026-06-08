@@ -27,14 +27,35 @@ describe("VideoStage render safety", () => {
     expect(source).toContain("allowsVideoFrameAnalysis={false}");
   });
 
-  it("loads playback assets in PlayerPage and renders controls from the enhanced video", () => {
+  it("bubbles the first rendered video frame out of VideoStage and PlayerPage", () => {
+    const fs = require("fs");
+    const videoStageSource = fs.readFileSync("src/components/VideoStage.tsx", "utf8");
+    const playerPageSource = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+    const playerFeedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
+
+    expect(videoStageSource).toContain("onFirstFrameRender?: () => void");
+    expect(videoStageSource).toContain("onFirstFrameRender?.()");
+    expect(playerPageSource).toContain("onFirstFrameRender={onFirstFrameRender}");
+    expect(playerFeedSource).toContain("onInitialVideoFirstFrameRender");
+  });
+
+  it("loads lightweight playback assets in PlayerPage and renders controls from the enhanced video", () => {
     const fs = require("fs");
     const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
 
-    expect(source).toContain("loadPlaybackAssets");
+    expect(source).toContain("loadLightweightPlaybackAssets");
+    expect(source).not.toContain("loadPlaybackAssets");
     expect(source).toContain("playbackAssetVideo");
     expect(source).toContain("setPlaybackAssetVideo(assets.video)");
     expect(source).toContain("const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video");
     expect(source).toContain("storyboard={displayVideo.storyboard}");
+  });
+
+  it("does not enable remote danmaku loading from PlayerPage", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+
+    expect(source).toContain("useDanmakuFeed(video.danmakuUrl, false)");
+    expect(source).not.toContain("const shouldLoadDanmaku");
   });
 });

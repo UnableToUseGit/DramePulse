@@ -244,23 +244,23 @@ async function loadPlaybackVideo({
   return video;
 }
 
-export interface PlaybackAssets {
+export interface LightweightPlaybackAssets {
   video: PlayerVideo;
   storyChapters: NonNullable<PlayerVideo["storyChapters"]>;
   storyboard?: PlayerVideo["storyboard"];
   interactionPlans: unknown[];
 }
 
-async function loadVideoStoryboard({
+export async function loadVideoStoryboard({
   apiBaseUrl,
   videoId,
-  fetcher,
-  timeoutMs
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
 }: {
   apiBaseUrl: string;
   videoId: string;
-  fetcher: FetchLike;
-  timeoutMs: number;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<StoryboardManifest | undefined> {
   try {
     const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}/storyboard`), timeoutMs);
@@ -274,7 +274,7 @@ async function loadVideoStoryboard({
   }
 }
 
-export async function loadPlaybackAssets({
+export async function loadVideoInteractionPlans({
   apiBaseUrl,
   videoId,
   fetcher = fetch,
@@ -284,23 +284,42 @@ export async function loadPlaybackAssets({
   videoId: string;
   fetcher?: FetchLike;
   timeoutMs?: number;
-}): Promise<PlaybackAssets> {
-  const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
-  const storyboard = await loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs });
-  const enhancedVideo: PlayerVideo = storyboard ? { ...video, storyboard } : video;
-
-  let interactionPlans: unknown[] = [];
+}): Promise<unknown[]> {
   try {
     const plansPayload = await fetchJson(
       fetcher,
       joinUrl(apiBaseUrl, `/api/videos/${videoId}/interaction-plans`),
       timeoutMs
     );
-    interactionPlans =
-      isRecord(plansPayload) && Array.isArray(plansPayload.interaction_plans) ? plansPayload.interaction_plans : [];
+    return isRecord(plansPayload) && Array.isArray(plansPayload.interaction_plans)
+      ? plansPayload.interaction_plans
+      : [];
   } catch {
-    interactionPlans = [];
+    return [];
   }
+}
+
+export async function loadLightweightPlaybackAssets({
+  apiBaseUrl,
+  videoId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<LightweightPlaybackAssets> {
+  const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
+  const storyboard = await loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs });
+  const enhancedVideo: PlayerVideo = storyboard ? { ...video, storyboard } : video;
+
+  const interactionPlans = await loadVideoInteractionPlans({
+    apiBaseUrl,
+    videoId,
+    fetcher,
+    timeoutMs
+  });
 
   return {
     video: enhancedVideo,

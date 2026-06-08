@@ -64,6 +64,7 @@ export const VideoStage = memo(function VideoStage({
   onDurationChange,
   onPlayToEnd,
   onSeekHandled,
+  onFirstFrameRender,
   playbackRate,
   bufferOptions,
   enableCaching = false,
@@ -80,6 +81,7 @@ export const VideoStage = memo(function VideoStage({
   onDurationChange: (duration: number) => void;
   onPlayToEnd: () => void;
   onSeekHandled: () => void;
+  onFirstFrameRender?: () => void;
   playbackRate: number;
   bufferOptions?: BufferOptions;
   enableCaching?: boolean;
@@ -249,7 +251,10 @@ export const VideoStage = memo(function VideoStage({
         allowsPictureInPicture={false}
         allowsVideoFrameAnalysis={false}
         surfaceType={VIDEO_SURFACE_TYPE}
-        onFirstFrameRender={() => recordObservation("first_frame_render")}
+        onFirstFrameRender={() => {
+          recordObservation("first_frame_render");
+          onFirstFrameRender?.();
+        }}
       />
       {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>

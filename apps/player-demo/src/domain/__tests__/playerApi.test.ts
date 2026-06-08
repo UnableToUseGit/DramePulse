@@ -95,7 +95,7 @@ describe("playerApi", () => {
     expect(normalizeDanmakuResponse({ available: false, items: [{ time_sec: 1, text: "x" }] })).toEqual([]);
   });
 
-  it("loads the first playable video and its danmaku", async () => {
+  it("loads the first playable video and leaves danmaku empty without requesting the danmaku URL", async () => {
     const fetcher = jest.fn(async (url: string) => {
       if (url.endsWith("/api/videos")) {
         return {
@@ -114,27 +114,18 @@ describe("playerApi", () => {
           })
         };
       }
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          available: true,
-          items: [{ danmaku_id: "d1", time_sec: 1, text: "来了" }]
-        })
-      };
+      throw new Error(`Unexpected request: ${url}`);
     });
 
     const data = await loadPlayerData({ apiBaseUrl: "http://localhost:8000", fetcher });
 
     expect(data.video.videoId).toBe("v1");
     expect(data.video.streamUrl).toBe("http://localhost:8000/api/videos/v1/stream");
-    expect(data.danmaku).toEqual([{ danmaku_id: "d1", time_sec: 1, text: "来了" }]);
+    expect(data.danmaku).toEqual([]);
     expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos", {
       signal: expect.any(AbortSignal)
     });
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v1/danmaku", {
-      signal: expect.any(AbortSignal)
-    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("loads every playable video from the backend feed", async () => {
@@ -177,25 +168,17 @@ describe("playerApi", () => {
     });
   });
 
-  it("loads danmaku from the selected video danmaku URL", async () => {
-    const fetcher = jest.fn(async (url: string) => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        video_id: url.endsWith("/v2/danmaku") ? "v2" : "unknown",
-        available: true,
-        items: [{ danmaku_id: "d2", time_sec: 2, text: "第二集弹幕" }]
-      })
-    }));
+  it("returns empty danmaku from the selected video without requesting the danmaku URL", async () => {
+    const fetcher = jest.fn(async () => {
+      throw new Error("danmaku should not be requested");
+    });
 
     const danmaku = await loadVideoDanmaku({
       danmakuUrl: "http://localhost:8000/api/videos/v2/danmaku",
       fetcher
     });
 
-    expect(danmaku).toEqual([{ danmaku_id: "d2", time_sec: 2, text: "第二集弹幕" }]);
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:8000/api/videos/v2/danmaku", {
-      signal: expect.any(AbortSignal)
-    });
+    expect(danmaku).toEqual([]);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

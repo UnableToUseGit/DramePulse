@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { PanResponder, StyleSheet, useWindowDimensions, View } from "react-native";
 import { PlayerFeed } from "../components/PlayerFeed";
 import { SeriesDetailSheet } from "../components/SeriesDetailSheet";
+import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import { shouldStartEdgeBackSwipe, type SeriesGroup } from "../domain/playerFeed";
 import type { PlayerVideo } from "../domain/playerApi";
 import type { InteractionPresentationType } from "../interaction-examples/types";
@@ -9,6 +10,7 @@ import type { InteractionPresentationType } from "../interaction-examples/types"
 export function SeriesPlayerScreen({
   series,
   initialVideoId,
+  playbackAssetCache,
   playbackPositions,
   onPlaybackPositionsChange,
   onBack,
@@ -16,6 +18,7 @@ export function SeriesPlayerScreen({
 }: {
   series: SeriesGroup;
   initialVideoId?: string;
+  playbackAssetCache: PlaybackAssetCache;
   playbackPositions: Record<string, number>;
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
   onBack: () => void;
@@ -68,6 +71,7 @@ export function SeriesPlayerScreen({
         videos={series.episodes}
         mode="series"
         requestedVideoId={currentVideoId}
+        playbackAssetCache={playbackAssetCache}
         playbackPositions={playbackPositions}
         selectedPresentationType={selectedPresentationType}
         seriesEpisodeCount={series.episodeCount}

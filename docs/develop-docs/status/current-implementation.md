@@ -11,7 +11,7 @@ FastAPI 后端
   -> 视频、弹幕、互动方案、事件、Story Q&A API
 
 React Native + Expo 播放器
-  -> 后端视频列表/视频流/弹幕
+  -> 后端视频列表/视频流
   -> 竖滑播放 Feed
   -> Interaction Lab
   -> Story Q&A 面板
@@ -102,7 +102,7 @@ npm start
 - React Native + Expo 移动端播放器；
 - 从后端 `GET /api/videos` 获取视频列表；
 - 使用后端 `stream_url` 播放视频；
-- 使用后端 `danmaku_url` 获取弹幕，并在端内做移动端采样和调度展示；
+- 弹幕层仍保留端内调度和本地互动反馈渲染能力，但当前云端联调版本暂不请求后端 `danmaku_url`，默认返回空弹幕，避免全量弹幕响应拖慢首屏和播放页切换；
 - 竖滑 Feed 播放多集/多视频；
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
 - Home Feed 在开发模式下提供播放观测面板和 `[HomeFeedPlayback]` 结构化终端日志，可查看页面挂载、预加载、播放权、播放器状态、真实播放状态和首帧耗时；
@@ -111,6 +111,7 @@ npm start
 - Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
 - Home Feed 拖动期间会缓冲播放进度上报，等滚动结束后再同步到 App 顶层播放位置状态，减少滑动中的重渲染；
 - Home Feed 远程剧集视频启用 `expo-video` source caching 和保守前向 buffer 配置，`source_load` 观测会带上 `cacheEnabled` 与 `bufferedPosition`；
+- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard 和 interaction plans，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频回调 `first_frame_render`，避免启动页消失后直接露出黑屏；
 - Home Feed 播放观测在开发模式下会批量写入本地 `logs/home-feed-playback.log`，前提是前端连接本地 FastAPI；
 - Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
 - 右侧操作栏、顶部/底部播放器 Chrome；
@@ -119,7 +120,7 @@ npm start
 
 当前边界：
 
-- 播放器已经接入后端视频和弹幕；
+- 播放器已经接入后端视频流、首页 Feed、剧场列表、首集 storyboard 和 interaction plans；远程弹幕读取暂时关闭，后续需要拆分弹幕分页或按时间窗口加载后再恢复；
 - Home Feed 播放观测只保留本次运行的内存事件，不持久化、不上报后端，也不属于业务 `User Event`；
 - 播放观测当前不覆盖 Series Feed、广告页、弹幕和互动组件渲染成本；
 - 播放器当前的 Interaction Lab 仍是前端本地互动形态实验，不等同于完整的服务端 `Interaction Plan` 自动触发链路；

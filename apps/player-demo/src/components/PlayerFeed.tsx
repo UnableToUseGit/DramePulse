@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions, View } from "react-native";
 import { API_BASE_URL, ENABLE_PLAYBACK_DEBUG_PANEL } from "../config";
 import { createHomeFeedPlaybackFileLogger } from "../domain/homeFeedPlaybackFileLogger";
+import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import {
   type BufferedPlaybackPosition,
   buildPlayerFeedItems,
@@ -42,12 +43,14 @@ export function PlayerFeed({
   videos,
   mode,
   requestedVideoId,
+  playbackAssetCache,
   playbackPositions,
   selectedPresentationType,
   seriesEpisodeCount,
   onChangePresentationType,
   onPlaybackPositionsChange,
   onActiveVideoChange,
+  onInitialVideoFirstFrameRender,
   onOpenTheater,
   onBack,
   onOpenSeriesDetail
@@ -55,12 +58,14 @@ export function PlayerFeed({
   videos: PlayerVideo[];
   mode: "home" | "series";
   requestedVideoId?: string;
+  playbackAssetCache: PlaybackAssetCache;
   playbackPositions: Record<string, number>;
   selectedPresentationType: InteractionPresentationType;
   seriesEpisodeCount?: number;
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
   onActiveVideoChange?: (video: PlayerVideo) => void;
+  onInitialVideoFirstFrameRender?: () => void;
   onOpenTheater?: () => void;
   onBack?: () => void;
   onOpenSeriesDetail?: () => void;
@@ -410,6 +415,7 @@ export function PlayerFeed({
               <PlayerPage
                 video={item.video}
                 pageIndex={index}
+                playbackAssetCache={playbackAssetCache}
                 playbackObserver={playbackObserver}
                 isActive={playbackPageState.shouldOwnPlayback}
                 pageRole={playbackPageState.pageRole}
@@ -426,6 +432,9 @@ export function PlayerFeed({
                 onChangePresentationType={onChangePresentationType}
                 onPlaybackPositionChange={handlePlaybackPositionChange}
                 onTimelineDragStateChange={setIsTimelineDragging}
+                onFirstFrameRender={
+                  mode === "home" && index === initialIndex ? onInitialVideoFirstFrameRender : undefined
+                }
                 onPlayNextEpisode={() => handlePlayNextItem(index)}
                 mode={mode}
                 seriesEpisodeCount={seriesEpisodeCount}

@@ -24,8 +24,10 @@ import {
   UserPlaybackIntent
 } from "../domain/playerFeed";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
+import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
+import { prefetchStoryboardSheets } from "../domain/playbackAssetPreloader";
 import { PlayerVideo } from "../domain/playerApi";
-import { loadPlaybackAssets } from "../domain/playerDataApi";
+import { loadLightweightPlaybackAssets } from "../domain/playerDataApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
@@ -72,6 +74,7 @@ function getActionRailPreviewCue(type: InteractionPresentationType) {
 interface PlayerPageProps {
   video: PlayerVideo;
   pageIndex: number;
+  playbackAssetCache: PlaybackAssetCache;
   playbackObserver?: HomeFeedPlaybackObserver;
   isActive: boolean;
   pageRole: FeedPlaybackPageRole;
@@ -88,6 +91,7 @@ interface PlayerPageProps {
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onTimelineDragStateChange?: (isDragging: boolean) => void;
+  onFirstFrameRender?: () => void;
   onPlayNextEpisode: () => void;
   mode?: "home" | "series";
   seriesEpisodeCount?: number;
@@ -105,6 +109,7 @@ interface VideoStageObservation {
 export function PlayerPage({
   video,
   pageIndex,
+  playbackAssetCache,
   playbackObserver,
   isActive,
   pageRole,
@@ -121,6 +126,7 @@ export function PlayerPage({
   onChangePresentationType,
   onPlaybackPositionChange,
   onTimelineDragStateChange,
+  onFirstFrameRender,
   onPlayNextEpisode,
   mode = "home",
   seriesEpisodeCount,
@@ -128,7 +134,6 @@ export function PlayerPage({
   onBack,
   onOpenSeriesDetail
 }: PlayerPageProps) {
-  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
   const [userPlaybackIntent, setUserPlaybackIntent] = useState<UserPlaybackIntent>("playing");
   const [resolvedDuration, setResolvedDuration] = useState(video.duration);
@@ -143,7 +148,10 @@ export function PlayerPage({
     createInitialResonanceTapState()
   );
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
-  const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>();
+  const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>(() => {
+    const cached = playbackAssetCache.get(video.videoId);
+    return cached?.storyboard ? { ...video, storyboard: cached.storyboard } : undefined;
+  });
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
@@ -154,6 +162,7 @@ export function PlayerPage({
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
+  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, false);
   const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
   const renderState = getFeedPlaybackPagePresentationState({
     playbackPageRole: pageRole,
@@ -197,13 +206,23 @@ export function PlayerPage({
 
   useEffect(() => {
     let cancelled = false;
-    setPlaybackAssetVideo(undefined);
-    loadPlaybackAssets({
+    const cached = playbackAssetCache.get(video.videoId);
+    setPlaybackAssetVideo(cached?.storyboard ? { ...video, storyboard: cached.storyboard } : undefined);
+    loadLightweightPlaybackAssets({
       apiBaseUrl: API_BASE_URL,
       videoId: video.videoId
     })
       .then((assets) => {
         if (!cancelled) {
+          if (assets.storyboard) {
+            playbackAssetCache.setStoryboard(video.videoId, assets.storyboard);
+            prefetchStoryboardSheets({
+              cache: playbackAssetCache,
+              videoId: video.videoId,
+              storyboard: assets.storyboard
+            }).catch(() => undefined);
+          }
+          playbackAssetCache.setInteractionPlans(video.videoId, assets.interactionPlans);
           setPlaybackAssetVideo(assets.video);
         }
       })
@@ -211,7 +230,7 @@ export function PlayerPage({
     return () => {
       cancelled = true;
     };
-  }, [video.videoId]);
+  }, [playbackAssetCache, video]);
 
   useEffect(() => {
     playbackObserver?.record({
@@ -578,6 +597,7 @@ export function PlayerPage({
             onDurationChange={handleDurationChange}
             onPlayToEnd={handlePlayToEnd}
             onSeekHandled={handleSeekHandled}
+            onFirstFrameRender={onFirstFrameRender}
             playbackRate={speedControls.effectivePlaybackRate}
             bufferOptions={videoBufferOptions}
             enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}

@@ -236,14 +236,13 @@ export async function loadPlayerVideos({
 }
 
 export async function loadVideoDanmaku({
-  danmakuUrl,
-  fetcher = fetch,
-  timeoutMs
+  danmakuUrl: _danmakuUrl,
+  fetcher: _fetcher = fetch,
+  timeoutMs: _timeoutMs
 }: {
   danmakuUrl: string;
   fetcher?: FetchLike;
   timeoutMs?: number;
 }): Promise<DanmakuItem[]> {
-  const danmakuPayload = await fetchJson(fetcher, danmakuUrl, timeoutMs);
-  return normalizeDanmakuResponse(danmakuPayload);
+  return [];
 }
