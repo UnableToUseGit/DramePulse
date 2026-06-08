@@ -107,6 +107,15 @@ def test_build_inner_voice_selection_prompt_uses_full_transcription_and_top_clus
     )
 
     assert "整集字幕" in prompt
+    assert "# 角色" in prompt
+    assert "# 产品背景" in prompt
+    assert "# 为什么有这些弹幕簇" in prompt
+    assert "# 选择标准" in prompt
+    assert "# 输出格式" in prompt
+    assert "心里话弹幕是一种低摩擦互动" in prompt
+    assert "大量相似弹幕" in prompt
+    assert "相似的表达欲" in prompt
+    assert "用户不需要打字" in prompt
     assert "你怎么会在这里？" in prompt
     assert "有钱没钱都得回家过年。" in prompt
     assert "dsc_demo_ep01_001" in prompt
@@ -117,6 +126,7 @@ def test_build_inner_voice_selection_prompt_uses_full_transcription_and_top_clus
     assert "例子弹幕 1-5" in prompt
     assert "例子弹幕 1-6" not in prompt
     assert "不要输出 triggerTime" in prompt
+    assert "rejectedSummary" not in prompt
 
 
 def test_select_inner_voice_candidates_from_semantic_clusters_filters_invalid_outputs(tmp_path: Path) -> None:
@@ -147,7 +157,6 @@ def test_select_inner_voice_candidates_from_semantic_clusters_filters_invalid_ou
                     "reason": "简单情绪，应被过滤。",
                 },
             ],
-            "rejectedSummary": [{"clusterId": "dsc_demo_ep01_001", "reason": "纯名词复读"}],
         }
     )
     events: list[tuple[str, dict[str, object]]] = []
