@@ -39,14 +39,14 @@ class StoryChapterViewerServerTest(unittest.TestCase):
     def test_make_episode_id_joins_series_and_episode(self) -> None:
         self.assertEqual(make_episode_id("demo_series", "ep01"), "demo_series_ep01")
 
-    def test_discover_episodes_finds_video_scene_and_chapter_status(self) -> None:
+    def test_discover_episodes_uses_directory_video_id_for_legacy_scene_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
-            episode_dir = root / "demo_series" / "ep01"
+            episode_dir = root / "jialijiawai" / "ep01"
             episode_dir.mkdir(parents=True)
             (episode_dir / "video.mp4").write_bytes(b"video")
             (episode_dir / "scene_detection.json").write_text(
-                json.dumps({"video_id": "scene_video_id", "scenes": []}),
+                json.dumps({"video_id": "jiali_jiawai_ep01", "scenes": []}),
                 encoding="utf-8",
             )
             (episode_dir / "story_chapters.json").write_text(
@@ -57,8 +57,8 @@ class StoryChapterViewerServerTest(unittest.TestCase):
             entries = discover_episodes(root)
 
         self.assertEqual(len(entries), 1)
-        self.assertEqual(entries[0].episode_id, "demo_series_ep01")
-        self.assertEqual(entries[0].video_id, "scene_video_id")
+        self.assertEqual(entries[0].episode_id, "jialijiawai_ep01")
+        self.assertEqual(entries[0].video_id, "jialijiawai_ep01")
         self.assertTrue(entries[0].has_chapters)
 
     def test_discover_episodes_uses_external_chapter_output_root(self) -> None:
@@ -233,7 +233,7 @@ class StoryChapterViewerServerTest(unittest.TestCase):
                 },
             )
 
-            expected_path = annotation_root / "demo_video_ep01.annotation.json"
+            expected_path = annotation_root / "demo_series_ep01.annotation.json"
             self.assertEqual(result["path"], str(expected_path))
             self.assertTrue(expected_path.exists())
             saved = json.loads(expected_path.read_text(encoding="utf-8"))

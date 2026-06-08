@@ -35,7 +35,7 @@ def make_plot_beats(plot_beat_root: Path, *, video_id: str, series_id: str) -> N
     )
 
 
-def test_from_plot_beats_batch_writes_clean_asset_and_debug_output(tmp_path: Path) -> None:
+def test_from_plot_beats_batch_writes_expression_triggers_and_debug_output(tmp_path: Path) -> None:
     from scripts.algorithm.expression_trigger.run_from_plot_beats_batch import main
 
     data_root = tmp_path / "DataForAlgorithm"
@@ -136,6 +136,7 @@ def test_from_plot_beats_batch_writes_clean_asset_and_debug_output(tmp_path: Pat
     assert debug_payload["plot_candidates"][0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
     assert debug_payload["triggerability_decisions"][0]["decision"] == "keep"
     assert debug_payload["expression_triggers"][0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
+    assert "interaction_plan" not in debug_payload
     assert debug_payload["llm_calls"]["triggerability"]["usage"]["total_tokens"] == 23
     assert debug_payload["llm_calls"]["triggerability"]["parsed_response"]["triggerability_decisions"][0]["candidate_id"] == "pb_ch_series_a_ep01_001_001"
     assert fake_pipeline.call["plot_beats_path"] == plot_beat_root / "series_a_ep01" / "plot_beats.json"

@@ -97,7 +97,7 @@ def discover_episodes(
 
             scene_payload = _safe_read_json(scene_path)
             episode_id = make_episode_id(series_dir.name, episode_dir.name)
-            video_id = str(scene_payload.get("video_id") or episode_id)
+            video_id = episode_id
             scenes = scene_payload.get("scenes") if isinstance(scene_payload.get("scenes"), list) else []
             duration = None
             if scenes:
