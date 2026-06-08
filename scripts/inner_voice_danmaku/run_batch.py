@@ -26,6 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     parser.add_argument("--series-id", required=True)
     parser.add_argument("--episode-ids", nargs="+", required=True)
+    parser.add_argument("--force", action="store_true", help="Recompute and overwrite existing episode outputs.")
 
     parser.add_argument("--cluster-method", choices=["hdbscan", "connected_components"], default="hdbscan")
     parser.add_argument("--similarity-threshold", type=float, default=0.82)
@@ -55,16 +56,20 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _semantic_output_path(output_dir: Path, series_id: str, episode_id: str) -> Path:
-    return output_dir / f"semantic_clusters_{series_id}_{episode_id}.json"
+def _episode_output_dir(output_dir: Path, series_id: str, episode_id: str) -> Path:
+    return output_dir / f"{series_id}_{episode_id}"
 
 
 def _selection_output_path(output_dir: Path, series_id: str, episode_id: str) -> Path:
-    return output_dir / f"inner_voice_selection_{series_id}_{episode_id}.json"
+    return _episode_output_dir(output_dir, series_id, episode_id) / "inner_voice_selection.json"
+
+
+def _semantic_output_path(output_dir: Path, series_id: str, episode_id: str) -> Path:
+    return _episode_output_dir(output_dir, series_id, episode_id) / "semantic_clusters.json"
 
 
 def _plan_output_path(output_dir: Path, series_id: str, episode_id: str) -> Path:
-    return output_dir / f"interaction_plan_{series_id}_{episode_id}.json"
+    return _episode_output_dir(output_dir, series_id, episode_id) / "interaction_plan.json"
 
 
 def _run_episode(
@@ -74,94 +79,112 @@ def _run_episode(
     embedding_client: Any,
     llm_client: Any,
 ) -> None:
+    episode_output_dir = _episode_output_dir(args.output_dir, args.series_id, episode_id)
     semantic_path = _semantic_output_path(args.output_dir, args.series_id, episode_id)
     selection_path = _selection_output_path(args.output_dir, args.series_id, episode_id)
     plan_path = _plan_output_path(args.output_dir, args.series_id, episode_id)
+    episode_output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[{args.series_id}_{episode_id}] batch_start", flush=True)
-    semantic_clustering.main(
-        [
-            "--csv-path",
-            str(args.csv_path),
-            "--output-path",
-            str(semantic_path),
-            "--env-file",
-            str(args.env_file),
-            "--series-id",
-            args.series_id,
-            "--episode-id",
-            episode_id,
-            "--cluster-method",
-            args.cluster_method,
-            "--similarity-threshold",
-            str(args.similarity_threshold),
-            "--min-cluster-comment-count",
-            str(args.min_cluster_comment_count),
-            "--peak-window-sec",
-            str(args.peak_window_sec),
-            "--max-clusters-per-episode",
-            str(args.max_clusters_per_episode),
-            "--top-k-clusters",
-            str(args.top_k_clusters),
-            "--representative-comment-count",
-            str(args.semantic_representative_comment_count),
-            "--hdbscan-min-cluster-size",
-            str(args.hdbscan_min_cluster_size),
-            "--hdbscan-min-samples",
-            str(args.hdbscan_min_samples),
-            "--hdbscan-cluster-selection-method",
-            args.hdbscan_cluster_selection_method,
-            "--embedding-batch-size",
-            str(args.embedding_batch_size),
-            "--embedding-cache-path",
-            str(args.embedding_cache_path),
-            *(["--embedding-base-url", args.embedding_base_url] if args.embedding_base_url else []),
-            *(["--embedding-api-key", args.embedding_api_key] if args.embedding_api_key else []),
-            *(["--embedding-model", args.embedding_model] if args.embedding_model else []),
-            *(["--no-embedding-cache"] if args.no_embedding_cache else []),
-        ],
-        embedding_client=embedding_client,
-    )
-    select_candidates.main(
-        [
-            "--semantic-clusters-path",
-            str(semantic_path),
-            "--output-path",
-            str(selection_path),
-            "--assets-root",
-            str(args.assets_root),
-            "--env-file",
-            str(args.env_file),
-            "--series-id",
-            args.series_id,
-            "--episode-id",
-            episode_id,
-            "--top-cluster-count",
-            str(args.top_cluster_count),
-            "--representative-comment-count",
-            str(args.selection_representative_comment_count),
-            "--example-count",
-            str(args.example_count),
-            "--max-tokens",
-            str(args.max_tokens),
-        ],
-        llm_client=llm_client,
-    )
-    build_interaction_plan.main(
-        [
-            "--selection-path",
-            str(selection_path),
-            "--output-path",
-            str(plan_path),
-            "--series-id",
-            args.series_id,
-            "--episode-id",
-            episode_id,
-            "--min-duration-sec",
-            str(args.min_duration_sec),
-            "--max-duration-sec",
-            str(args.max_duration_sec),
-        ]
-    )
+
+    if plan_path.exists() and not args.force:
+        print(f"[{args.series_id}_{episode_id}] skip_existing_plan output={plan_path}", flush=True)
+        return
+
+    if semantic_path.exists() and not args.force:
+        print(f"[{args.series_id}_{episode_id}] reuse_semantic_clusters input={semantic_path}", flush=True)
+    else:
+        semantic_clustering.main(
+            [
+                "--csv-path",
+                str(args.csv_path),
+                "--output-path",
+                str(semantic_path),
+                "--env-file",
+                str(args.env_file),
+                "--series-id",
+                args.series_id,
+                "--episode-id",
+                episode_id,
+                "--cluster-method",
+                args.cluster_method,
+                "--similarity-threshold",
+                str(args.similarity_threshold),
+                "--min-cluster-comment-count",
+                str(args.min_cluster_comment_count),
+                "--peak-window-sec",
+                str(args.peak_window_sec),
+                "--max-clusters-per-episode",
+                str(args.max_clusters_per_episode),
+                "--top-k-clusters",
+                str(args.top_k_clusters),
+                "--representative-comment-count",
+                str(args.semantic_representative_comment_count),
+                "--hdbscan-min-cluster-size",
+                str(args.hdbscan_min_cluster_size),
+                "--hdbscan-min-samples",
+                str(args.hdbscan_min_samples),
+                "--hdbscan-cluster-selection-method",
+                args.hdbscan_cluster_selection_method,
+                "--embedding-batch-size",
+                str(args.embedding_batch_size),
+                "--embedding-cache-path",
+                str(args.embedding_cache_path),
+                *(["--embedding-base-url", args.embedding_base_url] if args.embedding_base_url else []),
+                *(["--embedding-api-key", args.embedding_api_key] if args.embedding_api_key else []),
+                *(["--embedding-model", args.embedding_model] if args.embedding_model else []),
+                *(["--no-embedding-cache"] if args.no_embedding_cache else []),
+            ],
+            embedding_client=embedding_client,
+        )
+
+    if selection_path.exists() and not args.force:
+        print(f"[{args.series_id}_{episode_id}] reuse_inner_voice_selection input={selection_path}", flush=True)
+    else:
+        select_candidates.main(
+            [
+                "--semantic-clusters-path",
+                str(semantic_path),
+                "--output-path",
+                str(selection_path),
+                "--assets-root",
+                str(args.assets_root),
+                "--env-file",
+                str(args.env_file),
+                "--series-id",
+                args.series_id,
+                "--episode-id",
+                episode_id,
+                "--top-cluster-count",
+                str(args.top_cluster_count),
+                "--representative-comment-count",
+                str(args.selection_representative_comment_count),
+                "--example-count",
+                str(args.example_count),
+                "--max-tokens",
+                str(args.max_tokens),
+            ],
+            llm_client=llm_client,
+        )
+
+    if plan_path.exists() and not args.force:
+        print(f"[{args.series_id}_{episode_id}] reuse_interaction_plan input={plan_path}", flush=True)
+    else:
+        build_interaction_plan.main(
+            [
+                "--selection-path",
+                str(selection_path),
+                "--output-path",
+                str(plan_path),
+                "--series-id",
+                args.series_id,
+                "--episode-id",
+                episode_id,
+                "--min-duration-sec",
+                str(args.min_duration_sec),
+                "--max-duration-sec",
+                str(args.max_duration_sec),
+            ]
+        )
     print(f"[{args.series_id}_{episode_id}] batch_done output={plan_path}", flush=True)
 
 

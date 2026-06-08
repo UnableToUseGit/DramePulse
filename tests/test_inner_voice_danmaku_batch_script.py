@@ -5,12 +5,18 @@ from pathlib import Path
 
 
 class FakeEmbeddingClient:
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.calls.append(list(texts))
         return [[1.0, 0.0] if "帅" in text or "眼神" in text else [0.0, 1.0] for text in texts]
 
 
 class FakeLlmClient:
-    last_call_diagnostics: dict[str, object] = {"usage": {"total_tokens": 99}}
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.last_call_diagnostics: dict[str, object] = {"usage": {"total_tokens": 99}}
 
     def generate_json_multimodal(
         self,
@@ -21,6 +27,7 @@ class FakeLlmClient:
         frame_timestamps_seconds: list[float] | None = None,
         max_tokens: int = 2400,
     ) -> dict[str, object]:
+        self.calls.append(user_prompt)
         cluster_id = "dsc_beiwang_ep02_001" if "beiwang_ep02" in user_prompt else "dsc_beiwang_ep01_001"
         return {
             "selected": [
@@ -115,12 +122,93 @@ def test_inner_voice_danmaku_batch_runs_selected_episodes(tmp_path: Path) -> Non
 
     assert result == 0
     for episode_id in ["ep01", "ep02"]:
-        semantic_path = output_dir / f"semantic_clusters_beiwang_{episode_id}.json"
-        selection_path = output_dir / f"inner_voice_selection_beiwang_{episode_id}.json"
-        plan_path = output_dir / f"interaction_plan_beiwang_{episode_id}.json"
+        episode_dir = output_dir / f"beiwang_{episode_id}"
+        semantic_path = episode_dir / "semantic_clusters.json"
+        selection_path = episode_dir / "inner_voice_selection.json"
+        plan_path = episode_dir / "interaction_plan.json"
         assert semantic_path.exists()
         assert selection_path.exists()
         assert plan_path.exists()
         plan = json.loads(plan_path.read_text(encoding="utf-8"))
         assert plan[0]["series_id"] == "beiwang"
         assert plan[0]["interaction_mode"] == "inner_voice_danmaku"
+
+
+def test_inner_voice_danmaku_batch_skips_episode_with_existing_plan(tmp_path: Path, capsys) -> None:
+    from scripts.inner_voice_danmaku.run_batch import main
+
+    output_dir = tmp_path / "output"
+    episode_dir = output_dir / "beiwang_ep01"
+    episode_dir.mkdir(parents=True)
+    plan_path = episode_dir / "interaction_plan.json"
+    plan_path.write_text('[{"interaction_id":"existing"}]\n', encoding="utf-8")
+    embedding_client = FakeEmbeddingClient()
+    llm_client = FakeLlmClient()
+
+    result = main(
+        [
+            "--csv-path",
+            str(tmp_path / "missing.csv"),
+            "--assets-root",
+            str(tmp_path / "assets"),
+            "--output-dir",
+            str(output_dir),
+            "--series-id",
+            "beiwang",
+            "--episode-ids",
+            "ep01",
+        ],
+        embedding_client=embedding_client,
+        llm_client=llm_client,
+    )
+
+    captured = capsys.readouterr()
+    assert result == 0
+    assert "skip_existing_plan" in captured.out
+    assert json.loads(plan_path.read_text(encoding="utf-8")) == [{"interaction_id": "existing"}]
+    assert embedding_client.calls == []
+    assert llm_client.calls == []
+
+
+def test_inner_voice_danmaku_batch_force_overwrites_existing_plan(tmp_path: Path) -> None:
+    from scripts.inner_voice_danmaku.run_batch import main
+
+    csv_path = tmp_path / "圈选剧前5集弹幕.csv"
+    assets_root = tmp_path / "assets"
+    output_dir = tmp_path / "output"
+    episode_dir = output_dir / "beiwang_ep01"
+    episode_dir.mkdir(parents=True)
+    plan_path = episode_dir / "interaction_plan.json"
+    plan_path.write_text('[{"interaction_id":"existing"}]\n', encoding="utf-8")
+    write_batch_csv(csv_path)
+    write_transcription(assets_root / "beiwang" / "ep01" / "video.transcription.json", "第一集台词")
+    embedding_client = FakeEmbeddingClient()
+    llm_client = FakeLlmClient()
+
+    result = main(
+        [
+            "--csv-path",
+            str(csv_path),
+            "--assets-root",
+            str(assets_root),
+            "--output-dir",
+            str(output_dir),
+            "--series-id",
+            "beiwang",
+            "--episode-ids",
+            "ep01",
+            "--cluster-method",
+            "connected_components",
+            "--min-cluster-comment-count",
+            "2",
+            "--force",
+        ],
+        embedding_client=embedding_client,
+        llm_client=llm_client,
+    )
+
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    assert result == 0
+    assert plan[0]["interaction_mode"] == "inner_voice_danmaku"
+    assert embedding_client.calls
+    assert llm_client.calls
