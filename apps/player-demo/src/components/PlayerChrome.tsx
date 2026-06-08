@@ -32,8 +32,11 @@ export function PlayerChrome({
   currentTime,
   isActive,
   showInnerVoice,
+  innerVoiceCue,
+  showInnerVoiceExample,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku,
+  onInnerVoiceExitComplete,
   resonanceCue,
   resonanceTapState,
   onParticipateResonance,
@@ -62,8 +65,11 @@ export function PlayerChrome({
   currentTime: number;
   isActive: boolean;
   showInnerVoice: boolean;
+  innerVoiceCue?: InnerVoiceDanmakuCue;
+  showInnerVoiceExample?: boolean;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
+  onInnerVoiceExitComplete: (cue: InnerVoiceDanmakuCue) => void;
   resonanceCue?: ActionRailResonanceCue;
   resonanceTapState: ResonanceTapState;
   onParticipateResonance: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
@@ -102,12 +108,15 @@ export function PlayerChrome({
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}
+          innerVoiceCue={innerVoiceCue}
+          showInnerVoiceExample={showInnerVoiceExample}
           showDanmakuEntry={showDanmakuEntry}
           showTags={mode !== "series"}
           summaryPresentation="inline"
           reserveActionRail={showActionRail}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+          onInnerVoiceExitComplete={onInnerVoiceExitComplete}
         />
       ) : null}
       {showMeta ? children : null}

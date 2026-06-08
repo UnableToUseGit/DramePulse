@@ -22,4 +22,14 @@ describe("RoleCommerceAdPage", () => {
     expect(adPageSource).toContain("seriesEpisodeCount?: number");
     expect(adPageSource).toContain("onOpenSeriesDetail?: () => void");
   });
+
+  it("uses API ad slots and remote ad video sources before local fallbacks", () => {
+    const fs = require("fs");
+    const adPageSource = fs.readFileSync("src/components/RoleCommerceAdPage.tsx", "utf8");
+    const feedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
+
+    expect(feedSource).toContain("roleCommerceAds?: RoleCommerceFeedAd[]");
+    expect(feedSource).not.toContain("DEMO_ROLE_COMMERCE_ADS");
+    expect(adPageSource).toContain("streamUrl={ad.streamUrl ?? AD_VIDEO_SOURCE}");
+  });
 });

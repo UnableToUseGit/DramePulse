@@ -64,7 +64,7 @@ describe("playbackAssetPreloader", () => {
     expect(cache.hasPrefetchedStoryboardSheet("v1", "http://cdn.test/v1/sheet_001.jpg")).toBe(true);
   });
 
-  it("preloads first video storyboard and interaction plans without danmaku or playback-assets", async () => {
+  it("preloads first video storyboard, story chapters, and interaction assets without danmaku or playback-assets", async () => {
     const cache = createPlaybackAssetCache();
     const calls: string[] = [];
     const fetcher = jest.fn(async (url: string) => {
@@ -85,10 +85,41 @@ describe("playbackAssetPreloader", () => {
           })
         };
       }
+      if (url.endsWith("/story-chapters")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            video_id: "v1",
+            available: true,
+            chapters: [{ chapter_id: "c1", video_id: "v1", start_time: 0, end_time: 30, title: "开场" }]
+          })
+        };
+      }
+      if (url.endsWith("/interaction-assets")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            video_id: "v1",
+            available: true,
+            items: [
+              {
+                interaction_id: "ia1",
+                video_id: "v1",
+                interaction_mode: "inner_voice_danmaku",
+                trigger_time: 12,
+                content: { text: "这老板真好" },
+                status: "active"
+              }
+            ]
+          })
+        };
+      }
       return {
         ok: true,
         status: 200,
-        json: async () => ({ interaction_plans: [{ interaction_id: "i1" }] })
+        json: async () => ({})
       };
     });
     const prefetchImage = jest.fn(async () => true);
@@ -103,11 +134,24 @@ describe("playbackAssetPreloader", () => {
 
     expect(calls).toEqual([
       "http://api.test/api/videos/v1/storyboard",
-      "http://api.test/api/videos/v1/interaction-plans"
+      "http://api.test/api/videos/v1/story-chapters",
+      "http://api.test/api/videos/v1/interaction-assets"
     ]);
     expect(calls.some((url) => url.includes("danmaku") || url.includes("playback-assets"))).toBe(false);
     expect(cache.get("v1")?.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/v1/sheet_000.jpg");
-    expect(cache.get("v1")?.interactionPlans).toEqual([{ interaction_id: "i1" }]);
+    expect(cache.get("v1")?.storyChapters).toEqual([
+      { chapterId: "c1", videoId: "v1", startTime: 0, endTime: 30, title: "开场" }
+    ]);
+    expect(cache.get("v1")?.interactionAssets).toEqual([
+      {
+        interactionId: "ia1",
+        videoId: "v1",
+        interactionMode: "inner_voice_danmaku",
+        triggerTime: 12,
+        content: { text: "这老板真好" },
+        status: "active"
+      }
+    ]);
     expect(prefetchImage).toHaveBeenCalledWith("http://api.test/storyboards/v1/sheet_000.jpg");
   });
 

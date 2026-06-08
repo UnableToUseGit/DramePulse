@@ -13,4 +13,15 @@ describe("DanmakuEntryArea", () => {
     expect(source).toContain("alignItems: \"flex-start\"");
     expect(source).not.toContain("gap: spacing.sm");
   });
+
+  it("renders API inner voice cues before falling back to the interaction lab example", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/DanmakuEntryArea.tsx", "utf8");
+
+    expect(source.indexOf("innerVoiceCue ?")).toBeGreaterThan(-1);
+    expect(source.indexOf("!innerVoiceCue && showInnerVoice && showInnerVoiceExample")).toBeGreaterThan(
+      source.indexOf("innerVoiceCue ?")
+    );
+    expect(source).toContain("onInnerVoiceExitComplete");
+  });
 });

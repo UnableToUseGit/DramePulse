@@ -23,7 +23,7 @@ import {
   type HomeFeedPlaybackObserver
 } from "../domain/homeFeedPlaybackObserver";
 import type { PlayerVideo } from "../domain/playerApi";
-import { DEMO_ROLE_COMMERCE_ADS } from "../domain/roleCommerceAds";
+import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { HomeFeedPlaybackDebugPanel } from "./HomeFeedPlaybackDebugPanel";
 import { PlayerPage } from "./PlayerPage";
@@ -45,6 +45,7 @@ export function PlayerFeed({
   requestedVideoId,
   playbackAssetCache,
   playbackPositions,
+  roleCommerceAds = [],
   selectedPresentationType,
   seriesEpisodeCount,
   onChangePresentationType,
@@ -60,6 +61,7 @@ export function PlayerFeed({
   requestedVideoId?: string;
   playbackAssetCache: PlaybackAssetCache;
   playbackPositions: Record<string, number>;
+  roleCommerceAds?: RoleCommerceFeedAd[];
   selectedPresentationType: InteractionPresentationType;
   seriesEpisodeCount?: number;
   onChangePresentationType: (type: InteractionPresentationType) => void;
@@ -71,8 +73,8 @@ export function PlayerFeed({
   onOpenSeriesDetail?: () => void;
 }) {
   const feedItems = useMemo(
-    () => buildPlayerFeedItems({ videos, roleCommerceAds: DEMO_ROLE_COMMERCE_ADS, mode }),
-    [mode, videos]
+    () => buildPlayerFeedItems({ videos, roleCommerceAds, mode }),
+    [mode, roleCommerceAds, videos]
   );
   const initialIndex = useMemo(
     () => getVideoIndexFromFeedItems(feedItems, requestedVideoId),

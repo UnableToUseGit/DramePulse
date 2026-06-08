@@ -1,10 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PanResponder, StyleSheet, useWindowDimensions, View } from "react-native";
 import { PlayerFeed } from "../components/PlayerFeed";
 import { SeriesDetailSheet } from "../components/SeriesDetailSheet";
+import { API_BASE_URL } from "../config";
 import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import { shouldStartEdgeBackSwipe, type SeriesGroup } from "../domain/playerFeed";
 import type { PlayerVideo } from "../domain/playerApi";
+import { loadSeriesAdSlots } from "../domain/playerDataApi";
+import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 
 export function SeriesPlayerScreen({
@@ -27,6 +30,7 @@ export function SeriesPlayerScreen({
   const [selectedPresentationType, setSelectedPresentationType] = useState<InteractionPresentationType>("action_rail_candy");
   const [isSeriesDetailVisible, setIsSeriesDetailVisible] = useState(false);
   const [currentVideoId, setCurrentVideoId] = useState(initialVideoId ?? series.episodes[0]?.videoId);
+  const [roleCommerceAds, setRoleCommerceAds] = useState<RoleCommerceFeedAd[]>([]);
   const viewport = useWindowDimensions();
   const edgeBackSwipeResponder = useMemo(
     () =>
@@ -65,6 +69,31 @@ export function SeriesPlayerScreen({
     [onResumeVideoChange, series.seriesKey]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    const seriesId = series.coverVideo.seriesId;
+    if (!seriesId) {
+      setRoleCommerceAds([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    loadSeriesAdSlots({ apiBaseUrl: API_BASE_URL, seriesId })
+      .then((ads) => {
+        if (!cancelled) {
+          setRoleCommerceAds(ads);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRoleCommerceAds([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [series.coverVideo.seriesId]);
+
   return (
     <View style={styles.root}>
       <PlayerFeed
@@ -73,6 +102,7 @@ export function SeriesPlayerScreen({
         requestedVideoId={currentVideoId}
         playbackAssetCache={playbackAssetCache}
         playbackPositions={playbackPositions}
+        roleCommerceAds={roleCommerceAds}
         selectedPresentationType={selectedPresentationType}
         seriesEpisodeCount={series.episodeCount}
         onChangePresentationType={setSelectedPresentationType}

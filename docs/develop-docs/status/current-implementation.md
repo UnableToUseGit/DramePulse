@@ -65,6 +65,9 @@ GET  /api/videos/{video_id}/stream
 GET  /api/videos/{video_id}/danmaku
 POST /api/videos/{video_id}/danmaku
 GET  /api/videos/{video_id}/interaction-plans
+GET  /api/videos/{video_id}/interaction-assets
+GET  /api/videos/{video_id}/story-chapters
+GET  /api/series/{series_id}/ad-slots
 GET  /api/interactions/{interaction_id}/results
 POST /api/events
 POST /api/playback-events
@@ -111,7 +114,11 @@ npm start
 - Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
 - Home Feed 拖动期间会缓冲播放进度上报，等滚动结束后再同步到 App 顶层播放位置状态，减少滑动中的重渲染；
 - Home Feed 远程剧集视频启用 `expo-video` source caching 和保守前向 buffer 配置，`source_load` 观测会带上 `cacheEnabled` 与 `bufferedPosition`；
-- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard 和 interaction plans，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频满足播放 ready 状态机（首帧已渲染、播放器进入 playing、播放时间已前进），避免启动页消失后只露出静止首帧；
+- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard、story chapters 和 interaction assets，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频满足播放 ready 状态机（首帧已渲染、播放器进入 playing、播放时间已前进），避免启动页消失后只露出静止首帧；
+- 播放页轻量资产加载已接入 `GET /api/videos/{video_id}/story-chapters` 和 `GET /api/videos/{video_id}/interaction-assets`；story chapters 会写入播放资产缓存并驱动进度条章节刻度，`emotional_button` 会映射为 `action-rail-resonance`，`inner_voice_danmaku` 会映射为 `inner-voice-danmaku`；
+- 互动资产只在播放时间自然推进进入 `trigger_time` 到 `expire_time` 窗口时触发；用户拖动进度条或 seek 落入触发窗口时会跳过该互动并标记完成，避免 seek 后突然弹出交互组件；
+- 播放 Debug 面板开启时，播放器进度条会额外显示 interaction asset 的 `trigger_time` marker，用于检查互动资产加载和触发时间；用户态默认不显示；
+- 剧集 Feed 的角色商品广告已接入 `GET /api/series/{series_id}/ad-slots`，前端按 slot 的 `after_episode_no` 将广告插入对应集之后；广告视频优先播放后端 `stream_url`，没有远程流时才 fallback 到端内 `assets/video/ads.mp4`；
 - 播放器进度条的 storyboard 预览层保持常驻，并用隐藏的 storyboard sheet warm layer 预挂载当前视频 sheet，避免用户开始拖动时才创建预览图片组件；
 - Home Feed 播放观测在开发模式下会批量写入本地 `logs/home-feed-playback.log`，前提是前端连接本地 FastAPI；
 - Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
@@ -121,12 +128,15 @@ npm start
 
 当前边界：
 
-- 播放器已经接入后端视频流、首页 Feed、剧场列表、首集 storyboard 和 interaction plans；远程弹幕读取暂时关闭，后续需要拆分弹幕分页或按时间窗口加载后再恢复；
+- 播放器已经接入后端视频流、首页 Feed、剧场列表、首集 storyboard、story chapters 和 interaction assets；远程弹幕读取暂时关闭，后续需要拆分弹幕分页或按时间窗口加载后再恢复；
+- `/api/videos/{video_id}/playback-assets` 暂不作为前端预热来源，避免全量弹幕响应重新进入启动链路；
 - Home Feed 播放观测只保留本次运行的内存事件，不持久化、不上报后端，也不属于业务 `User Event`；
 - 播放观测当前不覆盖 Series Feed、广告页、弹幕和互动组件渲染成本；
+- 剧集广告当前只负责读取服务端 slot、插入 Feed 和播放广告视频，还未接入广告曝光、点击、转化等事件上报；
 - 播放器当前的 Interaction Lab 仍是前端本地互动形态实验，不等同于完整的服务端 `Interaction Plan` 自动触发链路；
 - 播放器当前未配置 EAS Build 安装包，主要通过 Expo Go 预览；
 - Expo CLI 建议使用 `apps/player-demo/.nvmrc` 指定的 Node 版本；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。
+- TanStack Query 可以作为后续数据请求治理增强项评估；当前阶段先沿用项目已有 domain loader、启动预热器和播放资产缓存，避免在性能问题尚未收敛前引入新的全局缓存语义。
 
 ## 4. 算法 Pipeline
 

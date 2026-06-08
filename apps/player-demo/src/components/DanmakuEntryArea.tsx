@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { InnerVoiceDanmakuExample } from "../inner-voice-danmaku/InnerVoiceDanmakuExample";
+import { InnerVoicePrompt } from "../inner-voice-danmaku/InnerVoicePrompt";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { DanmakuEntryButton } from "./DanmakuEntryButton";
 
@@ -7,19 +8,36 @@ export function DanmakuEntryArea({
   currentTime,
   isActive,
   showInnerVoice,
+  innerVoiceCue,
+  showInnerVoiceExample = false,
   onInnerVoiceGestureActiveChange,
-  onSendInnerVoiceDanmaku
+  onSendInnerVoiceDanmaku,
+  onInnerVoiceExitComplete
 }: {
   currentTime: number;
   isActive: boolean;
   showInnerVoice: boolean;
+  innerVoiceCue?: InnerVoiceDanmakuCue;
+  showInnerVoiceExample?: boolean;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
+  onInnerVoiceExitComplete: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
       <DanmakuEntryButton />
-      {showInnerVoice ? (
+      {innerVoiceCue ? (
+        <View pointerEvents="box-none" style={styles.innerVoiceSlot}>
+          <InnerVoicePrompt
+            key={innerVoiceCue.cueId}
+            cue={innerVoiceCue}
+            onGestureActiveChange={onInnerVoiceGestureActiveChange}
+            onSend={onSendInnerVoiceDanmaku}
+            onExitComplete={onInnerVoiceExitComplete}
+          />
+        </View>
+      ) : null}
+      {!innerVoiceCue && showInnerVoice && showInnerVoiceExample ? (
         <View pointerEvents="box-none" style={styles.innerVoiceSlot}>
           <InnerVoiceDanmakuExample
             currentTime={currentTime}

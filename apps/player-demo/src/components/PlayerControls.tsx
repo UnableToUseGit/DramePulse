@@ -13,6 +13,7 @@ import {
   StoryboardManifest,
   StoryChapter
 } from "../domain/storyNavigation";
+import type { InteractionDebugMarker } from "../domain/interactionAssetCues";
 import { colors, radii, spacing } from "../theme";
 
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
@@ -31,7 +32,8 @@ export function PlayerControls({
   onSeekCommit,
   onDragStateChange,
   storyChapters,
-  storyboard
+  storyboard,
+  debugInteractionMarkers = []
 }: {
   currentTime: number;
   duration: number;
@@ -42,6 +44,7 @@ export function PlayerControls({
   onDragStateChange?: (isDragging: boolean) => void;
   storyChapters?: StoryChapter[];
   storyboard?: StoryboardManifest;
+  debugInteractionMarkers?: InteractionDebugMarker[];
 }) {
   const safeDuration = duration > 0 ? duration : 1;
   const viewport = useWindowDimensions();
@@ -196,6 +199,7 @@ export function PlayerControls({
               ]}
             />
             <ChapterProgressTicks ticks={chapterTicks} presentation={timelinePresentation} />
+            <InteractionDebugMarkers markers={debugInteractionMarkers} duration={safeDuration} />
             <View
               style={[
                 styles.thumb,
@@ -218,6 +222,35 @@ export function PlayerControls({
         </Text>
       ) : null}
     </View>
+  );
+}
+
+function InteractionDebugMarkers({
+  markers,
+  duration
+}: {
+  markers: InteractionDebugMarker[];
+  duration: number;
+}) {
+  if (markers.length === 0 || duration <= 0) {
+    return null;
+  }
+  return (
+    <>
+      {markers.map((marker) => (
+        <View
+          key={marker.markerId}
+          pointerEvents="none"
+          style={[
+            styles.interactionDebugMarker,
+            marker.mode === "emotional_button"
+              ? styles.interactionDebugMarkerEmotion
+              : styles.interactionDebugMarkerInnerVoice,
+            { left: `${clamp((marker.time / duration) * 100, 0, 100)}%` }
+          ]}
+        />
+      ))}
+    </>
   );
 }
 
@@ -370,6 +403,21 @@ const styles = StyleSheet.create({
     marginLeft: -1,
     borderRadius: 2,
     backgroundColor: colors.text
+  },
+  interactionDebugMarker: {
+    position: "absolute",
+    top: -4,
+    width: 2,
+    height: 11,
+    marginLeft: -1,
+    borderRadius: 2,
+    opacity: 0.95
+  },
+  interactionDebugMarkerEmotion: {
+    backgroundColor: "#ff8a3d"
+  },
+  interactionDebugMarkerInnerVoice: {
+    backgroundColor: "#6ee7f2"
   },
   fill: {
     height: "100%",

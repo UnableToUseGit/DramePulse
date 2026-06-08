@@ -14,6 +14,8 @@ export function PlayerMeta({
   currentTime,
   isActive,
   showInnerVoice,
+  innerVoiceCue,
+  showInnerVoiceExample,
   showDanmakuEntry = true,
   showTags = true,
   summaryPresentation = "card",
@@ -21,7 +23,8 @@ export function PlayerMeta({
   bottomOffset = 118,
   preTitleAccessory,
   onInnerVoiceGestureActiveChange,
-  onSendInnerVoiceDanmaku
+  onSendInnerVoiceDanmaku,
+  onInnerVoiceExitComplete
 }: {
   title: string;
   plotSummary: string;
@@ -30,6 +33,8 @@ export function PlayerMeta({
   currentTime: number;
   isActive: boolean;
   showInnerVoice: boolean;
+  innerVoiceCue?: InnerVoiceDanmakuCue;
+  showInnerVoiceExample?: boolean;
   showDanmakuEntry?: boolean;
   showTags?: boolean;
   summaryPresentation?: "card" | "inline";
@@ -38,6 +43,7 @@ export function PlayerMeta({
   preTitleAccessory?: ReactNode;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
+  onInnerVoiceExitComplete: (cue: InnerVoiceDanmakuCue) => void;
 }) {
   const titleCanExpand = Array.from(title).length > 9;
   const [isTitleExpanded, setIsTitleExpanded] = useState(false);
@@ -56,8 +62,11 @@ export function PlayerMeta({
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}
+          innerVoiceCue={innerVoiceCue}
+          showInnerVoiceExample={showInnerVoiceExample}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+          onInnerVoiceExitComplete={onInnerVoiceExitComplete}
         />
       ) : null}
       {preTitleAccessory ? <View style={styles.preTitleAccessory}>{preTitleAccessory}</View> : null}

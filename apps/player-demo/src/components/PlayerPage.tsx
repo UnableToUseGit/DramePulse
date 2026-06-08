@@ -12,7 +12,7 @@ import {
   ResonanceTapState
 } from "../action-rail-resonance/tapState";
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
-import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
+import { API_BASE_URL, ENABLE_INTERACTION_LAB, ENABLE_PLAYBACK_DEBUG_PANEL } from "../config";
 import {
   getFeedPlaybackPagePresentationState,
   getFeedPlaybackPageRenderState,
@@ -27,7 +27,14 @@ import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserve
 import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import { prefetchStoryboardSheets } from "../domain/playbackAssetPreloader";
 import { PlayerVideo } from "../domain/playerApi";
-import { loadLightweightPlaybackAssets } from "../domain/playerDataApi";
+import {
+  getExpiredInteractionCueIds,
+  getSeekSkippedInteractionCueIds,
+  toActionRailResonanceCues,
+  toInnerVoiceDanmakuCues,
+  toInteractionDebugMarkers
+} from "../domain/interactionAssetCues";
+import { InteractionAsset, loadLightweightPlaybackAssets } from "../domain/playerDataApi";
 import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
 import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
 import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
@@ -35,6 +42,7 @@ import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
 import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
+import { getActiveInnerVoiceCue, getVisibleInnerVoiceCue } from "../inner-voice-danmaku/scheduler";
 import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
 import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
@@ -143,14 +151,25 @@ export function PlayerPage({
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
   const [completedResonanceCueIds, setCompletedResonanceCueIds] = useState<Set<string>>(() => new Set());
+  const [completedInteractionCueIds, setCompletedInteractionCueIds] = useState<Set<string>>(() => new Set());
   const [participatingResonanceCue, setParticipatingResonanceCue] = useState<ActionRailResonanceCue | undefined>();
+  const [launchingInnerVoiceCue, setLaunchingInnerVoiceCue] = useState<InnerVoiceDanmakuCue | undefined>();
   const [resonanceTapState, setResonanceTapState] = useState<ResonanceTapState>(() =>
     createInitialResonanceTapState()
   );
   const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
+  const [interactionAssets, setInteractionAssets] = useState<InteractionAsset[]>(
+    () => playbackAssetCache.get(video.videoId)?.interactionAssets ?? []
+  );
   const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>(() => {
     const cached = playbackAssetCache.get(video.videoId);
-    return cached?.storyboard ? { ...video, storyboard: cached.storyboard } : undefined;
+    return cached?.storyboard || cached?.storyChapters
+      ? {
+          ...video,
+          ...(cached.storyboard ? { storyboard: cached.storyboard } : {}),
+          ...(cached.storyChapters ? { storyChapters: cached.storyChapters } : {})
+        }
+      : undefined;
   });
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
@@ -181,8 +200,31 @@ export function PlayerPage({
     [pageIndex, playbackObserver, video.videoId]
   );
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
+  const apiActionRailCues = useMemo(() => toActionRailResonanceCues(interactionAssets), [interactionAssets]);
+  const apiInnerVoiceCues = useMemo(() => toInnerVoiceDanmakuCues(interactionAssets), [interactionAssets]);
+  const debugInteractionMarkers = useMemo(
+    () => (ENABLE_PLAYBACK_DEBUG_PANEL ? toInteractionDebugMarkers(interactionAssets) : []),
+    [interactionAssets]
+  );
+  const activeApiActionRailResonanceCue = useMemo(
+    () =>
+      isActive && playbackState.isStarted
+        ? getActiveActionRailResonanceCue({
+            cues: apiActionRailCues,
+            currentTime,
+            completedCueIds: completedInteractionCueIds
+          })
+        : undefined,
+    [apiActionRailCues, completedInteractionCueIds, currentTime, isActive, playbackState.isStarted]
+  );
   const activeActionRailResonanceCue = useMemo(
     () => {
+      if (activeApiActionRailResonanceCue) {
+        return activeApiActionRailResonanceCue;
+      }
+      if (!ENABLE_INTERACTION_LAB) {
+        return undefined;
+      }
       if (!isActionRailResonancePresentation(selectedPresentationType) || !isActive || !playbackState.isStarted) {
         return undefined;
       }
@@ -196,18 +238,49 @@ export function PlayerPage({
         completedCueIds: completedResonanceCueIds
       });
     },
-    [completedResonanceCueIds, currentTime, isActive, playbackState.isStarted, selectedPresentationType]
+    [
+      activeApiActionRailResonanceCue,
+      completedResonanceCueIds,
+      currentTime,
+      isActive,
+      playbackState.isStarted,
+      selectedPresentationType
+    ]
   );
   const actionRailResonanceCue = getVisibleActionRailResonanceCue({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
+  });
+  const activeApiInnerVoiceCue = useMemo(
+    () =>
+      isActive && playbackState.isStarted
+        ? getActiveInnerVoiceCue({
+            cues: apiInnerVoiceCues,
+            currentTime,
+            completedCueIds: completedInteractionCueIds
+          })
+        : undefined,
+    [apiInnerVoiceCues, completedInteractionCueIds, currentTime, isActive, playbackState.isStarted]
+  );
+  const innerVoiceCue = getVisibleInnerVoiceCue({
+    activeCue: activeApiInnerVoiceCue,
+    launchingCue: launchingInnerVoiceCue
   });
   const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video;
 
   useEffect(() => {
     let cancelled = false;
     const cached = playbackAssetCache.get(video.videoId);
-    setPlaybackAssetVideo(cached?.storyboard ? { ...video, storyboard: cached.storyboard } : undefined);
+    setInteractionAssets(cached?.interactionAssets ?? []);
+    setPlaybackAssetVideo(
+      cached?.storyboard || cached?.storyChapters
+        ? {
+            ...video,
+            ...(cached.storyboard ? { storyboard: cached.storyboard } : {}),
+            ...(cached.storyChapters ? { storyChapters: cached.storyChapters } : {})
+          }
+        : undefined
+    );
     loadLightweightPlaybackAssets({
       apiBaseUrl: API_BASE_URL,
       videoId: video.videoId
@@ -223,6 +296,9 @@ export function PlayerPage({
             }).catch(() => undefined);
           }
           playbackAssetCache.setInteractionPlans(video.videoId, assets.interactionPlans);
+          playbackAssetCache.setStoryChapters(video.videoId, assets.storyChapters);
+          playbackAssetCache.setInteractionAssets(video.videoId, assets.interactionAssets);
+          setInteractionAssets(assets.interactionAssets);
           setPlaybackAssetVideo(assets.video);
         }
       })
@@ -336,7 +412,11 @@ export function PlayerPage({
       setSeekVersion((version) => version + 1);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
+      if (videoChanged) {
+        setCompletedInteractionCueIds(new Set());
+      }
       setParticipatingResonanceCue(undefined);
+      setLaunchingInnerVoiceCue(undefined);
       setResonanceTapState(createInitialResonanceTapState());
       resetInteractionExample();
       storyQaRequestRef.current += 1;
@@ -459,11 +539,29 @@ export function PlayerPage({
         setParticipatingResonanceCue(undefined);
         setResonanceTapState(createInitialResonanceTapState());
       }
+      const skippedCueIds = getSeekSkippedInteractionCueIds({
+        cues: [...apiActionRailCues, ...apiInnerVoiceCues],
+        seekTime: time,
+        completedCueIds: completedInteractionCueIds
+      });
+      if (skippedCueIds.length > 0) {
+        setCompletedInteractionCueIds((ids) => new Set([...ids, ...skippedCueIds]));
+        setLaunchingInnerVoiceCue((cue) => (cue && skippedCueIds.includes(cue.cueId) ? undefined : cue));
+      }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
       setSeekRequest({ id: Date.now(), time, reason: "user_seek" });
     },
-    [clearResonanceTimers, isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
+    [
+      apiActionRailCues,
+      apiInnerVoiceCues,
+      clearResonanceTimers,
+      completedInteractionCueIds,
+      isActive,
+      onPlaybackPositionChange,
+      resetInteractionExample,
+      video.videoId
+    ]
   );
 
   const handleTimelineDragStateChange = useCallback(
@@ -483,6 +581,7 @@ export function PlayerPage({
 
   const handleSendInnerVoiceDanmaku = useCallback(
     (cue: InnerVoiceDanmakuCue) => {
+      setLaunchingInnerVoiceCue(cue);
       setSentInnerVoiceDanmaku((items) => [
         ...items,
         createSentInnerVoiceDanmakuFromCue({
@@ -494,12 +593,18 @@ export function PlayerPage({
     [currentTime]
   );
 
+  const handleInnerVoiceExitComplete = useCallback((cue: InnerVoiceDanmakuCue) => {
+    setCompletedInteractionCueIds((ids) => new Set(ids).add(cue.cueId));
+    setLaunchingInnerVoiceCue((current) => (current?.cueId === cue.cueId ? undefined : current));
+  }, []);
+
   const handleParticipateResonance = useCallback((cue: ActionRailResonanceCue, nextState: ResonanceTapState) => {
     clearResonanceTimers();
     setParticipatingResonanceCue(cue);
     setResonanceTapState(nextState);
     resonanceButtonDismissTimeoutRef.current = setTimeout(() => {
       setCompletedResonanceCueIds((ids) => new Set(ids).add(cue.cueId));
+      setCompletedInteractionCueIds((ids) => new Set(ids).add(cue.cueId));
       resonanceButtonDismissTimeoutRef.current = undefined;
     }, ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS);
     resonanceEffectTimeoutRef.current = setTimeout(() => {
@@ -510,6 +615,18 @@ export function PlayerPage({
     // First version records locally. Future API wiring can report cueId/highlightId/tapCount here.
     void nextState;
   }, [clearResonanceTimers]);
+
+  useEffect(() => {
+    const expiredCueIds = getExpiredInteractionCueIds({
+      cues: [...apiActionRailCues, ...apiInnerVoiceCues],
+      currentTime,
+      completedCueIds: completedInteractionCueIds
+    });
+    if (expiredCueIds.length > 0) {
+      setCompletedInteractionCueIds((ids) => new Set([...ids, ...expiredCueIds]));
+      setLaunchingInnerVoiceCue((cue) => (cue && expiredCueIds.includes(cue.cueId) ? undefined : cue));
+    }
+  }, [apiActionRailCues, apiInnerVoiceCues, completedInteractionCueIds, currentTime]);
 
   useEffect(() => {
     if (activeActionRailResonanceCue || participatingResonanceCue) {
@@ -641,7 +758,7 @@ export function PlayerPage({
           releaseCount={resonanceTapState.releaseCount}
         />
       ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
+      {ENABLE_INTERACTION_LAB && isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
         <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
       ) : null}
       {renderState.shouldRenderInteractiveShell ? (
@@ -666,8 +783,11 @@ export function PlayerPage({
           currentTime={currentTime}
           isActive={isActive && playbackState.isStarted}
           showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
+          innerVoiceCue={innerVoiceCue}
+          showInnerVoiceExample={ENABLE_INTERACTION_LAB && selectedPresentationType === "inner_voice_danmaku"}
           onInnerVoiceGestureActiveChange={handleInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
+          onInnerVoiceExitComplete={handleInnerVoiceExitComplete}
           resonanceCue={actionRailResonanceCue}
           resonanceTapState={resonanceTapState}
           onParticipateResonance={handleParticipateResonance}
@@ -691,6 +811,7 @@ export function PlayerPage({
           onDragStateChange={handleTimelineDragStateChange}
           storyChapters={displayVideo.storyChapters}
           storyboard={displayVideo.storyboard}
+          debugInteractionMarkers={debugInteractionMarkers}
         />
       ) : null}
       {renderState.shouldRenderInteractiveShell ? (

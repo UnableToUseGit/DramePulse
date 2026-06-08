@@ -60,8 +60,15 @@ describe("startupLoader", () => {
         rows: 5,
         sheets: [{ url: "/storyboards/v1/sheet_000.jpg", start_time: 0, frame_count: 25 }]
       },
-      "http://api.test/api/videos/v1/interaction-plans": {
-        interaction_plans: []
+      "http://api.test/api/videos/v1/story-chapters": {
+        video_id: "v1",
+        available: true,
+        chapters: [{ chapter_id: "c1", video_id: "v1", start_time: 0, end_time: 30, title: "开场" }]
+      },
+      "http://api.test/api/videos/v1/interaction-assets": {
+        video_id: "v1",
+        available: true,
+        items: [{ interaction_id: "ia1", video_id: "v1", interaction_mode: "inner_voice_danmaku", trigger_time: 12 }]
       }
     });
     const prefetchImage = jest.fn(async () => true);
@@ -82,7 +89,8 @@ describe("startupLoader", () => {
       "http://api.test/api/feed/home",
       "http://api.test/api/series",
       "http://api.test/api/videos/v1/storyboard",
-      "http://api.test/api/videos/v1/interaction-plans"
+      "http://api.test/api/videos/v1/story-chapters",
+      "http://api.test/api/videos/v1/interaction-assets"
     ]);
     expect(calls.some((url) => url.includes("/episodes") || url.includes("danmaku") || url.includes("playback-assets"))).toBe(false);
   });

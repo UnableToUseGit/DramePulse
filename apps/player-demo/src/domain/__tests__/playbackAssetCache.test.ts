@@ -16,11 +16,15 @@ describe("playbackAssetCache", () => {
 
     cache.setStoryboard("v1", storyboard);
     cache.setInteractionPlans("v1", [{ interaction_id: "i1" }]);
+    cache.setInteractionAssets("v1", [{ interactionId: "ia1", triggerTime: 12 }]);
+    cache.setStoryChapters("v1", [{ chapterId: "c1", videoId: "v1", startTime: 0, endTime: 30, title: "开场" }]);
     cache.markStoryboardSheetPrefetched("v1", "http://cdn.test/sheet_000.jpg");
 
     expect(cache.get("v1")).toMatchObject({
       storyboard,
-      interactionPlans: [{ interaction_id: "i1" }]
+      interactionPlans: [{ interaction_id: "i1" }],
+      interactionAssets: [{ interactionId: "ia1", triggerTime: 12 }],
+      storyChapters: [{ chapterId: "c1", videoId: "v1", startTime: 0, endTime: 30, title: "开场" }]
     });
     expect(cache.hasPrefetchedStoryboardSheet("v1", "http://cdn.test/sheet_000.jpg")).toBe(true);
   });

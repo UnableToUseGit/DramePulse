@@ -1,6 +1,6 @@
 import { Image } from "react-native";
 import { DEFAULT_API_REQUEST_TIMEOUT_MS, FetchLike } from "./playerApi";
-import { loadVideoInteractionPlans, loadVideoStoryboard } from "./playerDataApi";
+import { loadVideoInteractionAssets, loadVideoStoryboard, loadVideoStoryChapters } from "./playerDataApi";
 import type { PlaybackAssetCache } from "./playbackAssetCache";
 import type { StoryboardManifest } from "./storyNavigation";
 
@@ -55,16 +55,18 @@ export async function preloadInitialPlaybackAssets({
   timeoutMs?: number;
   prefetchImage?: ImagePrefetcher;
 }) {
-  const [storyboard, interactionPlans] = await Promise.all([
+  const [storyboard, storyChapters, interactionAssets] = await Promise.all([
     loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs }),
-    loadVideoInteractionPlans({ apiBaseUrl, videoId, fetcher, timeoutMs })
+    loadVideoStoryChapters({ apiBaseUrl, videoId, fetcher, timeoutMs }),
+    loadVideoInteractionAssets({ apiBaseUrl, videoId, fetcher, timeoutMs })
   ]);
 
   if (storyboard) {
     cache.setStoryboard(videoId, storyboard);
     await prefetchStoryboardSheets({ cache, videoId, storyboard, prefetchImage });
   }
-  cache.setInteractionPlans(videoId, interactionPlans);
+  cache.setStoryChapters(videoId, storyChapters);
+  cache.setInteractionAssets(videoId, interactionAssets);
 }
 
 export async function prefetchSeriesCovers({

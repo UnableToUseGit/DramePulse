@@ -60,6 +60,19 @@ describe("VideoStage render safety", () => {
     expect(source).not.toContain("{storyboardCell ? <StoryboardPreview");
   });
 
+  it("renders interaction trigger markers only through the playback debug panel gate", () => {
+    const fs = require("fs");
+    const playerPageSource = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+    const controlsSource = fs.readFileSync("src/components/PlayerControls.tsx", "utf8");
+
+    expect(playerPageSource).toContain("ENABLE_PLAYBACK_DEBUG_PANEL ? toInteractionDebugMarkers(interactionAssets) : []");
+    expect(playerPageSource).toContain("debugInteractionMarkers={debugInteractionMarkers}");
+    expect(controlsSource).toContain("debugInteractionMarkers?: InteractionDebugMarker[]");
+    expect(controlsSource).toContain("pointerEvents=\"none\"");
+    expect(controlsSource).toContain("interactionDebugMarkerEmotion");
+    expect(controlsSource).toContain("interactionDebugMarkerInnerVoice");
+  });
+
   it("does not enable remote danmaku loading from PlayerPage", () => {
     const fs = require("fs");
     const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
