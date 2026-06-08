@@ -12,6 +12,7 @@ from .routers import (
     feed,
     health,
     interactions,
+    new_assets,
     playback_events,
     series,
     story_chapters,
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(series.router, prefix="/api", tags=["series"])
     app.include_router(videos.router, prefix="/api", tags=["videos"])
     app.include_router(story_chapters.router, prefix="/api", tags=["story-chapters"])
+    app.include_router(new_assets.router, prefix="/api", tags=["new-assets"])
     app.include_router(danmaku.router, prefix="/api", tags=["danmaku"])
     app.include_router(interactions.router, prefix="/api", tags=["interactions"])
     app.include_router(events.router, prefix="/api", tags=["events"])

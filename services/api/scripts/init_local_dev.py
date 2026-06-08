@@ -6,6 +6,7 @@ import sqlite3
 
 from services.api.config import get_settings
 from services.api.repositories.admin_analysis import create_analysis_table_sqlite
+from services.api.repositories.new_assets import create_new_asset_tables_sqlite
 from services.api.repositories.story_chapters import create_story_chapter_tables_sqlite
 
 
@@ -352,6 +353,7 @@ def init_local_dev() -> None:
         create_asset_tables_sqlite(cursor)
         create_analysis_table_sqlite(cursor)
         create_story_chapter_tables_sqlite(cursor)
+        create_new_asset_tables_sqlite(cursor)
         cursor.execute(
             """
             INSERT INTO videos (

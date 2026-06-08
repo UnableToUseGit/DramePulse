@@ -176,6 +176,88 @@ class StoryChapterRawResponse(BaseModel):
     content: str
 
 
+class PlotBeat(BaseModel):
+    beat_id: str
+    video_id: str
+    chapter_id: str
+    beat_index: int = Field(ge=1)
+    beat_type: str
+    start_time: float = Field(ge=0)
+    end_time: float = Field(ge=0)
+    summary: str | None = None
+    reason: str | None = None
+    status: str = "active"
+
+
+class PlotBeatResponse(BaseModel):
+    video_id: str
+    available: bool
+    source_video_id: str | None = None
+    source_series_id: str | None = None
+    canonical_series_id: str | None = None
+    episode_no: int | None = None
+    plot_beats_parse_status: str | None = None
+    debug_parse_status: str | None = None
+    plot_beats: list[PlotBeat] = Field(default_factory=list)
+
+
+class RawAssetResponse(BaseModel):
+    video_id: str
+    source_video_id: str
+    filename: str
+    parse_status: str
+    source_path: str | None = None
+    sha256: str | None = None
+    content: str
+
+
+class VideoInteractionItem(BaseModel):
+    interaction_id: str
+    video_id: str
+    interaction_mode: str
+    trigger_time: float = Field(ge=0)
+    expire_time: float = Field(ge=0)
+    duration_sec: float | None = Field(default=None, ge=0)
+    content: dict[str, Any] = Field(default_factory=dict)
+    source_asset_id: str
+    status: str = "active"
+
+
+class VideoInteractionAssetsResponse(BaseModel):
+    video_id: str
+    interaction_mode: str | None = None
+    available: bool
+    items: list[VideoInteractionItem] = Field(default_factory=list)
+
+
+class AdAssetResponse(BaseModel):
+    ad_id: str
+    video_url: str | None = None
+    stream_url: str | None = None
+    video_source_path: str | None = None
+    duration: float | None = None
+    sponsor_label: str | None = None
+    product_name: str | None = None
+    product_description: str | None = None
+    character_name: str | None = None
+    cta_text: str | None = None
+    price_text: str | None = None
+    selling_points: list[str] = Field(default_factory=list)
+
+
+class SeriesAdSlot(BaseModel):
+    slot_id: str
+    series_id: str
+    after_episode_no: int = Field(ge=1)
+    ad: AdAssetResponse
+    status: str = "active"
+
+
+class SeriesAdSlotsResponse(BaseModel):
+    series_id: str
+    slots: list[SeriesAdSlot] = Field(default_factory=list)
+
+
 class StoryboardResponse(BaseModel):
     video_id: str
     available: bool = False

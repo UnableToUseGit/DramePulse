@@ -3,6 +3,7 @@ from __future__ import annotations
 from services.api.config import get_settings, require_complete_cloud_settings
 from services.api.db import connect_mysql
 from services.api.repositories.admin_analysis import create_analysis_table_mysql
+from services.api.repositories.new_assets import create_new_asset_tables_mysql
 from services.api.repositories.story_chapters import create_story_chapter_tables_mysql
 
 
@@ -255,6 +256,7 @@ def init_db() -> None:
             create_asset_tables(cursor)
             create_analysis_table_mysql(cursor)
             create_story_chapter_tables_mysql(cursor)
+            create_new_asset_tables_mysql(cursor)
         connection.commit()
     except Exception:
         connection.rollback()
