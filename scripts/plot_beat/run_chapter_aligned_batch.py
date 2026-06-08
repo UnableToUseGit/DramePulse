@@ -17,6 +17,7 @@ from scripts.algorithm.common import DEFAULT_DATA_ROOT, discover_episodes
 DEFAULT_STORY_CHAPTER_ROOT = Path("output/story_chapter")
 DEFAULT_OUTPUT_ROOT = Path("output/plot_beat/chapter_aligned")
 OUTPUT_FILENAME = "plot_beats.json"
+DEBUG_FILENAME = "plot_beats.debug.json"
 
 
 def _format_optional_number(value: Any, *, suffix: str = "") -> str:
@@ -108,17 +109,28 @@ def _output_path(output_root: Path, video_id: str) -> Path:
     return output_root / video_id / OUTPUT_FILENAME
 
 
+def _debug_output_path(output_root: Path, video_id: str) -> Path:
+    return output_root / video_id / DEBUG_FILENAME
+
+
 def write_plot_beat_output(*, result: Any, output_root: Path) -> Path:
     output_path = _output_path(output_root, str(result.video_id))
+    debug_path = _debug_output_path(output_root, str(result.video_id))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "video_id": result.video_id,
         "series_id": result.series_id,
         "created_at": result.created_at,
         "chapter_plot_beats": result.chapter_plot_beats,
+    }
+    debug_payload = {
+        "video_id": result.video_id,
+        "series_id": result.series_id,
+        "created_at": result.created_at,
         "llm_calls": result.llm_calls,
     }
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    debug_path.write_text(json.dumps(debug_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return output_path
 
 

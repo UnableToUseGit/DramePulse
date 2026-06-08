@@ -106,13 +106,19 @@ def test_plot_beat_chapter_aligned_batch_writes_output(tmp_path: Path) -> None:
     )
 
     output_path = output_root / "series_a_ep01" / "plot_beats.json"
+    debug_path = output_root / "series_a_ep01" / "plot_beats.debug.json"
     payload = json.loads(output_path.read_text(encoding="utf-8"))
+    debug_payload = json.loads(debug_path.read_text(encoding="utf-8"))
 
     assert result == 0
     assert payload["video_id"] == "series_a_ep01"
     assert payload["series_id"] == "series_a"
     assert payload["chapter_plot_beats"][0]["plot_beats"][0]["beat_type"] == "reversal"
-    assert payload["llm_calls"]["ch_series_a_ep01_001"]["status"] == "success"
+    assert "llm_calls" not in payload
+    assert debug_payload["video_id"] == "series_a_ep01"
+    assert debug_payload["series_id"] == "series_a"
+    assert debug_payload["created_at"] == "2026-06-07T00:00:00Z"
+    assert debug_payload["llm_calls"]["ch_series_a_ep01_001"]["status"] == "success"
     assert fake_pipeline.call["video_file_path"] == data_root / "series_a" / "ep01" / "video.mp4"
     assert fake_pipeline.call["subtitle_file_path"] == data_root / "series_a" / "ep01" / "video.srt"
     assert fake_pipeline.call["story_chapters_path"] == story_chapter_root / "series_a_ep01" / "story_chapters.json"

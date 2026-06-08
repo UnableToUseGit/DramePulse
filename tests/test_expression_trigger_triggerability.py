@@ -126,3 +126,6 @@ def test_build_triggerability_prompt_contains_topk_contract() -> None:
     assert "Triggerability Judge" in prompt
     assert "top_k=4" in prompt
     assert "trigger_time" in prompt
+    assert "hated antagonist" in prompt
+    assert "benevolent repayment" in prompt
+    assert "kissing" in prompt
