@@ -15,6 +15,9 @@ class VideoResponse(BaseModel):
     episode_label: str | None = None
     duration: float | None = None
     stream_url: str
+    stream_type: Literal["hls", "mp4"] = "mp4"
+    hls_url: str | None = None
+    mp4_url: str | None = None
     danmaku_url: str
     source: str = "oss"
     douyin_video_id: str | None = None

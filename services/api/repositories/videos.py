@@ -35,18 +35,46 @@ def _table_exists(cursor: Any, table_name: str) -> bool:
     return cursor.fetchone() is not None
 
 
-def _video_stream_url(video_id: str, row: dict[str, Any]) -> str:
+def _cdn_object_url(object_key: str) -> str | None:
     settings = get_settings()
     if settings.mode == "cloud" and settings.cdn_base_url:
-        object_key = str(row.get("oss_object_key") or "").strip()
-        if object_key:
-            return f"{settings.cdn_base_url.rstrip('/')}/{quote(object_key, safe='/')}"
+        clean_key = object_key.strip().lstrip("/")
+        if clean_key:
+            return f"{settings.cdn_base_url.rstrip('/')}/{quote(clean_key, safe='/')}"
+    return None
+
+
+def _hls_object_key(row: dict[str, Any]) -> str | None:
+    object_key = str(row.get("oss_object_key") or "").strip().lstrip("/")
+    if not object_key.endswith("/video.mp4"):
+        return None
+    return f"{object_key[: -len('video.mp4')]}index.m3u8"
+
+
+def _mp4_stream_url(video_id: str, row: dict[str, Any]) -> str:
+    object_key = str(row.get("oss_object_key") or "").strip()
+    if object_key:
+        cdn_url = _cdn_object_url(object_key)
+        if cdn_url:
+            return cdn_url
     return f"/api/videos/{video_id}/stream"
+
+
+def _hls_stream_url(video_id: str, row: dict[str, Any]) -> str | None:
+    hls_key = _hls_object_key(row)
+    if not hls_key:
+        return None
+    cdn_url = _cdn_object_url(hls_key)
+    if cdn_url:
+        return cdn_url
+    return f"/api/videos/{video_id}/hls/index.m3u8"
 
 
 def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
     video_id = str(row["video_id"])
-    stream_url = _video_stream_url(video_id, row)
+    mp4_url = _mp4_stream_url(video_id, row)
+    hls_url = _hls_stream_url(video_id, row)
+    stream_url = hls_url or mp4_url
     source = "cdn" if stream_url.startswith(("http://", "https://")) else row.get("source") or "oss"
     return {
         "video_id": video_id,
@@ -57,6 +85,9 @@ def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
         "episode_label": row.get("episode_label"),
         "duration": row.get("duration"),
         "stream_url": stream_url,
+        "stream_type": "hls" if hls_url else "mp4",
+        "hls_url": hls_url,
+        "mp4_url": mp4_url,
         "danmaku_url": f"/api/videos/{video_id}/danmaku",
         "source": source,
         "douyin_video_id": row.get("douyin_video_id"),
@@ -337,3 +368,17 @@ def get_video_storage(video_id: str) -> dict[str, Any] | None:
         )
         row = cursor.fetchone()
         return _row_to_dict(row) if row else None
+
+
+def get_video_hls_storage(video_id: str) -> dict[str, Any] | None:
+    storage = get_video_storage(video_id)
+    if not storage:
+        return None
+    hls_key = _hls_object_key(storage)
+    if not hls_key:
+        return None
+    return {
+        **storage,
+        "hls_object_key": hls_key,
+        "hls_prefix": hls_key.rsplit("/", 1)[0] + "/",
+    }

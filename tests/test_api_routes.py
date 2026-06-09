@@ -155,6 +155,55 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.headers["content-range"], "bytes 0-3/10000")
         read_object_range.assert_called_once_with("第10集.mp4", 0, 3, bucket_name="dramepulse")
 
+    def test_get_video_hls_manifest(self) -> None:
+        with (
+            patch("services.api.routers.videos.get_video_hls_storage") as get_video_hls_storage,
+            patch("services.api.routers.videos.read_object_range") as read_object_range,
+        ):
+            get_video_hls_storage.return_value = {
+                "video_id": "beiwang_ep01",
+                "oss_bucket": "dramepulse",
+                "hls_object_key": "dramas/beiwang/episodes/ep01/index.m3u8",
+                "hls_prefix": "dramas/beiwang/episodes/ep01/",
+            }
+            read_object_range.return_value = b"#EXTM3U\nindex-00001.ts\n#EXT-X-ENDLIST\n"
+            response = self.client.get("/api/videos/beiwang_ep01/hls/index.m3u8")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/vnd.apple.mpegurl", response.headers["content-type"])
+        self.assertEqual(response.content, b"#EXTM3U\nindex-00001.ts\n#EXT-X-ENDLIST\n")
+        read_object_range.assert_called_once_with(
+            "dramas/beiwang/episodes/ep01/index.m3u8",
+            bucket_name="dramepulse",
+        )
+
+    def test_get_video_hls_segment(self) -> None:
+        with (
+            patch("services.api.routers.videos.get_video_hls_storage") as get_video_hls_storage,
+            patch("services.api.routers.videos.read_object_range") as read_object_range,
+        ):
+            get_video_hls_storage.return_value = {
+                "video_id": "beiwang_ep01",
+                "oss_bucket": "dramepulse",
+                "hls_object_key": "dramas/beiwang/episodes/ep01/index.m3u8",
+                "hls_prefix": "dramas/beiwang/episodes/ep01/",
+            }
+            read_object_range.return_value = b"ts-data"
+            response = self.client.get("/api/videos/beiwang_ep01/hls/index-00001.ts")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("video/mp2t", response.headers["content-type"])
+        self.assertEqual(response.content, b"ts-data")
+        read_object_range.assert_called_once_with(
+            "dramas/beiwang/episodes/ep01/index-00001.ts",
+            bucket_name="dramepulse",
+        )
+
+    def test_get_video_hls_segment_rejects_nested_path(self) -> None:
+        response = self.client.get("/api/videos/beiwang_ep01/hls/../video.mp4")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_get_video_danmaku(self) -> None:
         with patch("services.api.routers.videos.get_video_danmaku") as get_video_danmaku:
             get_video_danmaku.return_value = {

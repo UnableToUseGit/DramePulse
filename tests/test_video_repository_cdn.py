@@ -25,6 +25,14 @@ class VideoRepositoryCdnTest(unittest.TestCase):
             "douyin_video_id": "123",
             "source": "oss",
         }
+        self.episode_row = {
+            **self.row,
+            "video_id": "beiwang_ep01",
+            "series_id": "beiwang",
+            "episode_no": 1,
+            "episode_label": "ep01",
+            "oss_object_key": "dramas/beiwang/episodes/ep01/video.mp4",
+        }
 
     def tearDown(self) -> None:
         for name, value in self.previous_env.items():
@@ -52,6 +60,33 @@ class VideoRepositoryCdnTest(unittest.TestCase):
             video["stream_url"],
             "http://cdn.threekeyboardists.top/%E7%9F%AD%E5%89%A7%E5%90%88%E9%9B%86/%E7%AC%AC8%E9%9B%86.mp4",
         )
+        self.assertEqual(video["stream_type"], "mp4")
+        self.assertIsNone(video["hls_url"])
+        self.assertEqual(
+            video["mp4_url"],
+            "http://cdn.threekeyboardists.top/%E7%9F%AD%E5%89%A7%E5%90%88%E9%9B%86/%E7%AC%AC8%E9%9B%86.mp4",
+        )
+        self.assertEqual(video["source"], "cdn")
+
+    def test_cloud_mode_with_episode_hls_prefers_cdn_manifest(self) -> None:
+        os.environ["DRAMEPULSE_MODE"] = "cloud"
+        os.environ["CDN_BASE_URL"] = "http://cdn.threekeyboardists.top/"
+
+        video = videos._to_video_response(self.episode_row)
+
+        self.assertEqual(
+            video["stream_url"],
+            "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
+        )
+        self.assertEqual(video["stream_type"], "hls")
+        self.assertEqual(
+            video["hls_url"],
+            "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
+        )
+        self.assertEqual(
+            video["mp4_url"],
+            "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/video.mp4",
+        )
         self.assertEqual(video["source"], "cdn")
 
     def test_cloud_mode_without_cdn_falls_back_to_api_stream_url(self) -> None:
@@ -61,6 +96,19 @@ class VideoRepositoryCdnTest(unittest.TestCase):
         video = videos._to_video_response(self.row)
 
         self.assertEqual(video["stream_url"], "/api/videos/ep_08/stream")
+        self.assertEqual(video["stream_type"], "mp4")
+        self.assertEqual(video["source"], "oss")
+
+    def test_cloud_mode_without_cdn_uses_api_hls_manifest_for_episode_video(self) -> None:
+        os.environ["DRAMEPULSE_MODE"] = "cloud"
+        os.environ.pop("CDN_BASE_URL", None)
+
+        video = videos._to_video_response(self.episode_row)
+
+        self.assertEqual(video["stream_url"], "/api/videos/beiwang_ep01/hls/index.m3u8")
+        self.assertEqual(video["stream_type"], "hls")
+        self.assertEqual(video["hls_url"], "/api/videos/beiwang_ep01/hls/index.m3u8")
+        self.assertEqual(video["mp4_url"], "/api/videos/beiwang_ep01/stream")
         self.assertEqual(video["source"], "oss")
 
 

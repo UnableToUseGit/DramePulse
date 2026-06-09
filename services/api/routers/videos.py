@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+import re
+
 from fastapi import APIRouter, Header, HTTPException, Response, status
 
 from ..repositories.danmaku import get_video_danmaku
 from ..oss_client import parse_range_header, read_object_range
-from ..repositories.videos import get_video, get_video_playback_assets, get_video_storage, get_video_storyboard, list_active_videos
+from ..repositories.videos import (
+    get_video,
+    get_video_hls_storage,
+    get_video_playback_assets,
+    get_video_storage,
+    get_video_storyboard,
+    list_active_videos,
+)
 from ..schemas import DanmakuResponse, PlaybackAssetsResponse, StoryboardResponse, VideoListResponse, VideoResponse
 
 router = APIRouter()
+HLS_MANIFEST_MEDIA_TYPE = "application/vnd.apple.mpegurl"
+HLS_SEGMENT_MEDIA_TYPE = "video/mp2t"
 
 
 @router.get("/videos", response_model=VideoListResponse)
@@ -45,6 +56,58 @@ def retrieve_video_storyboard(video_id: str) -> StoryboardResponse:
     if not video:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
     return StoryboardResponse(**get_video_storyboard(video_id))
+
+
+@router.get("/videos/{video_id}/hls/index.m3u8")
+def retrieve_video_hls_manifest(video_id: str) -> Response:
+    storage = get_video_hls_storage(video_id)
+    if not storage:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS stream not found")
+
+    try:
+        body = read_object_range(str(storage["hls_object_key"]), bucket_name=str(storage["oss_bucket"]))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS manifest not found") from exc
+    except Exception as exc:
+        if exc.__class__.__name__ == "NoSuchKey":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS manifest not found") from exc
+        raise
+
+    headers = {
+        "Content-Type": HLS_MANIFEST_MEDIA_TYPE,
+        "Content-Length": str(len(body)),
+        "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=60",
+    }
+    return Response(content=body, status_code=status.HTTP_200_OK, headers=headers, media_type=HLS_MANIFEST_MEDIA_TYPE)
+
+
+@router.get("/videos/{video_id}/hls/{segment_name}")
+def retrieve_video_hls_segment(video_id: str, segment_name: str) -> Response:
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+\.ts", segment_name):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found")
+
+    storage = get_video_hls_storage(video_id)
+    if not storage:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS stream not found")
+
+    object_key = f"{storage['hls_prefix']}{segment_name}"
+    try:
+        body = read_object_range(object_key, bucket_name=str(storage["oss_bucket"]))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found") from exc
+    except Exception as exc:
+        if exc.__class__.__name__ == "NoSuchKey":
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found") from exc
+        raise
+
+    headers = {
+        "Content-Type": HLS_SEGMENT_MEDIA_TYPE,
+        "Content-Length": str(len(body)),
+        "Content-Disposition": "inline",
+        "Cache-Control": "public, max-age=31536000",
+    }
+    return Response(content=body, status_code=status.HTTP_200_OK, headers=headers, media_type=HLS_SEGMENT_MEDIA_TYPE)
 
 
 @router.get("/videos/{video_id}/stream")
