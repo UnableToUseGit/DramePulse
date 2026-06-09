@@ -310,11 +310,11 @@ CHROMA_COLLECTION=dramepulse_story_qa
 SIMILARITY_TOP_K=8
 ```
 
-To use the optional LightRAG backend, install the chapter-aware LightRAG package locally, build the knowledge graph offline with per-episode `chapter_ids`, and copy the whole working directory into `data/story_qa/.../lightrag`. Then set:
+To use the optional LightRAG backend, install the chapter-aware LightRAG package locally, build each drama knowledge graph offline with per-episode `chapter_ids`, and copy each whole working directory into `data/story_qa/{series_id}/lightrag`. Then set:
 
 ```env
 STORY_QA_BACKEND=lightrag
-LIGHTRAG_WORKING_DIR=data/story_qa/demo-drama/episode-001/lightrag
+LIGHTRAG_WORKING_ROOT=data/story_qa
 LIGHTRAG_QUERY_MODE=hybrid
 LIGHTRAG_ENABLE_RERANK=false
 LIGHTRAG_EMBEDDING_MODEL=text-embedding-3-small
@@ -324,7 +324,7 @@ LIGHTRAG_EMBEDDING_API_KEY=
 LIGHTRAG_EMBEDDING_SEND_DIM=false
 ```
 
-The player Q&A panel uses the same `/api/story-qa/ask` endpoint. For LightRAG, DramePulse maps `current_episode` to `QueryParam.current_chapter_id`, so spoiler filtering is episode-level and depends on a working directory built with `chapter_id` metadata. `current_time` is not used by LightRAG filtering in this version.
+The player Q&A panel uses the same `/api/story-qa/ask` endpoint. For LightRAG, DramePulse selects `LIGHTRAG_WORKING_ROOT/{series_id}/lightrag` and maps `current_episode` to `QueryParam.current_chapter_id`, so cross-drama isolation depends on the directory layout and episode-level spoiler filtering depends on `chapter_id` metadata. `current_time` is not used by LightRAG filtering in this version.
 
 ## Watch assistant
 
