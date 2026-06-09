@@ -150,7 +150,7 @@ export function RoleCommerceAdPage({
       <PlayerChrome
         liked={false}
         onToggleLike={() => {}}
-        onOpenStoryQa={() => {}}
+        onOpenWatchAssistant={() => {}}
         playbackRate={1}
         isSpeedMenuOpen={false}
         onToggleSpeedMenu={() => {}}

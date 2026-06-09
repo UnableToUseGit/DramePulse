@@ -24,8 +24,29 @@ const EMOTION_BUTTON_COPY: Record<
   泪点: { label: "破防了", icon: "water", feedbackText: "你也破防了" }
 };
 
+const DEFAULT_EMOTION_BUTTON_COUNTS: Record<ActionRailResonanceEmotionType, number> = {
+  爽点: 82000,
+  笑点: 94000,
+  甜点: 126000,
+  泪点: 34000
+};
+
 function toStringContent(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function toPositiveNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function resolveBaseCount(asset: InteractionAsset, emotionType: ActionRailResonanceEmotionType) {
+  return (
+    toPositiveNumber(asset.content?.base_count) ??
+    toPositiveNumber(asset.content?.baseCount) ??
+    toPositiveNumber(asset.content?.count) ??
+    DEFAULT_EMOTION_BUTTON_COUNTS[emotionType]
+  );
 }
 
 function resolveDurationSec(asset: InteractionAsset) {
@@ -57,7 +78,7 @@ export function toActionRailResonanceCues(assets: InteractionAsset[]): ActionRai
         emotionType,
         label: copy.label,
         icon: copy.icon,
-        baseCount: 0,
+        baseCount: resolveBaseCount(asset, emotionType),
         feedbackText: copy.feedbackText
       };
     })

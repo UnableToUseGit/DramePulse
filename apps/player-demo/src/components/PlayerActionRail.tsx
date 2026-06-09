@@ -10,7 +10,6 @@ import { LikeReactionButton } from "./LikeReactionButton";
 export function PlayerActionRail({
   liked,
   onToggleLike,
-  onOpenStoryQa,
   bottomOffset = 124,
   resonanceCue,
   resonanceTapState,
@@ -18,7 +17,6 @@ export function PlayerActionRail({
 }: {
   liked: boolean;
   onToggleLike: () => void;
-  onOpenStoryQa: () => void;
   bottomOffset?: number;
   resonanceCue?: ActionRailResonanceCue;
   resonanceTapState: ResonanceTapState;
@@ -36,7 +34,7 @@ export function PlayerActionRail({
         ) : null}
       </ActionRailResonanceSlot>
       <RailIcon icon="star" count="199.4万" />
-      <RailIcon icon="chatbubble-ellipses" count="6626" accessibilityLabel="剧情问答" onPress={onOpenStoryQa} />
+      <RailIcon icon="chatbubble-ellipses" count="6626" accessibilityLabel="评论" />
       <LikeReactionButton count="30.8万" liked={liked} onToggle={onToggleLike} />
       <RailIcon icon="arrow-redo" count="5.3万" />
     </View>

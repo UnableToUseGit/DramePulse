@@ -44,10 +44,26 @@ describe("interactionAssetCues", () => {
         emotionType: "笑点",
         label: "笑到了",
         icon: "happy",
-        baseCount: 0,
+        baseCount: 94000,
         feedbackText: "笑到了"
       }
     ]);
+  });
+
+  it("uses explicit emotional button counts from content when provided", () => {
+    const [cue] = toActionRailResonanceCues([
+      {
+        interactionId: "emotion-2",
+        videoId: "v1",
+        interactionMode: "emotional_button",
+        triggerTime: 12,
+        durationSec: 6,
+        content: { expression_type: "甜点", base_count: 126001 },
+        status: "active"
+      }
+    ]);
+
+    expect(cue?.baseCount).toBe(126001);
   });
 
   it("maps inner_voice_danmaku assets to inner voice cues", () => {

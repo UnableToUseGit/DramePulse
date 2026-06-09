@@ -55,16 +55,15 @@ export function DanmakuEntryArea({
 
 const styles = StyleSheet.create({
   root: {
-    width: 34,
+    width: 74,
     height: 34,
-    marginBottom: 12,
     overflow: "visible",
     zIndex: 12
   },
   innerVoiceSlot: {
     position: "absolute",
     left: 42,
-    top: 0,
+    top: -1,
     width: 220,
     height: 36,
     justifyContent: "center",

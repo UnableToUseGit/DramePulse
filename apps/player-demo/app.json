@@ -11,16 +11,19 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        }
+        },
+        "NSMicrophoneUsageDescription": "DramePulse 需要使用麦克风把你的语音指令转成观看助手文本。"
       },
       "supportsTablet": false
     },
     "android": {
       "package": "com.dramepulse.playerdemo",
       "usesCleartextTraffic": true,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": ["android.permission.RECORD_AUDIO"]
     },
     "plugins": [
+      "expo-audio",
       "expo-video",
       "expo-font"
     ]

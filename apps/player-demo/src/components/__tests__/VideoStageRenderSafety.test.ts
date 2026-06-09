@@ -80,4 +80,12 @@ describe("VideoStage render safety", () => {
     expect(source).toContain("useDanmakuFeed(video.danmakuUrl, false)");
     expect(source).not.toContain("const shouldLoadDanmaku");
   });
+
+  it("does not statically import expo-audio from PlayerPage so Expo Go can render text assistant", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+
+    expect(source).not.toContain('from "expo-audio"');
+    expect(source).toContain('import("expo-audio")');
+  });
 });

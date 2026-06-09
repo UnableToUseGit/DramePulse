@@ -11,7 +11,7 @@ import { PlayerTopBar } from "./PlayerTopBar";
 export function PlayerChrome({
   liked,
   onToggleLike,
-  onOpenStoryQa,
+  onOpenWatchAssistant,
   onOpenTheater,
   onBack,
   playbackRate,
@@ -44,7 +44,7 @@ export function PlayerChrome({
 }: {
   liked: boolean;
   onToggleLike: () => void;
-  onOpenStoryQa: () => void;
+  onOpenWatchAssistant: () => void;
   onOpenTheater?: () => void;
   onBack?: () => void;
   playbackRate: PlaybackRate;
@@ -90,7 +90,6 @@ export function PlayerChrome({
         <PlayerActionRail
           liked={liked}
           onToggleLike={onToggleLike}
-          onOpenStoryQa={onOpenStoryQa}
           bottomOffset={actionRailBottomOffset}
           resonanceCue={resonanceCue}
           resonanceTapState={resonanceTapState}
@@ -111,6 +110,7 @@ export function PlayerChrome({
           innerVoiceCue={innerVoiceCue}
           showInnerVoiceExample={showInnerVoiceExample}
           showDanmakuEntry={showDanmakuEntry}
+          onOpenWatchAssistant={onOpenWatchAssistant}
           showTags={mode !== "series"}
           summaryPresentation="inline"
           reserveActionRail={showActionRail}

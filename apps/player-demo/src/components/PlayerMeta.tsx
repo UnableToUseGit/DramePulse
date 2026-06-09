@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
 import { colors, radii, spacing } from "../theme";
-import { DanmakuEntryArea } from "./DanmakuEntryArea";
+import { PlayerConversationEntryArea } from "./PlayerConversationEntryArea";
 
 export function PlayerMeta({
   title,
@@ -22,6 +22,7 @@ export function PlayerMeta({
   reserveActionRail = true,
   bottomOffset = 118,
   preTitleAccessory,
+  onOpenWatchAssistant,
   onInnerVoiceGestureActiveChange,
   onSendInnerVoiceDanmaku,
   onInnerVoiceExitComplete
@@ -41,6 +42,7 @@ export function PlayerMeta({
   reserveActionRail?: boolean;
   bottomOffset?: number;
   preTitleAccessory?: ReactNode;
+  onOpenWatchAssistant: () => void;
   onInnerVoiceGestureActiveChange: (active: boolean) => void;
   onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
   onInnerVoiceExitComplete: (cue: InnerVoiceDanmakuCue) => void;
@@ -58,12 +60,13 @@ export function PlayerMeta({
   return (
     <View style={[styles.root, reserveActionRail ? styles.withActionRail : styles.fullWidth, { bottom: bottomOffset }]}>
       {showDanmakuEntry ? (
-        <DanmakuEntryArea
+        <PlayerConversationEntryArea
           currentTime={currentTime}
           isActive={isActive}
           showInnerVoice={showInnerVoice}
           innerVoiceCue={innerVoiceCue}
           showInnerVoiceExample={showInnerVoiceExample}
+          onOpenWatchAssistant={onOpenWatchAssistant}
           onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
           onInnerVoiceExitComplete={onInnerVoiceExitComplete}
