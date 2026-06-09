@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 import re
 from pathlib import Path
 from typing import Any
-import xml.etree.ElementTree as ET
+
+import networkx as nx
 
 from ..config import get_settings
 from .admin_content import list_series
@@ -13,23 +13,6 @@ from .admin_content import list_series
 
 GRAPH_FILE_NAME = "graph_chunk_entity_relation.graphml"
 SAFE_SERIES_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
-
-
-@dataclass(frozen=True)
-class StoryGraph:
-    nodes: dict[str, dict[str, Any]]
-    edges: list[tuple[str, str, dict[str, Any]]]
-
-    def degree(self, node_id: str) -> int:
-        return sum(1 for source, target, _ in self.edges if source == node_id or target == node_id)
-
-    @property
-    def node_count(self) -> int:
-        return len(self.nodes)
-
-    @property
-    def edge_count(self) -> int:
-        return len(self.edges)
 
 
 def _resolve_graph_path(series_id: str) -> Path:
@@ -43,53 +26,11 @@ def _resolve_graph_path(series_id: str) -> Path:
     return graph_path
 
 
-def _read_graph(series_id: str) -> StoryGraph:
+def _read_graph(series_id: str) -> nx.Graph:
     graph_path = _resolve_graph_path(series_id)
     if not graph_path.is_file():
         raise FileNotFoundError(series_id)
-    return _parse_graphml(graph_path)
-
-
-def _local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1]
-
-
-def _parse_graphml(path: Path) -> StoryGraph:
-    root = ET.parse(path).getroot()
-    key_names = {
-        str(item.attrib.get("id")): str(item.attrib.get("attr.name") or item.attrib.get("id"))
-        for item in root.iter()
-        if _local_name(item.tag) == "key" and item.attrib.get("id")
-    }
-    graph_element = next((item for item in root.iter() if _local_name(item.tag) == "graph"), None)
-    if graph_element is None:
-        return StoryGraph(nodes={}, edges=[])
-
-    nodes: dict[str, dict[str, Any]] = {}
-    edges: list[tuple[str, str, dict[str, Any]]] = []
-    for item in graph_element:
-        tag = _local_name(item.tag)
-        if tag == "node":
-            node_id = str(item.attrib.get("id") or "").strip()
-            if node_id:
-                nodes[node_id] = _graphml_data(item, key_names)
-        elif tag == "edge":
-            source = str(item.attrib.get("source") or "").strip()
-            target = str(item.attrib.get("target") or "").strip()
-            if source and target:
-                edges.append((source, target, _graphml_data(item, key_names)))
-    return StoryGraph(nodes=nodes, edges=edges)
-
-
-def _graphml_data(element: ET.Element, key_names: dict[str, str]) -> dict[str, str]:
-    data: dict[str, str] = {}
-    for child in element:
-        if _local_name(child.tag) != "data":
-            continue
-        key = str(child.attrib.get("key") or "")
-        name = key_names.get(key, key)
-        data[name] = child.text or ""
-    return data
+    return nx.read_graphml(graph_path)
 
 
 def _chapter_ids(value: Any) -> list[int]:
@@ -104,13 +45,13 @@ def _chapter_ids(value: Any) -> list[int]:
     return sorted({int(number) for number in numbers})
 
 
-def _node_payload(graph: StoryGraph, node_id: str, data: dict[str, Any]) -> dict[str, Any]:
+def _node_payload(graph: nx.Graph, node_id: str, data: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": node_id,
         "label": str(data.get("entity_id") or node_id),
         "entity_type": str(data.get("entity_type") or "unknown"),
         "description": str(data.get("description") or ""),
-        "degree": graph.degree(node_id),
+        "degree": int(graph.degree(node_id)),
         "chapter_ids": _chapter_ids(data.get("chapter_ids") or data.get("chapter_id")),
     }
 
@@ -151,7 +92,7 @@ def list_story_graphs() -> list[dict[str, Any]]:
         if not SAFE_SERIES_ID_RE.fullmatch(series_id):
             continue
         try:
-            graph = _parse_graphml(graph_path)
+            graph = nx.read_graphml(graph_path)
         except Exception:
             items.append(
                 {
@@ -167,8 +108,8 @@ def list_story_graphs() -> list[dict[str, Any]]:
             {
                 "series_id": series_id,
                 "series_name": (series_by_id.get(series_id) or {}).get("series_name"),
-                "node_count": graph.node_count,
-                "edge_count": graph.edge_count,
+                "node_count": graph.number_of_nodes(),
+                "edge_count": graph.number_of_edges(),
                 "available": True,
             }
         )
@@ -181,29 +122,30 @@ def get_story_graph(series_id: str, query: str = "", limit: int = 300) -> dict[s
     except FileNotFoundError:
         return None
 
-    all_nodes = [_node_payload(graph, node_id, data) for node_id, data in graph.nodes.items()]
+    all_nodes = [_node_payload(graph, str(node_id), dict(data)) for node_id, data in graph.nodes(data=True)]
     matched_nodes = [node for node in all_nodes if _matches_query(node, query)]
     selected_nodes = _limit_nodes(matched_nodes, max(1, min(limit, 1000)))
     selected_ids = {node["id"] for node in selected_nodes}
 
     if query.strip():
-        for source, target, _ in graph.edges:
-            if source in selected_ids or target in selected_ids:
-                selected_ids.add(source)
-                selected_ids.add(target)
+        for source, target in graph.edges(selected_ids):
+            selected_ids.add(str(source))
+            selected_ids.add(str(target))
         selected_nodes = [node for node in all_nodes if node["id"] in selected_ids]
 
     edges: list[dict[str, Any]] = []
-    for index, (source, target, data) in enumerate(graph.edges, start=1):
-        if source in selected_ids and target in selected_ids:
-            edges.append(_edge_payload(index, source, target, data))
+    for index, (source, target, data) in enumerate(graph.edges(data=True), start=1):
+        source_id = str(source)
+        target_id = str(target)
+        if source_id in selected_ids and target_id in selected_ids:
+            edges.append(_edge_payload(index, source_id, target_id, dict(data)))
 
     return {
         "series_id": series_id,
         "node_count": len(selected_nodes),
         "edge_count": len(edges),
-        "total_node_count": graph.node_count,
-        "total_edge_count": graph.edge_count,
+        "total_node_count": graph.number_of_nodes(),
+        "total_edge_count": graph.number_of_edges(),
         "nodes": selected_nodes,
         "edges": edges,
     }

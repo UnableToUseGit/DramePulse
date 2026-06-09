@@ -44,12 +44,6 @@ def _video_stream_url(video_id: str, row: dict[str, Any]) -> str:
     return f"/api/videos/{video_id}/stream"
 
 
-def _storyboard_sheet_url(video_id: str, url: str) -> str:
-    if url.startswith(("http://", "https://", "/")):
-        return url
-    return f"/storyboards/{quote(video_id, safe='')}/{quote(url)}"
-
-
 def _to_video_response(row: dict[str, Any]) -> dict[str, Any]:
     video_id = str(row["video_id"])
     stream_url = _video_stream_url(video_id, row)
@@ -278,15 +272,6 @@ def get_video_storyboard(video_id: str) -> dict[str, Any]:
     storyboard = _row_to_dict(row)
     manifest_json = storyboard.pop("manifest_json", None)
     manifest = _json_dict(manifest_json)
-    raw_sheets = manifest.get("sheets")
-    sheets: list[dict[str, Any]] = []
-    if isinstance(raw_sheets, list):
-        for sheet in raw_sheets:
-            if not isinstance(sheet, dict):
-                continue
-            url = sheet.get("url")
-            if isinstance(url, str) and url:
-                sheets.append({**sheet, "url": _storyboard_sheet_url(video_id, url)})
     return {
         "video_id": str(storyboard["video_id"]),
         "available": True,
@@ -295,7 +280,7 @@ def get_video_storyboard(video_id: str) -> dict[str, Any]:
         "frame_height": int(storyboard["frame_height"]),
         "columns": int(storyboard["columns_count"]),
         "rows": int(storyboard["rows_count"]),
-        "sheets": sheets,
+        "sheets": manifest.get("sheets") if isinstance(manifest.get("sheets"), list) else [],
     }
 
 

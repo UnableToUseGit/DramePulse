@@ -24,14 +24,10 @@ class VideoRepositoryStoryAssetsTest(unittest.TestCase):
                 "LOCAL_OSS_ROOT",
                 "LOCAL_OSS_BUCKET",
                 "CDN_BASE_URL",
-                "STORY_CHAPTER_OUTPUT_ROOT",
-                "STORYBOARD_ROOT",
             ]
         }
         os.environ["DRAMEPULSE_MODE"] = "local"
         os.environ["SQLITE_PATH"] = str(self.root / "dramepulse.sqlite")
-        os.environ["STORY_CHAPTER_OUTPUT_ROOT"] = str(self.root / "chapter_output")
-        os.environ["STORYBOARD_ROOT"] = str(self.root / "storyboards")
 
     def tearDown(self) -> None:
         for name, value in self.previous_env.items():
@@ -54,9 +50,9 @@ class VideoRepositoryStoryAssetsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["available"], True)
-        self.assertEqual(response.json()["sheets"][0]["url"], "/storyboards/ep_08/sheet_000.jpg")
+        self.assertEqual(response.json()["sheets"][0]["url"], "sheet_000.jpg")
 
-    def test_storyboard_static_mount_serves_generated_sheets(self) -> None:
+    def test_legacy_storyboard_route_reads_public_asset_storage(self) -> None:
         storyboard_dir = self.root / "storyboards" / "ep_08"
         storyboard_dir.mkdir(parents=True)
         (storyboard_dir / "sheet_000.jpg").write_bytes(b"jpeg")
@@ -64,12 +60,47 @@ class VideoRepositoryStoryAssetsTest(unittest.TestCase):
         client = TestClient(create_app())
         response = client.get("/storyboards/ep_08/sheet_000.jpg")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.content, b"jpeg")
+        self.assertEqual(response.status_code, 404)
 
     def _insert_storyboard(self, video_id: str, manifest: dict[str, object]) -> None:
         connection = sqlite3.connect(os.environ["SQLITE_PATH"])
         try:
+            connection.execute(
+                """
+                CREATE TABLE videos (
+                    video_id TEXT PRIMARY KEY,
+                    series_id TEXT NULL,
+                    series_name TEXT NULL,
+                    title TEXT NOT NULL,
+                    episode_no INTEGER NULL,
+                    episode_label TEXT NULL,
+                    duration REAL NULL,
+                    oss_object_key TEXT NULL,
+                    source TEXT NULL,
+                    douyin_video_id TEXT NULL,
+                    status TEXT NOT NULL DEFAULT 'active'
+                )
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO videos (
+                    video_id,
+                    series_id,
+                    series_name,
+                    title,
+                    episode_no,
+                    episode_label,
+                    duration,
+                    oss_object_key,
+                    source,
+                    douyin_video_id,
+                    status
+                )
+                VALUES (?, 'demo', 'Demo', 'Episode 8', 8, 'ep08', 120, 'videos/ep_08.mp4', 'oss', NULL, 'active')
+                """,
+                (video_id,),
+            )
             connection.execute(
                 """
                 CREATE TABLE video_storyboards (

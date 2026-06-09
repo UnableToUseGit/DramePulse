@@ -3,15 +3,11 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
-from .config import get_settings
 from .routers import (
     admin,
     assets,
     danmaku,
-    dev_logs,
     events,
     feed,
     health,
@@ -29,21 +25,9 @@ from .story_qa import service as story_qa_service
 
 logger = logging.getLogger(__name__)
 
-LOCAL_DEV_CORS_ORIGINS = [
-    "http://127.0.0.1:8770",
-    "http://localhost:8770",
-]
-
 
 def create_app() -> FastAPI:
     app = FastAPI(title="DramePulse API", version="0.1.0")
-    settings = get_settings()
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=LOCAL_DEV_CORS_ORIGINS,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["*"],
-    )
 
     @app.on_event("startup")
     def warmup_story_qa() -> None:
@@ -66,13 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(events.router, prefix="/api", tags=["events"])
     app.include_router(playback_events.router, prefix="/api", tags=["playback-events"])
     app.include_router(story_qa.router, prefix="/api", tags=["story-qa"])
-    app.include_router(dev_logs.router, prefix="/api", tags=["dev-logs"])
     app.include_router(watch_assistant.router, prefix="/api", tags=["watch-assistant"])
-    app.mount(
-        "/storyboards",
-        StaticFiles(directory=str(settings.storyboard_root), check_dir=False),
-        name="storyboards",
-    )
     return app
 
 
