@@ -5,6 +5,9 @@ from pathlib import Path
 import sqlite3
 
 from services.api.config import get_settings
+from services.api.repositories.admin_analysis import create_analysis_table_sqlite
+from services.api.repositories.new_assets import create_new_asset_tables_sqlite
+from services.api.repositories.story_chapters import create_story_chapter_tables_sqlite
 
 
 DEMO_VIDEO_ID = "demo_ep01"
@@ -144,6 +147,44 @@ def migrate_videos_table(cursor: sqlite3.Cursor) -> None:
     for column, definition in VIDEO_COLUMNS.items():
         if column not in existing:
             cursor.execute(f"ALTER TABLE videos ADD COLUMN {column} {definition}")
+
+
+def create_asset_tables_sqlite(cursor: sqlite3.Cursor) -> None:
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS series_assets (
+            series_id TEXT PRIMARY KEY,
+            cover_object_key TEXT NULL,
+            cover_url TEXT NULL,
+            cover_content_type TEXT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_series_assets_status ON series_assets (status)")
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS video_storyboards (
+            video_id TEXT PRIMARY KEY,
+            interval_seconds REAL NOT NULL,
+            frame_width INTEGER NOT NULL,
+            frame_height INTEGER NOT NULL,
+            columns_count INTEGER NOT NULL,
+            rows_count INTEGER NOT NULL,
+            manifest_object_key TEXT NOT NULL,
+            manifest_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+            FOREIGN KEY (video_id) REFERENCES videos(video_id)
+                ON UPDATE CASCADE
+                ON DELETE RESTRICT
+        )
+        """
+    )
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_video_storyboards_status ON video_storyboards (status)")
 
 
 def init_local_dev() -> None:
@@ -309,6 +350,10 @@ def init_local_dev() -> None:
             """
         )
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_interaction_option_stats_plan ON interaction_option_stats (interaction_id)")
+        create_analysis_table_sqlite(cursor)
+        create_asset_tables_sqlite(cursor)
+        create_story_chapter_tables_sqlite(cursor)
+        create_new_asset_tables_sqlite(cursor)
         cursor.execute(
             """
             INSERT INTO videos (

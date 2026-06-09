@@ -1,5 +1,7 @@
 # 高光点识别模块设计
 
+> 本文档记录早期高光识别设计。当前算法主线已迁移为 Expression Trigger，代码入口为 `pipelines/expression_trigger/`。旧 `highlight_recognition` pipeline 已废弃并移除。
+
 ## 1. 模块定位
 
 高光点识别模块负责从短剧视频和字幕中识别适合触发互动的剧情片段，并输出结构化的 `Highlight Asset` 列表。
@@ -56,10 +58,11 @@ MVP 阶段采用“字幕 + 多图理解 + 结构化校验”的方式完成最�
 
 模块会根据视频或字幕时长生成采样时间戳。
 
-支持两类采样参数：
+支持一类采样参数：
 
-- `sample_interval_sec`：采样间隔，例如 1s 1 帧、2s 1 帧；
-- `frames_per_interval`：每个间隔内采样帧数，例如 1s 2 帧。
+- `sample_interval_sec`：采样间隔，表示每隔多少秒取一帧，例如 1s 1 帧、2s 1 帧。
+
+如果采样帧数超过 `max_frames`，模块不再从前往后截断，而是使用 `max_frames` 在完整时间线上重新均匀采样。采样序列包含 0 秒。
 
 #### 视频帧
 
@@ -113,7 +116,7 @@ MVP 阶段采用“字幕 + 多图理解 + 结构化校验”的方式完成最�
 
 ### 5.2 时间戳采样
 
-根据 `sample_interval_sec` 和 `frames_per_interval` 生成时间戳序列。
+根据 `sample_interval_sec` 生成时间戳序列；如果超过 `max_frames`，则按完整时间线均匀重采样。
 
 ### 5.3 多图理解输入构造
 
@@ -170,22 +173,23 @@ MVP 阶段采用“字幕 + 多图理解 + 结构化校验”的方式完成最�
 
 ## 8. 实现接口
 
-当前脚本入口：
+早期脚本入口已废弃：
 
 ```text
 scripts/run_highlight_recognition.py
 ```
 
-示例运行：
+当前 Expression Trigger 主链路入口：
 
 ```bash
-python scripts/run_highlight_recognition.py case1_ep01
+python scripts/expression_trigger/run_workflow_batch.py --video-id case1_ep01 --force
 ```
 
 输出写入：
 
 ```text
-output/<video_id>/highlight_recognition.json
+output/<video_id>/expression_triggers.json
+output/<video_id>/expression_triggers.debug.json
 ```
 
 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL` 从 `.env` 读取，也可由进程环境变量覆盖。

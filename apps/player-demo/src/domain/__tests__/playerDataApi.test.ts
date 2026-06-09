@@ -1,6 +1,11 @@
 import {
   loadHomeFeedVideos,
-  loadPlaybackAssets,
+  loadLightweightPlaybackAssets,
+  loadSeriesAdSlots,
+  loadVideoInteractionAssets,
+  loadVideoInteractionPlans,
+  loadVideoStoryChapters,
+  loadVideoStoryboard,
   loadTheaterSeriesGroups,
   loadSeriesEpisodes,
   loadTheaterSeries
@@ -173,6 +178,91 @@ describe("playerDataApi", () => {
     expect(episodes.map((video) => video.videoId)).toEqual(["beiwang_ep01"]);
   });
 
+  it("loads series ad slots from /api/series/{series_id}/ad-slots", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/series/beiwang/ad-slots": {
+        series_id: "beiwang",
+        slots: [
+          {
+            slot_id: "slot1",
+            series_id: "beiwang",
+            after_episode_no: 1,
+            status: "active",
+            ad: {
+              ad_id: "ad1",
+              stream_url: "/api/ads/ad1/stream",
+              video_url: "/cdn/ad1.mp4",
+              duration: 12,
+              sponsor_label: "广告",
+              product_name: "云雾哑光口红",
+              product_description: "太奶奶同款短剧番外推荐。",
+              character_name: "太奶奶",
+              cta_text: "查看同款",
+              price_text: "到手价 99 元",
+              selling_points: ["显气色", "哑光不拔干"]
+            }
+          }
+        ]
+      }
+    });
+
+    const ads = await loadSeriesAdSlots({
+      apiBaseUrl: "http://api.test",
+      seriesId: "beiwang",
+      fetcher
+    });
+
+    expect(calls).toEqual(["http://api.test/api/series/beiwang/ad-slots"]);
+    expect(ads).toEqual([
+      {
+        adId: "ad1",
+        campaignId: "slot1",
+        placement: "after_video",
+        afterEpisodeNo: 1,
+        sponsorLabel: "广告",
+        characterName: "太奶奶",
+        productName: "云雾哑光口红",
+        title: "云雾哑光口红",
+        hook: "太奶奶同款短剧番外推荐。",
+        productDescription: "太奶奶同款短剧番外推荐。",
+        voiceoverLines: [],
+        sellingPoints: ["显气色", "哑光不拔干"],
+        priceText: "到手价 99 元",
+        ctaText: "查看同款",
+        streamUrl: "http://api.test/api/ads/ad1/stream",
+        duration: 12
+      }
+    ]);
+  });
+
+  it("does not invent afterEpisodeNo when ad slot omits after_episode_no", async () => {
+    const { fetcher } = createFetcher({
+      "http://api.test/api/series/beiwang/ad-slots": {
+        series_id: "beiwang",
+        slots: [
+          {
+            slot_id: "slot1",
+            series_id: "beiwang",
+            status: "active",
+            ad: {
+              ad_id: "ad1",
+              stream_url: "/api/ads/ad1/stream",
+              product_name: "云雾哑光口红"
+            }
+          }
+        ]
+      }
+    });
+
+    const ads = await loadSeriesAdSlots({
+      apiBaseUrl: "http://api.test",
+      seriesId: "beiwang",
+      fetcher
+    });
+
+    expect(ads[0]).not.toHaveProperty("afterEpisodeNo");
+  });
+
   it("loads theater series groups with full episodes from page-level endpoints", async () => {
     const { fetcher } = createFetcher({
       "http://api.test/api/series": {
@@ -278,23 +368,199 @@ describe("playerDataApi", () => {
         rows: 5,
         sheets: [{ url: "/storyboards/beiwang_ep01/sheet_000.jpg", start_time: 0, frame_count: 25 }]
       },
-      "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
+      "http://api.test/api/videos/beiwang_ep01/story-chapters": {
         video_id: "beiwang_ep01",
-        interaction_plans: []
+        available: true,
+        chapters: [
+          {
+            chapter_id: "c1",
+            video_id: "beiwang_ep01",
+            start_time: 0,
+            end_time: 84.2,
+            title: "讨薪成功",
+            summary: "老板帮工人结清工资"
+          }
+        ]
+      },
+      "http://api.test/api/videos/beiwang_ep01/interaction-assets": {
+        video_id: "beiwang_ep01",
+        available: true,
+        items: [
+          {
+            interaction_id: "ia1",
+            video_id: "beiwang_ep01",
+            interaction_mode: "inner_voice_danmaku",
+            trigger_time: 56.807,
+            expire_time: 61.807,
+            duration_sec: 5,
+            content: { text: "这老板真是好人啊" },
+            source_asset_id: "ha1",
+            status: "active"
+          }
+        ]
       }
     });
 
-    const assets = await loadPlaybackAssets({
+    const assets = await loadLightweightPlaybackAssets({
       apiBaseUrl: "http://api.test",
       videoId: "beiwang_ep01",
       fetcher
     });
 
     expect(assets.video.videoId).toBe("beiwang_ep01");
-    expect(assets.storyChapters).toEqual([]);
+    expect(assets.storyChapters).toEqual([
+      {
+        chapterId: "c1",
+        videoId: "beiwang_ep01",
+        startTime: 0,
+        endTime: 84.2,
+        title: "讨薪成功",
+        summary: "老板帮工人结清工资"
+      }
+    ]);
     expect(assets.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
     expect(assets.video.storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
-    expect(assets.interactionPlans).toEqual([]);
+    expect(assets.video.storyChapters?.[0]?.title).toBe("讨薪成功");
+    expect(assets.interactionAssets).toEqual([
+      {
+        interactionId: "ia1",
+        videoId: "beiwang_ep01",
+        interactionMode: "inner_voice_danmaku",
+        triggerTime: 56.807,
+        expireTime: 61.807,
+        durationSec: 5,
+        content: { text: "这老板真是好人啊" },
+        sourceAssetId: "ha1",
+        status: "active"
+      }
+    ]);
+  });
+
+  it("loads storyboard without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/storyboard": {
+        video_id: "beiwang_ep01",
+        available: true,
+        interval_seconds: 1,
+        frame_width: 120,
+        frame_height: 212,
+        columns: 5,
+        rows: 5,
+        sheets: [{ url: "/storyboards/beiwang_ep01/sheet_000.jpg", start_time: 0, frame_count: 25 }]
+      }
+    });
+
+    const storyboard = await loadVideoStoryboard({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(storyboard?.sheets[0]?.url).toBe("http://api.test/storyboards/beiwang_ep01/sheet_000.jpg");
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/storyboard"]);
+  });
+
+  it("loads interaction plans without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
+        video_id: "beiwang_ep01",
+        interaction_plans: [{ interaction_id: "i1" }]
+      }
+    });
+
+    const plans = await loadVideoInteractionPlans({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(plans).toEqual([{ interaction_id: "i1" }]);
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/interaction-plans"]);
+  });
+
+  it("loads story chapters from the dedicated endpoint without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/story-chapters": {
+        video_id: "beiwang_ep01",
+        available: true,
+        chapters: [
+          {
+            chapter_id: "c1",
+            video_id: "beiwang_ep01",
+            chapter_index: 1,
+            start_time: 0,
+            end_time: 84.2,
+            title: "讨薪成功",
+            summary: "老板帮工人结清工资",
+            reason: "剧情阶段转换",
+            source: "subtitle_scene_aligned",
+            status: "active"
+          }
+        ]
+      }
+    });
+
+    const chapters = await loadVideoStoryChapters({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(chapters).toEqual([
+      {
+        chapterId: "c1",
+        videoId: "beiwang_ep01",
+        startTime: 0,
+        endTime: 84.2,
+        title: "讨薪成功",
+        summary: "老板帮工人结清工资"
+      }
+    ]);
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/story-chapters"]);
+  });
+
+  it("loads interaction assets from the dedicated endpoint without requesting danmaku or playback assets", async () => {
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/videos/beiwang_ep01/interaction-assets": {
+        video_id: "beiwang_ep01",
+        interaction_mode: "inner_voice_danmaku",
+        available: true,
+        items: [
+          {
+            interaction_id: "ia1",
+            video_id: "beiwang_ep01",
+            interaction_mode: "inner_voice_danmaku",
+            trigger_time: 56.807,
+            expire_time: 61.807,
+            duration_sec: 5,
+            content: { text: "这老板真是好人啊" },
+            source_asset_id: "ha1",
+            status: "active"
+          }
+        ]
+      }
+    });
+
+    const assets = await loadVideoInteractionAssets({
+      apiBaseUrl: "http://api.test",
+      videoId: "beiwang_ep01",
+      fetcher
+    });
+
+    expect(assets).toEqual([
+      {
+        interactionId: "ia1",
+        videoId: "beiwang_ep01",
+        interactionMode: "inner_voice_danmaku",
+        triggerTime: 56.807,
+        expireTime: 61.807,
+        durationSec: 5,
+        content: { text: "这老板真是好人啊" },
+        sourceAssetId: "ha1",
+        status: "active"
+      }
+    ]);
+    expect(calls).toEqual(["http://api.test/api/videos/beiwang_ep01/interaction-assets"]);
   });
 
   it("falls back to /api/videos when the single video playback asset endpoint is unavailable", async () => {
@@ -313,13 +579,11 @@ describe("playerDataApi", () => {
           }
         ]
       },
-      "http://api.test/api/videos/beiwang_ep01/interaction-plans": {
-        video_id: "beiwang_ep01",
-        interaction_plans: []
-      }
+      "http://api.test/api/videos/beiwang_ep01/story-chapters": { available: false, chapters: [] },
+      "http://api.test/api/videos/beiwang_ep01/interaction-assets": { available: false, items: [] }
     });
 
-    const assets = await loadPlaybackAssets({
+    const assets = await loadLightweightPlaybackAssets({
       apiBaseUrl: "http://api.test",
       videoId: "beiwang_ep01",
       fetcher

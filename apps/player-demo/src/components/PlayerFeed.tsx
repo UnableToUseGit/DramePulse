@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, useWindowDimensions, View } from "react-native";
 import { API_BASE_URL, ENABLE_PLAYBACK_DEBUG_PANEL } from "../config";
 import { createHomeFeedPlaybackFileLogger } from "../domain/homeFeedPlaybackFileLogger";
+import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import {
   type BufferedPlaybackPosition,
   buildPlayerFeedItems,
@@ -22,7 +23,7 @@ import {
   type HomeFeedPlaybackObserver
 } from "../domain/homeFeedPlaybackObserver";
 import type { PlayerVideo } from "../domain/playerApi";
-import { DEMO_ROLE_COMMERCE_ADS } from "../domain/roleCommerceAds";
+import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { HomeFeedPlaybackDebugPanel } from "./HomeFeedPlaybackDebugPanel";
 import { PlayerPage } from "./PlayerPage";
@@ -42,12 +43,15 @@ export function PlayerFeed({
   videos,
   mode,
   requestedVideoId,
+  playbackAssetCache,
   playbackPositions,
+  roleCommerceAds = [],
   selectedPresentationType,
   seriesEpisodeCount,
   onChangePresentationType,
   onPlaybackPositionsChange,
   onActiveVideoChange,
+  onInitialVideoPlaybackReady,
   onOpenTheater,
   onBack,
   onOpenSeriesDetail
@@ -55,19 +59,22 @@ export function PlayerFeed({
   videos: PlayerVideo[];
   mode: "home" | "series";
   requestedVideoId?: string;
+  playbackAssetCache: PlaybackAssetCache;
   playbackPositions: Record<string, number>;
+  roleCommerceAds?: RoleCommerceFeedAd[];
   selectedPresentationType: InteractionPresentationType;
   seriesEpisodeCount?: number;
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionsChange: (positions: Record<string, number>) => void;
   onActiveVideoChange?: (video: PlayerVideo) => void;
+  onInitialVideoPlaybackReady?: () => void;
   onOpenTheater?: () => void;
   onBack?: () => void;
   onOpenSeriesDetail?: () => void;
 }) {
   const feedItems = useMemo(
-    () => buildPlayerFeedItems({ videos, roleCommerceAds: DEMO_ROLE_COMMERCE_ADS, mode }),
-    [mode, videos]
+    () => buildPlayerFeedItems({ videos, roleCommerceAds, mode }),
+    [mode, roleCommerceAds, videos]
   );
   const initialIndex = useMemo(
     () => getVideoIndexFromFeedItems(feedItems, requestedVideoId),
@@ -410,6 +417,7 @@ export function PlayerFeed({
               <PlayerPage
                 video={item.video}
                 pageIndex={index}
+                playbackAssetCache={playbackAssetCache}
                 playbackObserver={playbackObserver}
                 isActive={playbackPageState.shouldOwnPlayback}
                 pageRole={playbackPageState.pageRole}
@@ -426,6 +434,9 @@ export function PlayerFeed({
                 onChangePresentationType={onChangePresentationType}
                 onPlaybackPositionChange={handlePlaybackPositionChange}
                 onTimelineDragStateChange={setIsTimelineDragging}
+                onPlaybackReady={
+                  mode === "home" && index === initialIndex ? onInitialVideoPlaybackReady : undefined
+                }
                 onPlayNextEpisode={() => handlePlayNextItem(index)}
                 mode={mode}
                 seriesEpisodeCount={seriesEpisodeCount}

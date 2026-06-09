@@ -37,7 +37,7 @@ describe("TheaterScreen layout", () => {
     const theaterSource = fs.readFileSync("src/screens/TheaterScreen.tsx", "utf8");
     const detailSheetSource = fs.readFileSync("src/components/SeriesDetailSheet.tsx", "utf8");
 
-    expect(theaterSource).toContain("getSeriesCoverSource(series.coverVideo.seriesId)");
+    expect(theaterSource).toContain("getSeriesCoverSource(series.seriesId ?? series.coverVideo?.seriesId)");
     expect(theaterSource).toContain("series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl }");
     expect(theaterSource).toContain("onError={() => setDidFailCloudCover(true)}");
     expect(theaterSource).not.toContain("{ uri: item.coverVideo.streamUrl }");

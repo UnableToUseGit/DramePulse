@@ -2,13 +2,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, Image, NativeScrollEvent, NativeSyntheticEvent, Pressable, StyleSheet, Text, View } from "react-native";
 import { PlayerBottomTabs } from "../components/PlayerBottomTabs";
-import { shouldRestoreScrollOffset, type SeriesGroup } from "../domain/playerFeed";
+import { shouldRestoreScrollOffset } from "../domain/playerFeed";
 import { getSeriesCoverSource } from "../domain/seriesCovers";
+import type { TheaterSeriesGroup } from "../domain/startupLoader";
 import { colors, radii, spacing } from "../theme";
 
-function SeriesCoverImage({ series }: { series: SeriesGroup }) {
+function SeriesCoverImage({ series }: { series: TheaterSeriesGroup }) {
   const [didFailCloudCover, setDidFailCloudCover] = useState(false);
-  const localCoverSource = getSeriesCoverSource(series.coverVideo.seriesId);
+  const localCoverSource = getSeriesCoverSource(series.seriesId ?? series.coverVideo?.seriesId);
   const coverSource = series.coverUrl && !didFailCloudCover ? { uri: series.coverUrl } : localCoverSource;
 
   if (!coverSource) {
@@ -32,14 +33,14 @@ export function TheaterScreen({
   onScrollOffsetChange,
   onOpenHome
 }: {
-  series: SeriesGroup[];
+  series: TheaterSeriesGroup[];
   resumeVideoIds: Record<string, string>;
   initialScrollOffset: number;
-  onSelectSeries: (series: SeriesGroup) => void;
+  onSelectSeries: (series: TheaterSeriesGroup) => void;
   onScrollOffsetChange: (offset: number) => void;
   onOpenHome: () => void;
 }) {
-  const listRef = useRef<FlatList<SeriesGroup>>(null);
+  const listRef = useRef<FlatList<TheaterSeriesGroup>>(null);
   const [didRestoreOffset, setDidRestoreOffset] = useState(false);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {

@@ -36,26 +36,6 @@ class ApiRoutesTest(unittest.TestCase):
                     "danmaku_url": "/api/videos/ep_10/danmaku",
                     "source": "oss",
                     "douyin_video_id": "123456",
-                    "story_chapters": [
-                        {
-                            "chapter_id": "ch_ep_10_001",
-                            "video_id": "ep_10",
-                            "start_time": 0,
-                            "end_time": 10,
-                            "title": "开场冲突",
-                            "summary": "主角遭遇第一轮冲突。",
-                            "importance": 0.7,
-                        }
-                    ],
-                    "storyboard": {
-                        "video_id": "ep_10",
-                        "interval_seconds": 1,
-                        "frame_width": 160,
-                        "frame_height": 90,
-                        "columns": 5,
-                        "rows": 5,
-                        "sheets": [{"url": "/storyboards/ep_10/sheet_000.jpg", "start_time": 0, "frame_count": 25}],
-                    },
                 }
             ]
             response = self.client.get("/api/videos")
@@ -67,15 +47,82 @@ class ApiRoutesTest(unittest.TestCase):
         self.assertEqual(response.json()["videos"][0]["douyin_video_id"], "123456")
         self.assertEqual(response.json()["videos"][0]["stream_url"], "/api/videos/ep_10/stream")
         self.assertEqual(response.json()["videos"][0]["danmaku_url"], "/api/videos/ep_10/danmaku")
-        self.assertEqual(response.json()["videos"][0]["story_chapters"][0]["title"], "开场冲突")
-        self.assertEqual(response.json()["videos"][0]["storyboard"]["sheets"][0]["url"], "/storyboards/ep_10/sheet_000.jpg")
 
-    def test_list_videos_allows_annotation_tool_origin(self) -> None:
-        with patch("services.api.routers.videos.list_active_videos", return_value=[]):
-            response = self.client.get("/api/videos", headers={"Origin": "http://127.0.0.1:8770"})
+    def test_home_feed_returns_first_episode_per_series(self) -> None:
+        with patch("services.api.routers.feed.list_home_feed_videos") as list_home_feed_videos:
+            list_home_feed_videos.return_value = [
+                {
+                    "video_id": "demo_ep01",
+                    "series_id": "demo",
+                    "series_name": "Demo",
+                    "title": "Demo ep01",
+                    "episode_no": 1,
+                    "episode_label": "ep01",
+                    "duration": 126.5,
+                    "stream_url": "/api/videos/demo_ep01/stream",
+                    "danmaku_url": "/api/videos/demo_ep01/danmaku",
+                    "source": "oss",
+                    "douyin_video_id": None,
+                }
+            ]
+            response = self.client.get("/api/feed/home")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers["access-control-allow-origin"], "http://127.0.0.1:8770")
+        self.assertEqual(response.json()["videos"][0]["video_id"], "demo_ep01")
+        self.assertEqual(response.json()["videos"][0]["episode_no"], 1)
+
+    def test_series_list(self) -> None:
+        with patch("services.api.routers.series.list_series") as list_series:
+            list_series.return_value = [
+                {
+                    "series_id": "demo",
+                    "title": "Demo",
+                    "cover_url": "/api/admin/series/demo/cover",
+                    "summary": None,
+                    "episode_count": 5,
+                    "first_video_id": "demo_ep01",
+                    "status": "active",
+                }
+            ]
+            response = self.client.get("/api/series")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["series"][0]["series_id"], "demo")
+        self.assertEqual(response.json()["series"][0]["episode_count"], 5)
+        self.assertEqual(response.json()["series"][0]["first_video_id"], "demo_ep01")
+
+    def test_series_episodes(self) -> None:
+        with patch("services.api.routers.series.list_series_episodes") as list_series_episodes:
+            list_series_episodes.return_value = {
+                "series_id": "demo",
+                "series_name": "Demo",
+                "episodes": [
+                    {
+                        "video_id": "demo_ep01",
+                        "series_id": "demo",
+                        "series_name": "Demo",
+                        "title": "Demo ep01",
+                        "episode_no": 1,
+                        "episode_label": "ep01",
+                        "duration": 126.5,
+                        "stream_url": "/api/videos/demo_ep01/stream",
+                        "danmaku_url": "/api/videos/demo_ep01/danmaku",
+                        "source": "oss",
+                        "douyin_video_id": None,
+                    }
+                ],
+            }
+            response = self.client.get("/api/series/demo/episodes")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["series_id"], "demo")
+        self.assertEqual(response.json()["episodes"][0]["video_id"], "demo_ep01")
+
+    def test_series_episode_not_found(self) -> None:
+        with patch("services.api.routers.series.get_series_episode", return_value=None):
+            response = self.client.get("/api/series/demo/episodes/99")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_get_video_not_found(self) -> None:
         with patch("services.api.routers.videos.get_video", return_value=None):
@@ -135,6 +182,50 @@ class ApiRoutesTest(unittest.TestCase):
             response = self.client.get("/api/videos/missing/danmaku")
 
         self.assertEqual(response.status_code, 404)
+
+    def test_get_video_playback_assets(self) -> None:
+        with patch("services.api.routers.videos.get_video_playback_assets") as get_video_playback_assets:
+            get_video_playback_assets.return_value = {
+                "video": {
+                    "video_id": "ep_10",
+                    "series_id": "demo",
+                    "series_name": "Demo",
+                    "title": "Demo ep10",
+                    "episode_no": 10,
+                    "episode_label": "ep10",
+                    "duration": 120,
+                    "stream_url": "/api/videos/ep_10/stream",
+                    "danmaku_url": "/api/videos/ep_10/danmaku",
+                    "source": "oss",
+                    "douyin_video_id": None,
+                },
+                "danmaku": {
+                    "video_id": "ep_10",
+                    "available": False,
+                    "count": 0,
+                    "items": [],
+                    "danmaku": [],
+                },
+                "storyboard": {
+                    "video_id": "ep_10",
+                    "available": False,
+                    "interval_seconds": None,
+                    "frame_width": None,
+                    "frame_height": None,
+                    "columns": None,
+                    "rows": None,
+                    "sheets": [],
+                },
+                "story_chapters": [],
+                "interaction_plans": [],
+            }
+            response = self.client.get("/api/videos/ep_10/playback-assets")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["video"]["video_id"], "ep_10")
+        self.assertEqual(response.json()["danmaku"]["available"], False)
+        self.assertEqual(response.json()["storyboard"]["available"], False)
+        self.assertEqual(response.json()["interaction_plans"], [])
 
     def test_create_playback_event(self) -> None:
         with patch("services.api.routers.playback_events.create_playback_event", return_value="evt_123"):

@@ -11,7 +11,7 @@ FastAPI 后端
   -> 视频、弹幕、互动方案、事件、Story Q&A API
 
 React Native + Expo 播放器
-  -> 后端视频列表/视频流/弹幕
+  -> 后端视频列表/视频流
   -> 竖滑播放 Feed
   -> Interaction Lab
   -> Story Q&A 面板
@@ -65,6 +65,9 @@ GET  /api/videos/{video_id}/stream
 GET  /api/videos/{video_id}/danmaku
 POST /api/videos/{video_id}/danmaku
 GET  /api/videos/{video_id}/interaction-plans
+GET  /api/videos/{video_id}/interaction-assets
+GET  /api/videos/{video_id}/story-chapters
+GET  /api/series/{series_id}/ad-slots
 GET  /api/interactions/{interaction_id}/results
 POST /api/events
 POST /api/playback-events
@@ -102,7 +105,7 @@ npm start
 - React Native + Expo 移动端播放器；
 - 从后端 `GET /api/videos` 获取视频列表；
 - 使用后端 `stream_url` 播放视频；
-- 使用后端 `danmaku_url` 获取弹幕，并在端内做移动端采样和调度展示；
+- 弹幕层仍保留端内调度和本地互动反馈渲染能力，但当前云端联调版本暂不请求后端 `danmaku_url`，默认返回空弹幕，避免全量弹幕响应拖慢首屏和播放页切换；
 - 竖滑 Feed 播放多集/多视频；
 - 播放、暂停、seek、长按倍速、播放结束切下一集；
 - Home Feed 在开发模式下提供播放观测面板和 `[HomeFeedPlayback]` 结构化终端日志，可查看页面挂载、预加载、播放权、播放器状态、真实播放状态和首帧耗时；
@@ -111,6 +114,12 @@ npm start
 - Home Feed 手动竖滑时使用 `onScrollEndDrag` 预测最终目标页并提前切换播放权，`onMomentumScrollEnd` 只做最终校准；
 - Home Feed 拖动期间会缓冲播放进度上报，等滚动结束后再同步到 App 顶层播放位置状态，减少滑动中的重渲染；
 - Home Feed 远程剧集视频启用 `expo-video` source caching 和保守前向 buffer 配置，`source_load` 观测会带上 `cacheEnabled` 与 `bufferedPosition`；
+- App 启动页会先加载首页 Feed、剧场列表、首集 storyboard、story chapters 和 interaction assets，并预取首集全量 storyboard sheet；数据准备完成后先挂载首页播放器，继续显示启动遮罩直到首页第一个视频满足播放 ready 状态机（首帧已渲染、播放器进入 playing、播放时间已前进），避免启动页消失后只露出静止首帧；
+- 播放页轻量资产加载已接入 `GET /api/videos/{video_id}/story-chapters` 和 `GET /api/videos/{video_id}/interaction-assets`；story chapters 会写入播放资产缓存并驱动进度条章节刻度，`emotional_button` 会映射为 `action-rail-resonance`，`inner_voice_danmaku` 会映射为 `inner-voice-danmaku`；
+- 互动资产只在播放时间自然推进进入 `trigger_time` 到 `expire_time` 窗口时触发；用户拖动进度条或 seek 落入触发窗口时会跳过该互动并标记完成，避免 seek 后突然弹出交互组件；
+- 播放 Debug 面板开启时，播放器进度条会额外显示 interaction asset 的 `trigger_time` marker，用于检查互动资产加载和触发时间；用户态默认不显示；
+- 剧集 Feed 的角色商品广告已接入 `GET /api/series/{series_id}/ad-slots`，前端按 slot 的 `after_episode_no` 将广告插入对应集之后；广告视频优先播放后端 `stream_url`，没有远程流时才 fallback 到端内 `assets/video/ads.mp4`；
+- 播放器进度条的 storyboard 预览层保持常驻，并用隐藏的 storyboard sheet warm layer 预挂载当前视频 sheet，避免用户开始拖动时才创建预览图片组件；
 - Home Feed 播放观测在开发模式下会批量写入本地 `logs/home-feed-playback.log`，前提是前端连接本地 FastAPI；
 - Home Feed 播放观测已补充 `resume_position_initialized`、`seek_requested` 和 `seek_applied`，用于验证恢复进度是否先于播放执行；
 - 右侧操作栏、顶部/底部播放器 Chrome；
@@ -119,74 +128,69 @@ npm start
 
 当前边界：
 
-- 播放器已经接入后端视频和弹幕；
+- 播放器已经接入后端视频流、首页 Feed、剧场列表、首集 storyboard、story chapters 和 interaction assets；远程弹幕读取暂时关闭，后续需要拆分弹幕分页或按时间窗口加载后再恢复；
+- `/api/videos/{video_id}/playback-assets` 暂不作为前端预热来源，避免全量弹幕响应重新进入启动链路；
 - Home Feed 播放观测只保留本次运行的内存事件，不持久化、不上报后端，也不属于业务 `User Event`；
 - 播放观测当前不覆盖 Series Feed、广告页、弹幕和互动组件渲染成本；
+- 剧集广告当前只负责读取服务端 slot、插入 Feed 和播放广告视频，还未接入广告曝光、点击、转化等事件上报；
 - 播放器当前的 Interaction Lab 仍是前端本地互动形态实验，不等同于完整的服务端 `Interaction Plan` 自动触发链路；
 - 播放器当前未配置 EAS Build 安装包，主要通过 Expo Go 预览；
 - Expo CLI 建议使用 `apps/player-demo/.nvmrc` 指定的 Node 版本；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。
+- TanStack Query 可以作为后续数据请求治理增强项评估；当前阶段先沿用项目已有 domain loader、启动预热器和播放资产缓存，避免在性能问题尚未收敛前引入新的全局缓存语义。
 
 ## 4. 算法 Pipeline
 
-脚本入口：
+当前算法侧保留三条主要实现线：
+
+```text
+pipelines/expression_trigger/
+pipelines/story_chapter/
+pipelines/inner_voice_danmaku/
+```
+
+旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger workflow 当前写出干净资产 `expression_triggers.json` 和调试产物 `expression_triggers.debug.json`；旧 baseline 脚本仍可能写出 `highlight_recognition.json`，评估和复核工具会优先读取新资产并兼容旧文件名。
+
+当前脚本入口：
 
 ```text
 scripts/transcribe_video.py
-scripts/run_highlight_recognition.py
-scripts/run_interaction_plan_generation.py
-```
-
-核心实现：
-
-```text
-pipelines/highlight_recognition.py
-pipelines/interaction_plan_generation.py
-pipelines/client.py
-```
-
-样例链路：
-
-```text
-data/case1/ep01.mp4
-data/case1/ep01.srt
-data/case1/ep01.json
-  ↓
-python scripts/run_highlight_recognition.py case1_ep01
-  ↓
-output/case1_ep01/highlight_recognition.json
-  ↓
-python scripts/run_interaction_plan_generation.py case1_ep01
-  ↓
-output/case1_ep01/interaction_plan_generation.json
+scripts/expression_trigger/run_workflow_batch.py
+scripts/expression_trigger/run_mllm_baseline_batch.py
+scripts/expression_trigger/run_text_baseline_batch.py
+scripts/expression_trigger/run_interaction_plan_batch.py
+scripts/story_chapter/run_text.py
+scripts/story_chapter/run_text_batch.py
+scripts/story_chapter/run_mllm.py
+scripts/story_chapter/run_mllm_batch.py
+scripts/story_chapter/run_subtitle_scene_aligned.py
+scripts/story_chapter/run_subtitle_scene_aligned_batch.py
+scripts/story_chapter/evaluate_workflow.py
+scripts/story_chapter/viewer_server.py
+scripts/inner_voice_danmaku/run_batch.py
+scripts/inner_voice_danmaku/semantic_clustering.py
+scripts/inner_voice_danmaku/select_candidates.py
+scripts/inner_voice_danmaku/build_interaction_plan.py
 ```
 
 当前能力：
 
-- 高光点识别使用字幕、多图理解和 LLM 结构化输出；
-- 互动方案生成消费 `Highlight Asset`、字幕窗口、关键帧和弹幕上下文；
-- 当前互动方案生成以 `danmaku_poll` 为主；
-- 生成失败时有 fallback 模板；
-- 剧情导航章节生成支持 text-only baseline 和 multimodal 高成本版本；
-- 剧情导航验证 viewer 可用于播放视频、对照 scene 边界和 story chapter 边界；
-- 样例输出保存在 `example_output/case1_ep01/`。
+- Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核，输出前端可消费的表达触发资产；
+- Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕和稀疏视频帧生成语义章节草稿，再对相邻章节边界单独调用 MLLM 复核；
+- Inner Voice Danmaku pipeline 支持从真实弹幕 CSV 做语义聚类、候选筛选，并生成心里话弹幕互动方案；
+- 剧情导航验证 viewer 位于 `apps/story-chapter-viewer/`，由 `scripts/story_chapter/viewer_server.py` 提供数据和视频服务，支持查看算法生成章节并标注人工 gold chapter boundary；
+- 算法复核工具位于 `apps/algorithm-review-tool/`，用于对照 Expression Trigger 结果和人工标注；
+- 字幕密度工具位于 `apps/subtitle-density-tool/`，用于辅助检查低台词密度视觉窗口。
 
-剧情导航章节生成入口：
+当前产物约定：
 
-```text
-scripts/run_story_chapter_generation.py
-scripts/run_story_chapter_generation_batch.py
-scripts/run_story_chapter_generation_multimodal.py
-scripts/run_story_chapter_generation_multimodal_batch.py
-scripts/story_chapter_viewer_server.py
-```
-
-剧情导航章节生成的当前实现与验证结论见：
-
-- `docs/develop-docs/module-designs/story-chapter-generation.md`
+- `story_chapters.json`：干净最终产物，用于上传或被前端/评估脚本消费；
+- `story_chapters.debug.json`：完整诊断产物，保留字幕、场景、抽帧、MLLM raw response 和 warnings；
+- `expression_triggers.json`：干净最终产物，用于上传或被播放器/评估脚本消费；
+- `expression_triggers.debug.json`：完整诊断产物，保留 LLM 调用诊断、候选点、复核决策和 legacy `highlight_assets` 兼容转换结果。
 
 运行前提：
 
-- `.env` 中配置 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL`；
+- `.env` 中配置 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL`；也可通过 `LLM_PROVIDER=openai` 切换 OpenAI 兼容 client；
 - `data/case1/ep01.srt` 和 `data/case1/ep01.json` 已在仓库中；
 - `data/case1/ep01.mp4` 如不存在，需要从本地样例视频或外部数据源补齐。
 

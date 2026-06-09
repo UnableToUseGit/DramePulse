@@ -4,8 +4,8 @@ from fastapi import APIRouter, Header, HTTPException, Response, status
 
 from ..repositories.danmaku import get_video_danmaku
 from ..oss_client import parse_range_header, read_object_range
-from ..repositories.videos import get_video, get_video_storage, list_active_videos
-from ..schemas import DanmakuResponse, VideoListResponse, VideoResponse
+from ..repositories.videos import get_video, get_video_playback_assets, get_video_storage, get_video_storyboard, list_active_videos
+from ..schemas import DanmakuResponse, PlaybackAssetsResponse, StoryboardResponse, VideoListResponse, VideoResponse
 
 router = APIRouter()
 
@@ -29,6 +29,22 @@ def retrieve_video_danmaku(video_id: str) -> DanmakuResponse:
     if payload is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
     return DanmakuResponse(**payload)
+
+
+@router.get("/videos/{video_id}/playback-assets", response_model=PlaybackAssetsResponse)
+def retrieve_video_playback_assets(video_id: str) -> PlaybackAssetsResponse:
+    payload = get_video_playback_assets(video_id)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+    return PlaybackAssetsResponse(**payload)
+
+
+@router.get("/videos/{video_id}/storyboard", response_model=StoryboardResponse)
+def retrieve_video_storyboard(video_id: str) -> StoryboardResponse:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+    return StoryboardResponse(**get_video_storyboard(video_id))
 
 
 @router.get("/videos/{video_id}/stream")

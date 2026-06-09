@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
-from pipelines.client import VolcArkLlmClient
+from pipelines.client import LlmResponseError, OpenAiLlmClient, VolcArkLlmClient
 
 
 class _FakeMessage:
+    reasoning_content: object = None
+
     def __init__(self, content: object) -> None:
         self.content = content
+        if self.reasoning_content is not None:
+            self.reasoning_content = self.__class__.reasoning_content
 
 
 class _FakeChoice:
@@ -21,34 +27,46 @@ class _FakeChoice:
 class _FakeCompletion:
     def __init__(self, content: object) -> None:
         self.choices = [_FakeChoice(content)]
+        self.id = "chatcmpl_test"
+        self.usage = {
+            "prompt_tokens": 11,
+            "completion_tokens": 7,
+            "total_tokens": 18,
+        }
 
 
 class _FakeCompletions:
-    def __init__(self) -> None:
+    def __init__(self, content: object = '{"ok": true}') -> None:
         self.calls: list[dict[str, object]] = []
+        self.content = content
 
     def create(self, **kwargs: object) -> _FakeCompletion:
         self.calls.append(kwargs)
-        return _FakeCompletion('{"ok": true}')
+        return _FakeCompletion(self.content)
 
 
 class _FakeChat:
-    def __init__(self) -> None:
-        self.completions = _FakeCompletions()
+    def __init__(self, content: object = '{"ok": true}') -> None:
+        self.completions = _FakeCompletions(content)
 
 
 class _FakeArk:
     last_instance: "_FakeArk | None" = None
+    response_content: object = '{"ok": true}'
 
     def __init__(self, **kwargs: object) -> None:
         self.kwargs = kwargs
-        self.chat = _FakeChat()
+        self.chat = _FakeChat(self.response_content)
         _FakeArk.last_instance = self
 
 
 class VolcArkLlmClientTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _FakeArk.response_content = '{"ok": true}'
+        _FakeMessage.reasoning_content = None
+
     def test_generate_json_multimodal_uses_ark_sdk_multi_image_request(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir, patch("pipelines.client.Ark", _FakeArk):
+        with tempfile.TemporaryDirectory() as tmpdir, patch("pipelines.client.volc_ark.Ark", _FakeArk):
             image_path_1 = Path(tmpdir) / "frame_1.png"
             image_path_2 = Path(tmpdir) / "frame_2.jpg"
             image_path_1.write_bytes(b"png-bytes")
@@ -77,7 +95,7 @@ class VolcArkLlmClientTest(unittest.TestCase):
         self.assertEqual(payload["max_tokens"], 123)
         self.assertEqual(payload["temperature"], 0.2)
         self.assertEqual(payload["extra_body"], {"thinking": {"type": "disabled"}})
-        self.assertEqual(payload["response_format"], {"type": "json_object"})
+        self.assertNotIn("response_format", payload)
         messages = payload["messages"]
         self.assertEqual(messages[0]["content"], "system")
         self.assertEqual(
@@ -96,6 +114,632 @@ class VolcArkLlmClientTest(unittest.TestCase):
                 },
             ],
         )
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["status"], "success")
+        self.assertEqual(diagnostics["model"], "doubao-test")
+        self.assertEqual(diagnostics["max_tokens"], 123)
+        self.assertEqual(diagnostics["image_count"], 2)
+        self.assertEqual(diagnostics["frame_timestamps_count"], 2)
+        self.assertEqual(diagnostics["request_id"], "chatcmpl_test")
+        self.assertEqual(diagnostics["usage"]["prompt_tokens"], 11)
+        self.assertEqual(diagnostics["usage"]["completion_tokens"], 7)
+        self.assertEqual(diagnostics["usage"]["total_tokens"], 18)
+        self.assertGreaterEqual(diagnostics["elapsed_sec"], 0.0)
+
+    def test_generate_json_multimodal_records_success_message_diagnostics(self) -> None:
+        _FakeArk.response_content = '{"ok": true, "note": "hello"}'
+        _FakeMessage.reasoning_content = "hidden thinking"
+
+        with patch("pipelines.client.volc_ark.Ark", _FakeArk):
+            client = VolcArkLlmClient(api_key="test-key", model_name="doubao-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+                max_tokens=123,
+            )
+
+        self.assertEqual(result, {"ok": True, "note": "hello"})
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["message_content_char_count"], len('{"ok": true, "note": "hello"}'))
+        self.assertIn('"note": "hello"', diagnostics["message_content_preview"])
+        self.assertEqual(diagnostics["reasoning_content_char_count"], len("hidden thinking"))
+
+    def test_generate_json_multimodal_preserves_raw_response_when_json_parse_fails(self) -> None:
+        _FakeArk.response_content = "不是 JSON"
+
+        with patch("pipelines.client.volc_ark.Ark", _FakeArk):
+            client = VolcArkLlmClient(
+                api_key="test-key",
+                base_url="https://ark.example.com/api/v3",
+                model_name="doubao-test",
+                timeout_sec=12,
+            )
+
+            with self.assertRaises(LlmResponseError) as raised:
+                client.generate_json_multimodal(
+                    system_prompt="system",
+                    user_prompt="user",
+                    image_paths=[],
+                    frame_timestamps_seconds=[],
+                    max_tokens=123,
+                )
+
+        self.assertEqual(str(raised.exception), "LLM response is not valid JSON")
+        self.assertEqual(raised.exception.raw_response_text, "不是 JSON")
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["status"], "failed")
+        self.assertEqual(diagnostics["error_type"], "LlmResponseError")
+        self.assertEqual(diagnostics["error"], "LLM response is not valid JSON")
+        self.assertEqual(diagnostics["raw_response_text"], "不是 JSON")
+        self.assertEqual(diagnostics["usage"]["total_tokens"], 18)
+
+    def test_generate_json_multimodal_preserves_unexpected_raw_ark_response_shape(self) -> None:
+        class FakeRawCompletions:
+            def create(self, **kwargs: object) -> str:
+                return "raw ark response"
+
+        class FakeRawChat:
+            completions = FakeRawCompletions()
+
+        class FakeRawArk:
+            def __init__(self, **kwargs: object) -> None:
+                self.chat = FakeRawChat()
+
+        with patch("pipelines.client.volc_ark.Ark", FakeRawArk):
+            client = VolcArkLlmClient(
+                api_key="test-key",
+                base_url="https://ark.example.com/api/v3",
+                model_name="doubao-test",
+                timeout_sec=12,
+            )
+
+            with self.assertRaises(LlmResponseError) as raised:
+                client.generate_json_multimodal(
+                    system_prompt="system",
+                    user_prompt="user",
+                    image_paths=[],
+                    frame_timestamps_seconds=[],
+                    max_tokens=123,
+                )
+
+        self.assertEqual(str(raised.exception), "LLM response has unexpected shape: str")
+        self.assertEqual(raised.exception.raw_response_text, "raw ark response")
+        diagnostics = client.last_call_diagnostics
+        self.assertEqual(diagnostics["status"], "failed")
+        self.assertEqual(diagnostics["error_type"], "LlmResponseError")
+        self.assertEqual(diagnostics["response_type"], "str")
+        self.assertEqual(diagnostics["raw_response_text"], "raw ark response")
+
+    def test_constructor_prefers_generic_env_values(self) -> None:
+        with patch("pipelines.client.volc_ark.Ark", _FakeArk), patch.dict(
+            "os.environ",
+            {
+                "API_KEY": "generic-key",
+                "BASE_URL": "https://generic.example/api/v3",
+                "MODEL": "generic-model",
+                "ARK_API_KEY": "ark-key",
+                "ARK_BASE_URL": "https://ark.example/api/v3",
+                "ARK_MODEL": "ark-model",
+            },
+            clear=False,
+        ):
+            client = VolcArkLlmClient()
+
+        self.assertEqual(client.api_key, "generic-key")
+        self.assertEqual(client.base_url, "https://generic.example/api/v3")
+        self.assertEqual(client.model_name, "generic-model")
+
+
+class _FakeOpenAI:
+    last_instance: "_FakeOpenAI | None" = None
+    response_content: object = '{"ok": true}'
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.chat = _FakeChat(self.response_content)
+        _FakeOpenAI.last_instance = self
+
+
+class _FakeEmbeddingData:
+    def __init__(self, embedding: list[float]) -> None:
+        self.embedding = embedding
+
+
+class _FakeEmbeddingResponse:
+    def __init__(self) -> None:
+        self.data = [_FakeEmbeddingData([1.0, 0.0]), _FakeEmbeddingData([0.0, 1.0])]
+        self.usage = types.SimpleNamespace(prompt_tokens=5, total_tokens=5)
+
+
+class _FakeEmbeddings:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> _FakeEmbeddingResponse:
+        self.calls.append(kwargs)
+        return _FakeEmbeddingResponse()
+
+
+class _FakeEmbeddingOpenAI:
+    last_instance: "_FakeEmbeddingOpenAI | None" = None
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.embeddings = _FakeEmbeddings()
+        _FakeEmbeddingOpenAI.last_instance = self
+
+
+class _FakeBatchEmbeddingData:
+    def __init__(self, embedding: list[float]) -> None:
+        self.embedding = embedding
+
+
+class _FakeBatchEmbeddingResponse:
+    def __init__(self, input_count: int) -> None:
+        self.data = [_FakeBatchEmbeddingData([float(index), 0.0]) for index in range(input_count)]
+        self.usage = types.SimpleNamespace(prompt_tokens=input_count, total_tokens=input_count)
+
+
+class _FakeBatchEmbeddings:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def create(self, **kwargs: object) -> _FakeBatchEmbeddingResponse:
+        self.calls.append(kwargs)
+        return _FakeBatchEmbeddingResponse(len(kwargs["input"]))
+
+
+class _FakeBatchEmbeddingOpenAI:
+    last_instance: "_FakeBatchEmbeddingOpenAI | None" = None
+
+    def __init__(self, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        self.embeddings = _FakeBatchEmbeddings()
+        _FakeBatchEmbeddingOpenAI.last_instance = self
+
+
+class _FakeOpenRouterResponse:
+    def __init__(self, payload: dict[str, object]) -> None:
+        self._payload = payload
+        self.text = json_dumps_for_test(payload)
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict[str, object]:
+        return self._payload
+
+
+class _FakeOpenRouterRequests:
+    calls: list[dict[str, object]] = []
+
+    @classmethod
+    def post(cls, **kwargs: object) -> _FakeOpenRouterResponse:
+        cls.calls.append(kwargs)
+        input_payload = kwargs["json"]["input"]  # type: ignore[index]
+        input_count = len(input_payload) if isinstance(input_payload, list) else 1
+        return _FakeOpenRouterResponse(
+            {
+                "data": [
+                    {"embedding": [float(index), 1.0]}
+                    for index in range(input_count)
+                ],
+                "usage": {"prompt_tokens": input_count, "total_tokens": input_count},
+            }
+        )
+
+
+def json_dumps_for_test(value: object) -> str:
+    import json
+
+    return json.dumps(value, ensure_ascii=False)
+
+
+class OpenAiLlmClientTest(unittest.TestCase):
+    def setUp(self) -> None:
+        _FakeOpenAI.response_content = '{"ok": true}'
+        _FakeOpenAI.last_instance = None
+
+    def test_generate_json_multimodal_uses_openai_chat_request(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir, patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            image_path = Path(tmpdir) / "frame.png"
+            image_path.write_bytes(b"png-bytes")
+            client = OpenAiLlmClient(
+                api_key="test-key",
+                base_url="https://api.openai.example/v1",
+                model_name="gpt-test",
+                timeout_sec=22,
+            )
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[image_path],
+                frame_timestamps_seconds=[3.0],
+                max_tokens=456,
+            )
+
+        self.assertEqual(result, {"ok": True})
+        assert _FakeOpenAI.last_instance is not None
+        self.assertEqual(_FakeOpenAI.last_instance.kwargs["api_key"], "test-key")
+        self.assertEqual(_FakeOpenAI.last_instance.kwargs["base_url"], "https://api.openai.example/v1")
+        self.assertEqual(_FakeOpenAI.last_instance.kwargs["timeout"], 22)
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertEqual(payload["model"], "gpt-test")
+        self.assertEqual(payload["max_tokens"], 456)
+        self.assertEqual(payload["temperature"], 0.2)
+        self.assertNotIn("response_format", payload)
+        self.assertNotIn("extra_body", payload)
+        self.assertEqual(payload["messages"][0]["content"], "system")
+        self.assertEqual(
+            payload["messages"][1]["content"],
+            [
+                {"type": "text", "text": "user"},
+                {"type": "text", "text": "[3.0 second]"},
+                {
+                    "type": "image_url",
+                    "image_url": {"url": "data:image/png;base64,cG5nLWJ5dGVz"},
+                },
+            ],
+        )
+        self.assertEqual(client.last_call_diagnostics["status"], "success")
+        self.assertEqual(client.last_call_diagnostics["provider"], "openai")
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 18)
+
+    def test_generate_json_multimodal_extracts_fenced_json_without_response_format(self) -> None:
+        _FakeOpenAI.response_content = '```json\n{"ok": true}\n```'
+
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        self.assertEqual(result, {"ok": True})
+        assert _FakeOpenAI.last_instance is not None
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertNotIn("response_format", payload)
+        self.assertEqual(client.last_call_diagnostics["status"], "success")
+
+    def test_generate_json_multimodal_repairs_malformed_json_with_json_repair(self) -> None:
+        _FakeOpenAI.response_content = "{ok: true, count: 1,}"
+        fake_json_repair = types.ModuleType("json_repair")
+        calls: list[str] = []
+
+        def fake_loads(value: str) -> dict[str, object]:
+            calls.append(value)
+            return {"ok": True, "count": 1}
+
+        fake_json_repair.loads = fake_loads  # type: ignore[attr-defined]
+
+        with patch.dict(sys.modules, {"json_repair": fake_json_repair}), patch(
+            "pipelines.client.openai_client.OpenAI",
+            _FakeOpenAI,
+        ):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-test")
+
+            result = client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        self.assertEqual(result, {"ok": True, "count": 1})
+        self.assertEqual(calls, ["{ok: true, count: 1,}"])
+        self.assertEqual(client.last_call_diagnostics["status"], "success")
+
+    def test_generate_json_multimodal_disables_gpt_5_1_reasoning(self) -> None:
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-5.1")
+
+            client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        assert _FakeOpenAI.last_instance is not None
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertEqual(payload["reasoning_effort"], "none")
+
+    def test_generate_json_multimodal_disables_reasoning_for_configured_openai_model(self) -> None:
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-5")
+
+            client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        assert _FakeOpenAI.last_instance is not None
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertEqual(payload["reasoning_effort"], "none")
+
+    def test_generate_json_multimodal_always_requests_no_reasoning(self) -> None:
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-4.1")
+
+            client.generate_json_multimodal(
+                system_prompt="system",
+                user_prompt="user",
+                image_paths=[],
+                frame_timestamps_seconds=[],
+            )
+
+        assert _FakeOpenAI.last_instance is not None
+        payload = _FakeOpenAI.last_instance.chat.completions.calls[0]
+        self.assertEqual(payload["reasoning_effort"], "none")
+
+    def test_generate_json_multimodal_preserves_raw_openai_response_when_json_parse_fails(self) -> None:
+        _FakeOpenAI.response_content = "不是 JSON"
+
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI):
+            client = OpenAiLlmClient(api_key="test-key", model_name="gpt-test")
+
+            with self.assertRaises(LlmResponseError) as raised:
+                client.generate_json_multimodal(
+                    system_prompt="system",
+                    user_prompt="user",
+                    image_paths=[],
+                    frame_timestamps_seconds=[],
+                )
+
+        self.assertEqual(str(raised.exception), "LLM response is not valid JSON")
+        self.assertEqual(raised.exception.raw_response_text, "不是 JSON")
+        self.assertEqual(client.last_call_diagnostics["status"], "failed")
+        self.assertEqual(client.last_call_diagnostics["provider"], "openai")
+        self.assertEqual(client.last_call_diagnostics["raw_response_text"], "不是 JSON")
+
+    def test_constructor_prefers_generic_env_values(self) -> None:
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI), patch.dict(
+            "os.environ",
+            {
+                "API_KEY": "generic-key",
+                "BASE_URL": "https://generic.example/v1",
+                "MODEL": "generic-model",
+                "OPENAI_API_KEY": "openai-key",
+                "OPENAI_BASE_URL": "https://openai.example/v1",
+                "OPENAI_MODEL": "openai-model",
+            },
+            clear=False,
+        ):
+            client = OpenAiLlmClient()
+
+        self.assertEqual(client.api_key, "generic-key")
+        self.assertEqual(client.base_url, "https://generic.example/v1")
+        self.assertEqual(client.model_name, "generic-model")
+
+    def test_constructor_defaults_to_gpt_5_5(self) -> None:
+        with patch("pipelines.client.openai_client.OpenAI", _FakeOpenAI), patch.dict(
+            "os.environ",
+            {"API_KEY": "generic-key"},
+            clear=True,
+        ):
+            client = OpenAiLlmClient()
+
+        self.assertEqual(client.model_name, "gpt-5.5")
+
+
+class EmbeddingClientTest(unittest.TestCase):
+    def test_openai_compatible_embedding_client_reads_embedding_env_and_calls_embeddings_api(self) -> None:
+        from pipelines.client.embedding import OpenAICompatibleEmbeddingClient
+
+        with patch("pipelines.client.embedding.OpenAI", _FakeEmbeddingOpenAI), patch.dict(
+            "os.environ",
+            {
+                "EMBEDDING_API_KEY": "embedding-key",
+                "EMBEDDING_BASE_URL": "https://embedding.example.test/v1",
+                "EMBEDDING_MODEL": "baai/bge-m3",
+            },
+            clear=False,
+        ):
+            client = OpenAICompatibleEmbeddingClient()
+            vectors = client.embed_texts(["这个眼神太帅了", "女主终于怼回去了"])
+
+        assert _FakeEmbeddingOpenAI.last_instance is not None
+        self.assertEqual(_FakeEmbeddingOpenAI.last_instance.kwargs["api_key"], "embedding-key")
+        self.assertEqual(_FakeEmbeddingOpenAI.last_instance.kwargs["base_url"], "https://embedding.example.test/v1")
+        self.assertEqual(client.model_name, "baai/bge-m3")
+        self.assertEqual(vectors, [[1.0, 0.0], [0.0, 1.0]])
+        call = _FakeEmbeddingOpenAI.last_instance.embeddings.calls[0]
+        self.assertEqual(call["model"], "baai/bge-m3")
+        self.assertEqual(call["input"], ["这个眼神太帅了", "女主终于怼回去了"])
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 5)
+
+    def test_openai_compatible_embedding_client_batches_requests(self) -> None:
+        from pipelines.client.embedding import OpenAICompatibleEmbeddingClient
+
+        with patch("pipelines.client.embedding.OpenAI", _FakeBatchEmbeddingOpenAI):
+            client = OpenAICompatibleEmbeddingClient(api_key="test-key", model_name="baai/bge-m3", batch_size=2)
+            vectors = client.embed_texts(["a", "b", "c", "d", "e"])
+
+        assert _FakeBatchEmbeddingOpenAI.last_instance is not None
+        calls = _FakeBatchEmbeddingOpenAI.last_instance.embeddings.calls
+        self.assertEqual([call["input"] for call in calls], [["a", "b"], ["c", "d"], ["e"]])
+        self.assertEqual(vectors, [[0.0, 0.0], [1.0, 0.0], [0.0, 0.0], [1.0, 0.0], [0.0, 0.0]])
+        self.assertEqual(client.last_call_diagnostics["request_count"], 3)
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 5)
+
+    def test_cached_embedding_client_reuses_persisted_vectors(self) -> None:
+        from pipelines.client.embedding import CachedEmbeddingClient
+
+        class FakeInnerEmbeddingClient:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+                self.last_call_diagnostics: dict[str, object] = {}
+
+            def embed_texts(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(list(texts))
+                self.last_call_diagnostics = {"provider": "fake", "request_count": 1}
+                return [[float(len(text)), 1.0] for text in texts]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "embedding_cache.sqlite"
+            inner = FakeInnerEmbeddingClient()
+            first_client = CachedEmbeddingClient(
+                inner_client=inner,
+                cache_path=cache_path,
+                model_name="baai/bge-m3",
+            )
+
+            first_vectors = first_client.embed_texts(["这个眼神太帅了", "女主终于怼回去了"])
+
+            self.assertEqual(len(inner.calls), 1)
+            self.assertEqual(inner.calls[0], ["这个眼神太帅了", "女主终于怼回去了"])
+            self.assertEqual(first_vectors, [[7.0, 1.0], [8.0, 1.0]])
+            self.assertEqual(first_client.last_call_diagnostics["cache_hits"], 0)
+            self.assertEqual(first_client.last_call_diagnostics["cache_misses"], 2)
+
+            second_client = CachedEmbeddingClient(
+                inner_client=inner,
+                cache_path=cache_path,
+                model_name="baai/bge-m3",
+            )
+            second_vectors = second_client.embed_texts(["女主终于怼回去了", "这个眼神太帅了"])
+
+        self.assertEqual(len(inner.calls), 1)
+        self.assertEqual(second_vectors, [[8.0, 1.0], [7.0, 1.0]])
+        self.assertEqual(second_client.last_call_diagnostics["cache_hits"], 2)
+        self.assertEqual(second_client.last_call_diagnostics["cache_misses"], 0)
+
+    def test_cached_embedding_client_only_requests_missing_texts(self) -> None:
+        from pipelines.client.embedding import CachedEmbeddingClient
+
+        class FakeInnerEmbeddingClient:
+            def __init__(self) -> None:
+                self.calls: list[list[str]] = []
+                self.last_call_diagnostics: dict[str, object] = {}
+
+            def embed_texts(self, texts: list[str]) -> list[list[float]]:
+                self.calls.append(list(texts))
+                self.last_call_diagnostics = {"provider": "fake", "request_count": 1}
+                return [[float(index), 2.0] for index, _text in enumerate(texts, start=1)]
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_path = Path(tmpdir) / "embedding_cache.sqlite"
+            inner = FakeInnerEmbeddingClient()
+            client = CachedEmbeddingClient(inner_client=inner, cache_path=cache_path, model_name="baai/bge-m3")
+
+            client.embed_texts(["a", "b"])
+            vectors = client.embed_texts(["b", "c", "a"])
+
+        self.assertEqual(inner.calls, [["a", "b"], ["c"]])
+        self.assertEqual(vectors, [[2.0, 2.0], [1.0, 2.0], [1.0, 2.0]])
+        self.assertEqual(client.last_call_diagnostics["cache_hits"], 2)
+        self.assertEqual(client.last_call_diagnostics["cache_misses"], 1)
+
+    def test_openrouter_embedding_client_posts_official_request_shape(self) -> None:
+        from pipelines.client.embedding import OpenRouterEmbeddingClient
+
+        _FakeOpenRouterRequests.calls = []
+        events: list[tuple[str, dict[str, object]]] = []
+        client = OpenRouterEmbeddingClient(
+            api_key="openrouter-key",
+            model_name="baai/bge-m3",
+            batch_size=2,
+            site_url="https://dramepulse.example",
+            site_name="DramePulse",
+            requests_module=_FakeOpenRouterRequests,
+            progress_callback=lambda event, payload: events.append((event, payload)),
+        )
+
+        vectors = client.embed_texts(["这个眼神太帅了", "女主终于怼回去了", "老公好帅"])
+
+        self.assertEqual(vectors, [[0.0, 1.0], [1.0, 1.0], [0.0, 1.0]])
+        self.assertEqual(len(_FakeOpenRouterRequests.calls), 2)
+        first_call = _FakeOpenRouterRequests.calls[0]
+        self.assertEqual(first_call["url"], "https://openrouter.ai/api/v1/embeddings")
+        self.assertEqual(first_call["timeout"], 90)
+        self.assertEqual(
+            first_call["headers"],
+            {
+                "Authorization": "Bearer openrouter-key",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://dramepulse.example",
+                "X-OpenRouter-Title": "DramePulse",
+            },
+        )
+        self.assertEqual(
+            first_call["json"],
+            {
+                "model": "baai/bge-m3",
+                "input": ["这个眼神太帅了", "女主终于怼回去了"],
+                "encoding_format": "float",
+            },
+        )
+        self.assertEqual(client.last_call_diagnostics["provider"], "openrouter")
+        self.assertEqual(client.last_call_diagnostics["request_count"], 2)
+        self.assertEqual(client.last_call_diagnostics["usage"]["total_tokens"], 3)
+        self.assertEqual([event for event, _payload in events], ["embedding_batch", "embedding_batch"])
+        self.assertEqual(events[0][1]["batch_index"], 1)
+        self.assertEqual(events[0][1]["batch_count"], 2)
+        self.assertEqual(events[0][1]["batch_size"], 2)
+
+
+class LlmClientFactoryTest(unittest.TestCase):
+    def test_build_llm_client_defaults_to_ark_with_generic_env_values(self) -> None:
+        from pipelines.client.factory import build_llm_client
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_path = Path(tmpdir) / ".env"
+            env_path.write_text(
+                "API_KEY=test-key\n"
+                "BASE_URL=https://ark.example.test/api/v3\n"
+                "MODEL=test-model\n",
+                encoding="utf-8",
+            )
+
+            class FakeArkClient:
+                def __init__(self, *, api_key: str | None, base_url: str | None, model_name: str | None) -> None:
+                    self.api_key = api_key
+                    self.base_url = base_url
+                    self.model_name = model_name
+
+            with patch("pipelines.client.factory.VolcArkLlmClient", FakeArkClient):
+                client = build_llm_client(env_path=env_path)
+
+        self.assertIsInstance(client, FakeArkClient)
+        self.assertEqual(client.api_key, "test-key")
+        self.assertEqual(client.base_url, "https://ark.example.test/api/v3")
+        self.assertEqual(client.model_name, "test-model")
+
+    def test_build_llm_client_selects_openai_with_generic_env_values(self) -> None:
+        from pipelines.client.factory import build_llm_client
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            env_path = Path(tmpdir) / ".env"
+            env_path.write_text(
+                "LLM_PROVIDER=openai\n"
+                "API_KEY=test-openai-key\n"
+                "BASE_URL=https://openai.example.test/v1\n"
+                "MODEL=gpt-test\n",
+                encoding="utf-8",
+            )
+
+            class FakeOpenAiClient:
+                def __init__(self, *, api_key: str | None, base_url: str | None, model_name: str | None) -> None:
+                    self.api_key = api_key
+                    self.base_url = base_url
+                    self.model_name = model_name
+
+            with patch("pipelines.client.factory.OpenAiLlmClient", FakeOpenAiClient):
+                client = build_llm_client(env_path=env_path)
+
+        self.assertIsInstance(client, FakeOpenAiClient)
+        self.assertEqual(client.api_key, "test-openai-key")
+        self.assertEqual(client.base_url, "https://openai.example.test/v1")
+        self.assertEqual(client.model_name, "gpt-test")
 
 
 if __name__ == "__main__":

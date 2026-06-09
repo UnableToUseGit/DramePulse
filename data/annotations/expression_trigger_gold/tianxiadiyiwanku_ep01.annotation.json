@@ -1,0 +1,21 @@
+{
+  "video_id": "tianxiadiyiwanku_ep01",
+  "series_id": "tianxiadiyiwanku",
+  "video_path": "/api/episodes/tianxiadiyiwanku_ep01/video",
+  "subtitle_path": "/api/episodes/tianxiadiyiwanku_ep01/subtitle",
+  "source_json_path": "/api/episodes/tianxiadiyiwanku_ep01/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_tianxiadiyiwanku_ep01_001",
+      "cue_time": 77.179,
+      "primary_expression": "笑死",
+      "reason": "太监的这个角色说话很好笑，说完之后还靠在保镖肩膀上，很好笑。"
+    },
+    {
+      "annotation_id": "gold_tianxiadiyiwanku_ep01_002",
+      "cue_time": 301.697,
+      "primary_expression": "爽点",
+      "reason": "刚才非常嚣张跋扈的匪徒被神秘高手秒杀，然后镜头给到神秘高手，结果是纨绔嚣张的男主"
+    }
+  ]
+}

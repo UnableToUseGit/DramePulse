@@ -122,6 +122,7 @@ export function RoleCommerceAdPage({
   }, []);
 
   const noopSendInnerVoice = useCallback((_cue: InnerVoiceDanmakuCue) => {}, []);
+  const noopInnerVoiceExitComplete = useCallback((_cue: InnerVoiceDanmakuCue) => {}, []);
   const noopParticipateResonance = useCallback(
     (_cue: ActionRailResonanceCue, _nextState: ResonanceTapState) => {},
     []
@@ -141,7 +142,7 @@ export function RoleCommerceAdPage({
           onSeekHandled={handleSeekHandled}
           playbackRate={1}
           showStartEntry={false}
-          streamUrl={AD_VIDEO_SOURCE}
+          streamUrl={ad.streamUrl ?? AD_VIDEO_SOURCE}
         />
         {isActive ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
         <PlaybackHint visible={playbackState.shouldShowPauseHint} />
@@ -149,7 +150,7 @@ export function RoleCommerceAdPage({
       <PlayerChrome
         liked={false}
         onToggleLike={() => {}}
-        onOpenStoryQa={() => {}}
+        onOpenWatchAssistant={() => {}}
         playbackRate={1}
         isSpeedMenuOpen={false}
         onToggleSpeedMenu={() => {}}
@@ -169,6 +170,7 @@ export function RoleCommerceAdPage({
         showInnerVoice={false}
         onInnerVoiceGestureActiveChange={() => {}}
         onSendInnerVoiceDanmaku={noopSendInnerVoice}
+        onInnerVoiceExitComplete={noopInnerVoiceExitComplete}
         resonanceTapState={createInitialResonanceTapState()}
         onParticipateResonance={noopParticipateResonance}
       >

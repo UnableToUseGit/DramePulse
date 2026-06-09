@@ -1,34 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
-
-class StoryChapterResponse(BaseModel):
-    chapter_id: str
-    video_id: str | None = None
-    start_time: float
-    end_time: float
-    title: str
-    summary: str | None = None
-    importance: float | None = Field(default=None, ge=0, le=1)
-
-
-class StoryboardSheetResponse(BaseModel):
-    url: str
-    start_time: float
-    frame_count: int = Field(ge=1)
-
-
-class StoryboardManifestResponse(BaseModel):
-    video_id: str
-    interval_seconds: float = Field(gt=0)
-    frame_width: int = Field(ge=1)
-    frame_height: int = Field(ge=1)
-    columns: int = Field(ge=1)
-    rows: int = Field(ge=1)
-    sheets: list[StoryboardSheetResponse]
 
 
 class VideoResponse(BaseModel):
@@ -43,12 +18,34 @@ class VideoResponse(BaseModel):
     danmaku_url: str
     source: str = "oss"
     douyin_video_id: str | None = None
-    story_chapters: list[StoryChapterResponse] | None = None
-    storyboard: StoryboardManifestResponse | None = None
 
 
 class VideoListResponse(BaseModel):
     videos: list[VideoResponse]
+
+
+class HomeFeedResponse(BaseModel):
+    videos: list[VideoResponse]
+
+
+class SeriesSummaryResponse(BaseModel):
+    series_id: str
+    title: str
+    cover_url: str | None = None
+    summary: str | None = None
+    episode_count: int
+    first_video_id: str | None = None
+    status: str = "active"
+
+
+class SeriesListResponse(BaseModel):
+    series: list[SeriesSummaryResponse]
+
+
+class SeriesEpisodesResponse(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    episodes: list[VideoResponse]
 
 
 class DanmakuItemResponse(BaseModel):
@@ -144,6 +141,142 @@ class InteractionPlansResponse(BaseModel):
     interaction_plans: list[InteractionPlan]
 
 
+class StoryChapter(BaseModel):
+    chapter_id: str
+    video_id: str
+    chapter_index: int = Field(ge=1)
+    start_time: float = Field(ge=0)
+    end_time: float = Field(ge=0)
+    title: str | None = None
+    summary: str | None = None
+    reason: str | None = None
+    source: str = "subtitle_scene_aligned"
+    status: str = "active"
+
+
+class StoryChapterResponse(BaseModel):
+    video_id: str
+    available: bool
+    source_video_id: str | None = None
+    source_series_id: str | None = None
+    canonical_series_id: str | None = None
+    episode_no: int | None = None
+    compact_parse_status: str | None = None
+    debug_parse_status: str | None = None
+    chapters: list[StoryChapter] = Field(default_factory=list)
+
+
+class StoryChapterRawResponse(BaseModel):
+    video_id: str
+    source_video_id: str
+    filename: str
+    parse_status: str
+    source_path: str | None = None
+    sha256: str | None = None
+    content: str
+
+
+class PlotBeat(BaseModel):
+    beat_id: str
+    video_id: str
+    chapter_id: str
+    beat_index: int = Field(ge=1)
+    beat_type: str
+    start_time: float = Field(ge=0)
+    end_time: float = Field(ge=0)
+    summary: str | None = None
+    reason: str | None = None
+    status: str = "active"
+
+
+class PlotBeatResponse(BaseModel):
+    video_id: str
+    available: bool
+    source_video_id: str | None = None
+    source_series_id: str | None = None
+    canonical_series_id: str | None = None
+    episode_no: int | None = None
+    plot_beats_parse_status: str | None = None
+    debug_parse_status: str | None = None
+    plot_beats: list[PlotBeat] = Field(default_factory=list)
+
+
+class RawAssetResponse(BaseModel):
+    video_id: str
+    source_video_id: str
+    filename: str
+    parse_status: str
+    source_path: str | None = None
+    sha256: str | None = None
+    content: str
+
+
+class VideoInteractionItem(BaseModel):
+    interaction_id: str
+    video_id: str
+    interaction_mode: str
+    trigger_time: float = Field(ge=0)
+    expire_time: float = Field(ge=0)
+    duration_sec: float | None = Field(default=None, ge=0)
+    content: dict[str, Any] = Field(default_factory=dict)
+    source_asset_id: str
+    status: str = "active"
+
+
+class VideoInteractionAssetsResponse(BaseModel):
+    video_id: str
+    interaction_mode: str | None = None
+    available: bool
+    items: list[VideoInteractionItem] = Field(default_factory=list)
+
+
+class AdAssetResponse(BaseModel):
+    ad_id: str
+    video_url: str | None = None
+    stream_url: str | None = None
+    video_source_path: str | None = None
+    duration: float | None = None
+    sponsor_label: str | None = None
+    product_name: str | None = None
+    product_description: str | None = None
+    character_name: str | None = None
+    cta_text: str | None = None
+    price_text: str | None = None
+    selling_points: list[str] = Field(default_factory=list)
+
+
+class SeriesAdSlot(BaseModel):
+    slot_id: str
+    series_id: str
+    after_episode_no: int = Field(ge=1)
+    ad: AdAssetResponse
+    status: str = "active"
+
+
+class SeriesAdSlotsResponse(BaseModel):
+    series_id: str
+    slots: list[SeriesAdSlot] = Field(default_factory=list)
+
+
+class StoryboardResponse(BaseModel):
+    video_id: str
+    available: bool = False
+    interval_seconds: float | None = None
+    frame_width: int | None = None
+    frame_height: int | None = None
+    columns: int | None = None
+    rows: int | None = None
+    sheets: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PlaybackAssetsResponse(BaseModel):
+    video: VideoResponse
+    danmaku: DanmakuResponse
+    storyboard: StoryboardResponse
+    story_chapters: list[StoryChapter] = Field(default_factory=list)
+    interaction_plans: list[InteractionPlan] = Field(default_factory=list)
+
+
 UserEventType = Literal[
     "interaction_exposure",
     "option_click",
@@ -189,6 +322,267 @@ class InteractionResultResponse(BaseModel):
     interaction_id: str
     total_votes: int
     options: list[InteractionResultOption]
+
+
+class AdminDashboardSummary(BaseModel):
+    series_count: int
+    episode_count: int
+    video_count: int
+    video_ready_count: int
+    danmaku_episode_count: int
+    danmaku_count: int
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    click_rate: float
+    dismiss_rate: float
+
+
+class AdminDashboardSeries(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    status: str = "active"
+    episode_count: int
+    video_ready_count: int
+    danmaku_episode_count: int
+    danmaku_count: int
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    has_cover: bool = False
+    cover_url: str | None = None
+    asset_status: str
+
+
+class AdminDashboardVideo(BaseModel):
+    video_id: str
+    series_id: str | None = None
+    series_name: str | None = None
+    title: str
+    episode_no: int | None = None
+    episode_label: str | None = None
+    status: str = "active"
+    interaction_count: int
+    event_count: int
+    vote_count: int
+    danmaku_count: int = 0
+    has_danmaku: bool = False
+    has_storyboard: bool = False
+    asset_status: str = "missing_danmaku"
+    analysis_status: str = "not_started"
+    analysis_stage: str | None = None
+    analysis_job_id: str | None = None
+    analysis_result_path: str | None = None
+
+
+class AdminDashboardOption(BaseModel):
+    option_id: str
+    text: str
+    danmaku_text: str
+    rank: int
+    vote_count: int
+    ratio: float
+
+
+class AdminDashboardInteraction(BaseModel):
+    interaction_id: str
+    video_id: str
+    video_title: str
+    highlight_id: str
+    trigger_time: float
+    expire_time: float
+    question: str
+    status: str
+    exposure_count: int
+    click_count: int
+    dismiss_count: int
+    vote_count: int
+    options: list[AdminDashboardOption]
+
+
+class AdminDashboardEvent(BaseModel):
+    event_id: str
+    event_type: str
+    user_id: str
+    video_id: str
+    highlight_id: str | None = None
+    interaction_id: str | None = None
+    option_id: str | None = None
+    client_time: float
+    server_time: str
+
+
+class AdminDashboardResponse(BaseModel):
+    summary: AdminDashboardSummary
+    series: list[AdminDashboardSeries]
+    videos: list[AdminDashboardVideo]
+    interactions: list[AdminDashboardInteraction]
+    recent_events: list[AdminDashboardEvent]
+
+
+class AdminSeriesCreate(BaseModel):
+    series_id: str = Field(min_length=1)
+    series_name: str = Field(min_length=1)
+
+
+class AdminLoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class AdminAuthResponse(BaseModel):
+    authenticated: bool
+    username: str | None = None
+
+
+class AdminSeriesResponse(BaseModel):
+    series_id: str
+    series_name: str
+    name_object_key: str
+
+
+class AdminSeriesSummary(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    status: str = "active"
+    episode_count: int
+    min_episode_no: int | None = None
+    max_episode_no: int | None = None
+    name_object_key: str
+    cover_object_key: str
+
+
+class AdminSeriesEpisode(BaseModel):
+    video_id: str
+    title: str
+    episode_no: int | None = None
+    episode_label: str | None = None
+    oss_bucket: str
+    oss_object_key: str
+    douyin_json_path: str | None = None
+    content_type: str
+    size: int
+    status: str
+    updated_at: datetime | str | None = None
+    analysis_status: str = "not_started"
+    analysis_stage: str | None = None
+    analysis_job_id: str | None = None
+    analysis_result_path: str | None = None
+
+
+class AdminSeriesDetail(BaseModel):
+    series: AdminSeriesSummary
+    episodes: list[AdminSeriesEpisode]
+
+
+class AdminSeriesListResponse(BaseModel):
+    series: list[AdminSeriesSummary]
+
+
+class AdminSeriesDeleteResponse(BaseModel):
+    series_id: str
+    deleted_episode_count: int
+
+
+class AdminSeriesRestoreResponse(BaseModel):
+    series_id: str
+    restored_episode_count: int
+
+
+class AdminUploadResponse(BaseModel):
+    object_key: str
+    content_type: str
+    size: int
+
+
+class AdminEpisodeUploadResponse(BaseModel):
+    video_id: str
+    series_id: str
+    series_name: str
+    episode_no: int
+    episode_label: str
+    title: str
+    object_key: str
+    content_type: str
+    size: int
+
+
+class AdminDanmakuUploadResponse(BaseModel):
+    object_key: str
+    content_type: str
+    size: int
+    danmaku_count: int
+
+
+class AdminVideoAnalysisJob(BaseModel):
+    job_id: str | None = None
+    video_id: str
+    status: str
+    stage: str
+    output_dir: str | None = None
+    result_text_path: str | None = None
+    error_message: str | None = None
+    started_at: datetime | str | None = None
+    finished_at: datetime | str | None = None
+
+
+class AdminVideoAnalysisResultResponse(BaseModel):
+    video_id: str
+    job: AdminVideoAnalysisJob
+    content: str
+
+
+class AdminVideoAnalysisArtifact(BaseModel):
+    name: str
+    path: str
+    size: int
+
+
+class AdminVideoAnalysisArtifactsResponse(BaseModel):
+    video_id: str
+    job: AdminVideoAnalysisJob
+    artifacts: list[AdminVideoAnalysisArtifact]
+
+
+class AdminStoryGraphSummary(BaseModel):
+    series_id: str
+    series_name: str | None = None
+    node_count: int
+    edge_count: int
+    available: bool
+
+
+class AdminStoryGraphListResponse(BaseModel):
+    graphs: list[AdminStoryGraphSummary]
+
+
+class AdminStoryGraphNode(BaseModel):
+    id: str
+    label: str
+    entity_type: str
+    description: str
+    degree: int
+    chapter_ids: list[int] = Field(default_factory=list)
+
+
+class AdminStoryGraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    keywords: str
+    description: str
+    weight: float | None = None
+    chapter_ids: list[int] = Field(default_factory=list)
+
+
+class AdminStoryGraphDetailResponse(BaseModel):
+    series_id: str
+    node_count: int
+    edge_count: int
+    total_node_count: int
+    total_edge_count: int
+    nodes: list[AdminStoryGraphNode]
+    edges: list[AdminStoryGraphEdge]
 
 
 class StoryQaIngestRequest(BaseModel):
@@ -237,3 +631,45 @@ class StoryQaCollectionsResponse(BaseModel):
     chroma_dir: str
     total_documents: int
     episodes: list[StoryQaEpisodeSummary]
+
+
+WatchAssistantActionType = Literal["answer", "seek", "next_episode", "pause", "resume", "noop"]
+
+
+class WatchAssistantRequest(BaseModel):
+    message: str = Field(min_length=1)
+    series_id: str = Field(min_length=1)
+    video_id: str = Field(min_length=1)
+    current_episode: int = Field(ge=1)
+    current_time: float = Field(ge=0)
+    duration: float = Field(ge=0)
+    available_tools: list[str] = Field(default_factory=list)
+
+
+class WatchAssistantAction(BaseModel):
+    type: WatchAssistantActionType
+    target_time: float | None = Field(default=None, ge=0)
+    relative_seconds: float | None = None
+    reason: str | None = None
+
+
+class WatchAssistantToolCall(BaseModel):
+    tool: str
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    status: Literal["ok", "error"] = "ok"
+    result: dict[str, Any] = Field(default_factory=dict)
+    error: str | None = None
+
+
+class WatchAssistantResponse(BaseModel):
+    reply: str
+    actions: list[WatchAssistantAction] = Field(default_factory=list)
+    tool_calls: list[WatchAssistantToolCall] = Field(default_factory=list)
+    sources: list[StoryQaSource] = Field(default_factory=list)
+
+
+class WatchAssistantTranscriptionResponse(BaseModel):
+    text: str
+    confidence: float = Field(ge=0, le=1)
+    language: str = "zh"
+    duration_ms: int = Field(ge=0)

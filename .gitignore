@@ -121,6 +121,9 @@ data/case1/*.mp4
 !example_output/
 !example_output/case1_ep01/
 !example_output/case1_ep01/**
+!data/story_qa/
+!data/story_qa/**
+video-analyzer_result/
 
 # Hugging Face and model caches
 .cache/
@@ -160,3 +163,5 @@ apps/player-demo/node_modules/
 .env
 __pycache__/
 *.pyc
+
+圈选剧前5集弹幕.csv

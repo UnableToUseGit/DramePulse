@@ -2,13 +2,31 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 
-from scripts.run_story_chapter_generation_multimodal_batch import build_parser, discover_multimodal_inputs, main
+from scripts.story_chapter.run_mllm_batch import build_parser, discover_multimodal_inputs, main
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class StoryChapterGenerationMultimodalBatchScriptTest(unittest.TestCase):
+    def test_new_story_chapter_mllm_batch_algorithm_script_runs_when_executed_directly(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "scripts/story_chapter/run_mllm_batch.py", "--help"],
+            cwd=REPO_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Batch run multimodal story chapter generation", result.stdout)
+
     def test_discover_multimodal_inputs_requires_video_transcription_and_scene_detection(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
@@ -24,7 +42,7 @@ class StoryChapterGenerationMultimodalBatchScriptTest(unittest.TestCase):
             inputs = discover_multimodal_inputs(root)
 
         self.assertEqual(len(inputs), 1)
-        self.assertEqual(inputs[0].video_id, "scene_video_id")
+        self.assertEqual(inputs[0].video_id, "demo_series_ep01")
         self.assertEqual(inputs[0].video_path, episode_dir / "video.mp4")
 
     def test_main_runs_pipeline_and_writes_summary(self) -> None:

@@ -5,6 +5,7 @@ export interface RoleCommerceFeedAd {
   campaignId: string;
   placement: RoleCommerceAdPlacement;
   afterVideoId?: string;
+  afterEpisodeNo?: number;
   sponsorLabel: string;
   characterName: string;
   productName: string;
@@ -15,6 +16,8 @@ export interface RoleCommerceFeedAd {
   sellingPoints: string[];
   priceText: string;
   ctaText: string;
+  streamUrl?: string;
+  duration?: number;
 }
 
 export const DEMO_ROLE_COMMERCE_ADS: RoleCommerceFeedAd[] = [

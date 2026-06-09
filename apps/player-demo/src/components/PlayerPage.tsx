@@ -12,7 +12,7 @@ import {
   ResonanceTapState
 } from "../action-rail-resonance/tapState";
 import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
-import { API_BASE_URL, ENABLE_INTERACTION_LAB } from "../config";
+import { API_BASE_URL, ENABLE_INTERACTION_LAB, ENABLE_PLAYBACK_DEBUG_PANEL } from "../config";
 import {
   getFeedPlaybackPagePresentationState,
   getFeedPlaybackPageRenderState,
@@ -24,15 +24,30 @@ import {
   UserPlaybackIntent
 } from "../domain/playerFeed";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
+import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
+import { prefetchStoryboardSheets } from "../domain/playbackAssetPreloader";
 import { PlayerVideo } from "../domain/playerApi";
-import { loadPlaybackAssets } from "../domain/playerDataApi";
-import { askStoryQa, resolveStoryQaContext } from "../domain/storyQa";
-import { resetStoryQaState, StoryQaPanelState } from "../domain/storyQaState";
+import {
+  getExpiredInteractionCueIds,
+  getSeekSkippedInteractionCueIds,
+  toActionRailResonanceCues,
+  toInnerVoiceDanmakuCues,
+  toInteractionDebugMarkers
+} from "../domain/interactionAssetCues";
+import { InteractionAsset, loadLightweightPlaybackAssets } from "../domain/playerDataApi";
+import { resolveStoryQaContext } from "../domain/storyQa";
+import {
+  askWatchAssistant,
+  WatchAssistantAction,
+  WatchAssistantToolCall,
+  WatchAssistantTranscription
+} from "../domain/watchAssistant";
 import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
 import { useDanmakuFeed } from "../hooks/useDanmakuFeed";
 import { useInteractionExampleState } from "../hooks/useInteractionExampleState";
 import { usePlaybackSpeedControls } from "../hooks/usePlaybackSpeedControls";
 import { createSentInnerVoiceDanmakuFromCue, toDanmakuItems } from "../inner-voice-danmaku/sentDanmaku";
+import { getActiveInnerVoiceCue, getVisibleInnerVoiceCue } from "../inner-voice-danmaku/scheduler";
 import type { InnerVoiceDanmakuCue, SentInnerVoiceDanmaku } from "../inner-voice-danmaku/types";
 import { DEFAULT_INTERACTION_EXAMPLE } from "../interaction-examples/examples";
 import { DanmakuPollExample } from "../interaction-examples/DanmakuPollExample";
@@ -45,7 +60,7 @@ import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
 import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerControls } from "./PlayerControls";
-import { StoryQaPanel } from "./StoryQaPanel";
+import { WatchAssistantPanel } from "./WatchAssistantPanel";
 import { SeekRequest, VideoStage } from "./VideoStage";
 import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
@@ -72,6 +87,7 @@ function getActionRailPreviewCue(type: InteractionPresentationType) {
 interface PlayerPageProps {
   video: PlayerVideo;
   pageIndex: number;
+  playbackAssetCache: PlaybackAssetCache;
   playbackObserver?: HomeFeedPlaybackObserver;
   isActive: boolean;
   pageRole: FeedPlaybackPageRole;
@@ -88,6 +104,7 @@ interface PlayerPageProps {
   onChangePresentationType: (type: InteractionPresentationType) => void;
   onPlaybackPositionChange: (videoId: string, time: number) => void;
   onTimelineDragStateChange?: (isDragging: boolean) => void;
+  onPlaybackReady?: () => void;
   onPlayNextEpisode: () => void;
   mode?: "home" | "series";
   seriesEpisodeCount?: number;
@@ -102,9 +119,45 @@ interface VideoStageObservation {
   pageIndex: number;
 }
 
+interface WatchAssistantPanelState {
+  isOpen: boolean;
+  message: string;
+  reply?: string;
+  error?: string;
+  isLoading: boolean;
+  voiceState: "idle" | "recording" | "transcribing";
+  voiceMeta?: WatchAssistantTranscription;
+  toolCalls: WatchAssistantToolCall[];
+  executionHint?: string;
+}
+
+function resetWatchAssistantState(): WatchAssistantPanelState {
+  return {
+    isOpen: false,
+    message: "",
+    reply: undefined,
+    error: undefined,
+    isLoading: false,
+    voiceState: "idle",
+    voiceMeta: undefined,
+    toolCalls: [],
+    executionHint: undefined
+  };
+}
+
+function isWebMicrophoneBlockedByInsecureOrigin(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return window.isSecureContext === false && !isLocalhost;
+}
+
 export function PlayerPage({
   video,
   pageIndex,
+  playbackAssetCache,
   playbackObserver,
   isActive,
   pageRole,
@@ -121,6 +174,7 @@ export function PlayerPage({
   onChangePresentationType,
   onPlaybackPositionChange,
   onTimelineDragStateChange,
+  onPlaybackReady,
   onPlayNextEpisode,
   mode = "home",
   seriesEpisodeCount,
@@ -128,7 +182,6 @@ export function PlayerPage({
   onBack,
   onOpenSeriesDetail
 }: PlayerPageProps) {
-  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl);
   const [currentTime, setCurrentTime] = useState(0);
   const [userPlaybackIntent, setUserPlaybackIntent] = useState<UserPlaybackIntent>("playing");
   const [resolvedDuration, setResolvedDuration] = useState(video.duration);
@@ -138,22 +191,37 @@ export function PlayerPage({
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
   const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
   const [completedResonanceCueIds, setCompletedResonanceCueIds] = useState<Set<string>>(() => new Set());
+  const [completedInteractionCueIds, setCompletedInteractionCueIds] = useState<Set<string>>(() => new Set());
   const [participatingResonanceCue, setParticipatingResonanceCue] = useState<ActionRailResonanceCue | undefined>();
+  const [launchingInnerVoiceCue, setLaunchingInnerVoiceCue] = useState<InnerVoiceDanmakuCue | undefined>();
   const [resonanceTapState, setResonanceTapState] = useState<ResonanceTapState>(() =>
     createInitialResonanceTapState()
   );
-  const [storyQaState, setStoryQaState] = useState<StoryQaPanelState>(() => resetStoryQaState());
-  const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>();
+  const [assistantState, setAssistantState] = useState<WatchAssistantPanelState>(() => resetWatchAssistantState());
+  const [interactionAssets, setInteractionAssets] = useState<InteractionAsset[]>(
+    () => playbackAssetCache.get(video.videoId)?.interactionAssets ?? []
+  );
+  const [playbackAssetVideo, setPlaybackAssetVideo] = useState<PlayerVideo | undefined>(() => {
+    const cached = playbackAssetCache.get(video.videoId);
+    return cached?.storyboard || cached?.storyChapters
+      ? {
+          ...video,
+          ...(cached.storyboard ? { storyboard: cached.storyboard } : {}),
+          ...(cached.storyChapters ? { storyChapters: cached.storyChapters } : {})
+        }
+      : undefined;
+  });
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
-  const storyQaRequestRef = useRef(0);
+  const assistantRequestRef = useRef(0);
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
+  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, false);
   const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
   const renderState = getFeedPlaybackPagePresentationState({
     playbackPageRole: pageRole,
@@ -172,8 +240,31 @@ export function PlayerPage({
     [pageIndex, playbackObserver, video.videoId]
   );
   const timelineChromeVisibility = getTimelineChromeVisibility({ isTimelineDragging });
+  const apiActionRailCues = useMemo(() => toActionRailResonanceCues(interactionAssets), [interactionAssets]);
+  const apiInnerVoiceCues = useMemo(() => toInnerVoiceDanmakuCues(interactionAssets), [interactionAssets]);
+  const debugInteractionMarkers = useMemo(
+    () => (ENABLE_PLAYBACK_DEBUG_PANEL ? toInteractionDebugMarkers(interactionAssets) : []),
+    [interactionAssets]
+  );
+  const activeApiActionRailResonanceCue = useMemo(
+    () =>
+      isActive && playbackState.isStarted
+        ? getActiveActionRailResonanceCue({
+            cues: apiActionRailCues,
+            currentTime,
+            completedCueIds: completedInteractionCueIds
+          })
+        : undefined,
+    [apiActionRailCues, completedInteractionCueIds, currentTime, isActive, playbackState.isStarted]
+  );
   const activeActionRailResonanceCue = useMemo(
     () => {
+      if (activeApiActionRailResonanceCue) {
+        return activeApiActionRailResonanceCue;
+      }
+      if (!ENABLE_INTERACTION_LAB) {
+        return undefined;
+      }
       if (!isActionRailResonancePresentation(selectedPresentationType) || !isActive || !playbackState.isStarted) {
         return undefined;
       }
@@ -187,23 +278,67 @@ export function PlayerPage({
         completedCueIds: completedResonanceCueIds
       });
     },
-    [completedResonanceCueIds, currentTime, isActive, playbackState.isStarted, selectedPresentationType]
+    [
+      activeApiActionRailResonanceCue,
+      completedResonanceCueIds,
+      currentTime,
+      isActive,
+      playbackState.isStarted,
+      selectedPresentationType
+    ]
   );
   const actionRailResonanceCue = getVisibleActionRailResonanceCue({
     activeCue: activeActionRailResonanceCue,
     participatingCue: participatingResonanceCue
   });
+  const activeApiInnerVoiceCue = useMemo(
+    () =>
+      isActive && playbackState.isStarted
+        ? getActiveInnerVoiceCue({
+            cues: apiInnerVoiceCues,
+            currentTime,
+            completedCueIds: completedInteractionCueIds
+          })
+        : undefined,
+    [apiInnerVoiceCues, completedInteractionCueIds, currentTime, isActive, playbackState.isStarted]
+  );
+  const innerVoiceCue = getVisibleInnerVoiceCue({
+    activeCue: activeApiInnerVoiceCue,
+    launchingCue: launchingInnerVoiceCue
+  });
   const displayVideo = playbackAssetVideo?.videoId === video.videoId ? playbackAssetVideo : video;
 
   useEffect(() => {
     let cancelled = false;
-    setPlaybackAssetVideo(undefined);
-    loadPlaybackAssets({
+    const cached = playbackAssetCache.get(video.videoId);
+    setInteractionAssets(cached?.interactionAssets ?? []);
+    setPlaybackAssetVideo(
+      cached?.storyboard || cached?.storyChapters
+        ? {
+            ...video,
+            ...(cached.storyboard ? { storyboard: cached.storyboard } : {}),
+            ...(cached.storyChapters ? { storyChapters: cached.storyChapters } : {})
+          }
+        : undefined
+    );
+    loadLightweightPlaybackAssets({
       apiBaseUrl: API_BASE_URL,
       videoId: video.videoId
     })
       .then((assets) => {
         if (!cancelled) {
+          if (assets.storyboard) {
+            playbackAssetCache.setStoryboard(video.videoId, assets.storyboard);
+            prefetchStoryboardSheets({
+              cache: playbackAssetCache,
+              videoId: video.videoId,
+              storyboard: assets.storyboard
+            }).catch(() => undefined);
+          }
+          playbackAssetCache.setInteractionPlans(video.videoId, assets.interactionPlans);
+          playbackAssetCache.setStoryChapters(video.videoId, assets.storyChapters);
+          playbackAssetCache.setInteractionAssets(video.videoId, assets.interactionAssets);
+          setInteractionAssets(assets.interactionAssets);
           setPlaybackAssetVideo(assets.video);
         }
       })
@@ -211,7 +346,7 @@ export function PlayerPage({
     return () => {
       cancelled = true;
     };
-  }, [video.videoId]);
+  }, [playbackAssetCache, video]);
 
   useEffect(() => {
     playbackObserver?.record({
@@ -317,11 +452,15 @@ export function PlayerPage({
       setSeekVersion((version) => version + 1);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
+      if (videoChanged) {
+        setCompletedInteractionCueIds(new Set());
+      }
       setParticipatingResonanceCue(undefined);
+      setLaunchingInnerVoiceCue(undefined);
       setResonanceTapState(createInitialResonanceTapState());
       resetInteractionExample();
-      storyQaRequestRef.current += 1;
-      setStoryQaState(resetStoryQaState());
+      assistantRequestRef.current += 1;
+      setAssistantState(resetWatchAssistantState());
       previousTimeRef.current = resumeTime;
       lastPublishedTimeRef.current = resumeTime;
       lastReportedPositionRef.current = resumeTime;
@@ -440,11 +579,29 @@ export function PlayerPage({
         setParticipatingResonanceCue(undefined);
         setResonanceTapState(createInitialResonanceTapState());
       }
+      const skippedCueIds = getSeekSkippedInteractionCueIds({
+        cues: [...apiActionRailCues, ...apiInnerVoiceCues],
+        seekTime: time,
+        completedCueIds: completedInteractionCueIds
+      });
+      if (skippedCueIds.length > 0) {
+        setCompletedInteractionCueIds((ids) => new Set([...ids, ...skippedCueIds]));
+        setLaunchingInnerVoiceCue((cue) => (cue && skippedCueIds.includes(cue.cueId) ? undefined : cue));
+      }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
       setSeekRequest({ id: Date.now(), time, reason: "user_seek" });
     },
-    [clearResonanceTimers, isActive, onPlaybackPositionChange, resetInteractionExample, video.videoId]
+    [
+      apiActionRailCues,
+      apiInnerVoiceCues,
+      clearResonanceTimers,
+      completedInteractionCueIds,
+      isActive,
+      onPlaybackPositionChange,
+      resetInteractionExample,
+      video.videoId
+    ]
   );
 
   const handleTimelineDragStateChange = useCallback(
@@ -453,6 +610,85 @@ export function PlayerPage({
       onTimelineDragStateChange?.(isDragging);
     },
     [onTimelineDragStateChange]
+  );
+
+  const reportAssistantPlaybackEvent = useCallback(
+    (action: WatchAssistantAction, rawMessage: string, inputMode: "text" | "voice", voiceMeta?: WatchAssistantTranscription) => {
+      const eventType =
+        action.type === "pause"
+          ? "pause"
+          : action.type === "resume"
+            ? "resume"
+            : action.type === "seek"
+              ? (typeof action.relativeSeconds === "number" && action.relativeSeconds < 0 ? "seek_backward" : "seek_forward")
+              : undefined;
+      if (!eventType) {
+        return;
+      }
+      fetch(`${API_BASE_URL.replace(/\/$/, "")}/api/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: eventType,
+          user_id: "u_demo_001",
+          video_id: video.videoId,
+          client_time: currentTime,
+          timestamp: Date.now(),
+          extra: {
+            source: "watch_assistant",
+            input_mode: inputMode,
+            assistant_action: action.type,
+            raw_message: rawMessage,
+            transcript: inputMode === "voice" ? rawMessage : undefined,
+            asr_confidence: voiceMeta?.confidence,
+            audio_duration_ms: voiceMeta?.durationMs,
+            target_time: action.targetTime
+          }
+        })
+      }).catch(() => undefined);
+    },
+    [currentTime, video.videoId]
+  );
+
+  const applyAssistantActions = useCallback(
+    (
+      actions: WatchAssistantAction[],
+      rawMessage: string,
+      inputMode: "text" | "voice",
+      voiceMeta?: WatchAssistantTranscription
+    ): string | undefined => {
+      let hint: string | undefined;
+      actions.forEach((action) => {
+        if (action.type === "seek" && typeof action.targetTime === "number") {
+          handleSeekCommit(action.targetTime);
+          reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
+          hint = "已执行跳转";
+          return;
+        }
+        if (action.type === "next_episode") {
+          if (!hasNextEpisode) {
+            hint = "已经是最后一集";
+            return;
+          }
+          onPlayNextEpisode();
+          hint = "已切到下一集";
+          return;
+        }
+        if (action.type === "pause") {
+          setUserPlaybackIntent("paused");
+          reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
+          hint = "已暂停";
+          return;
+        }
+        if (action.type === "resume") {
+          setUserPlaybackIntent("playing");
+          reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
+          hint = "继续播放";
+        }
+      });
+      return hint;
+    },
+    [handleSeekCommit, hasNextEpisode, onPlayNextEpisode, reportAssistantPlaybackEvent]
   );
 
   const handleInnerVoiceGestureActiveChange = useCallback(
@@ -464,6 +700,7 @@ export function PlayerPage({
 
   const handleSendInnerVoiceDanmaku = useCallback(
     (cue: InnerVoiceDanmakuCue) => {
+      setLaunchingInnerVoiceCue(cue);
       setSentInnerVoiceDanmaku((items) => [
         ...items,
         createSentInnerVoiceDanmakuFromCue({
@@ -475,12 +712,18 @@ export function PlayerPage({
     [currentTime]
   );
 
+  const handleInnerVoiceExitComplete = useCallback((cue: InnerVoiceDanmakuCue) => {
+    setCompletedInteractionCueIds((ids) => new Set(ids).add(cue.cueId));
+    setLaunchingInnerVoiceCue((current) => (current?.cueId === cue.cueId ? undefined : current));
+  }, []);
+
   const handleParticipateResonance = useCallback((cue: ActionRailResonanceCue, nextState: ResonanceTapState) => {
     clearResonanceTimers();
     setParticipatingResonanceCue(cue);
     setResonanceTapState(nextState);
     resonanceButtonDismissTimeoutRef.current = setTimeout(() => {
       setCompletedResonanceCueIds((ids) => new Set(ids).add(cue.cueId));
+      setCompletedInteractionCueIds((ids) => new Set(ids).add(cue.cueId));
       resonanceButtonDismissTimeoutRef.current = undefined;
     }, ACTION_RAIL_RESONANCE_BUTTON_DISMISS_DELAY_MS);
     resonanceEffectTimeoutRef.current = setTimeout(() => {
@@ -491,6 +734,18 @@ export function PlayerPage({
     // First version records locally. Future API wiring can report cueId/highlightId/tapCount here.
     void nextState;
   }, [clearResonanceTimers]);
+
+  useEffect(() => {
+    const expiredCueIds = getExpiredInteractionCueIds({
+      cues: [...apiActionRailCues, ...apiInnerVoiceCues],
+      currentTime,
+      completedCueIds: completedInteractionCueIds
+    });
+    if (expiredCueIds.length > 0) {
+      setCompletedInteractionCueIds((ids) => new Set([...ids, ...expiredCueIds]));
+      setLaunchingInnerVoiceCue((cue) => (cue && expiredCueIds.includes(cue.cueId) ? undefined : cue));
+    }
+  }, [apiActionRailCues, apiInnerVoiceCues, completedInteractionCueIds, currentTime]);
 
   useEffect(() => {
     if (activeActionRailResonanceCue || participatingResonanceCue) {
@@ -516,51 +771,92 @@ export function PlayerPage({
     selectedPresentationType
   ]);
 
-  const handleSubmitStoryQa = useCallback(
-    (quickQuestion?: string) => {
-      const nextQuestion = (quickQuestion ?? storyQaState.question).trim();
-      setStoryQaState((state) => ({
+  const handleSubmitWatchAssistant = useCallback(
+    (quickMessage?: string, inputMode: "text" | "voice" = "text", voiceMeta?: WatchAssistantTranscription) => {
+      const nextMessage = (quickMessage ?? assistantState.message).trim();
+      setAssistantState((state) => ({
         ...state,
-        question: nextQuestion,
+        message: nextMessage,
         error: undefined,
-        answer: undefined
+        reply: undefined,
+        voiceMeta,
+        executionHint: undefined,
+        toolCalls: []
       }));
-      if (!nextQuestion) {
-        setStoryQaState((state) => ({ ...state, error: "请输入问题" }));
+      if (!nextMessage) {
+        setAssistantState((state) => ({ ...state, error: "请输入指令或剧情问题" }));
         return;
       }
       const context = resolveStoryQaContext(video);
-      const requestId = storyQaRequestRef.current + 1;
-      storyQaRequestRef.current = requestId;
-      setStoryQaState((state) => ({ ...state, isLoading: true }));
-      askStoryQa({
+      const requestId = assistantRequestRef.current + 1;
+      assistantRequestRef.current = requestId;
+      setAssistantState((state) => ({ ...state, isLoading: true }));
+      askWatchAssistant({
         apiBaseUrl: API_BASE_URL,
-        question: nextQuestion,
+        message: nextMessage,
         seriesId: context.seriesId,
+        videoId: video.videoId,
         currentEpisode: context.currentEpisode,
-        currentTime
+        currentTime,
+        duration: resolvedDuration
       })
-        .then((result) => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({ ...state, answer: result.answer }));
+        .then((response) => {
+          if (assistantRequestRef.current === requestId) {
+            const executionHint = applyAssistantActions(response.actions, nextMessage, inputMode, voiceMeta);
+            setAssistantState((state) => ({
+              ...state,
+              reply: response.reply,
+              toolCalls: response.toolCalls,
+              executionHint
+            }));
           }
         })
         .catch((error: unknown) => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({
+          if (assistantRequestRef.current === requestId) {
+            setAssistantState((state) => ({
               ...state,
-              error: error instanceof Error ? error.message : "剧情问答暂时不可用"
+              error: error instanceof Error ? error.message : "观看助手暂时不可用"
             }));
           }
         })
         .finally(() => {
-          if (storyQaRequestRef.current === requestId) {
-            setStoryQaState((state) => ({ ...state, isLoading: false }));
+          if (assistantRequestRef.current === requestId) {
+            setAssistantState((state) => ({ ...state, isLoading: false }));
           }
         });
     },
-    [currentTime, storyQaState.question, video]
+    [applyAssistantActions, assistantState.message, currentTime, resolvedDuration, video]
   );
+
+  const handleToggleVoiceRecording = useCallback(async () => {
+    if (assistantState.isLoading) {
+      return;
+    }
+    try {
+      if (isWebMicrophoneBlockedByInsecureOrigin()) {
+        throw new Error("当前页面不是 HTTPS，浏览器不会弹出麦克风授权。请使用 HTTPS 或本地 localhost 访问。");
+      }
+      await import("expo-audio");
+      setAssistantState((state) => ({
+        ...state,
+        voiceState: "idle",
+        error: "当前先用文本调试 Watch Assistant；语音录制留到 development build 阶段启用。"
+      }));
+    } catch (error) {
+      setAssistantState((state) => ({
+        ...state,
+        voiceState: "idle",
+        error:
+          error instanceof Error && error.message.includes("HTTPS")
+            ? error.message
+            : "Expo Go 不包含 ExpoAudio 原生模块。当前先用文本调试，语音输入需要 development build。"
+      }));
+    }
+  }, [assistantState.isLoading]);
+
+  const handleCancelVoiceRecording = useCallback(() => {
+    setAssistantState((state) => ({ ...state, voiceState: "idle" }));
+  }, []);
 
   return (
     <View style={[styles.root, { height }]}>
@@ -578,6 +874,7 @@ export function PlayerPage({
             onDurationChange={handleDurationChange}
             onPlayToEnd={handlePlayToEnd}
             onSeekHandled={handleSeekHandled}
+            onPlaybackReady={onPlaybackReady}
             playbackRate={speedControls.effectivePlaybackRate}
             bufferOptions={videoBufferOptions}
             enableCaching={FEED_VIDEO_SOURCE_CACHING_ENABLED}
@@ -621,14 +918,16 @@ export function PlayerPage({
           releaseCount={resonanceTapState.releaseCount}
         />
       ) : null}
-      {isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
+      {ENABLE_INTERACTION_LAB && isInteractionExampleVisible && selectedPresentationType === "danmaku_poll" ? (
         <DanmakuPollExample example={DEFAULT_INTERACTION_EXAMPLE} onDismiss={dismissInteractionExample} />
       ) : null}
       {renderState.shouldRenderInteractiveShell ? (
         <PlayerChrome
           liked={liked}
           onToggleLike={() => setLiked((current) => !current)}
-          onOpenStoryQa={() => setStoryQaState((state) => ({ ...state, isOpen: true }))}
+          onOpenWatchAssistant={() => {
+            setAssistantState((state) => ({ ...state, isOpen: true }));
+          }}
           onOpenTheater={onOpenTheater}
           onBack={onBack}
           playbackRate={speedControls.playbackRate}
@@ -646,8 +945,11 @@ export function PlayerPage({
           currentTime={currentTime}
           isActive={isActive && playbackState.isStarted}
           showInnerVoice={selectedPresentationType === "inner_voice_danmaku"}
+          innerVoiceCue={innerVoiceCue}
+          showInnerVoiceExample={ENABLE_INTERACTION_LAB && selectedPresentationType === "inner_voice_danmaku"}
           onInnerVoiceGestureActiveChange={handleInnerVoiceGestureActiveChange}
           onSendInnerVoiceDanmaku={handleSendInnerVoiceDanmaku}
+          onInnerVoiceExitComplete={handleInnerVoiceExitComplete}
           resonanceCue={actionRailResonanceCue}
           resonanceTapState={resonanceTapState}
           onParticipateResonance={handleParticipateResonance}
@@ -671,18 +973,25 @@ export function PlayerPage({
           onDragStateChange={handleTimelineDragStateChange}
           storyChapters={displayVideo.storyChapters}
           storyboard={displayVideo.storyboard}
+          debugInteractionMarkers={debugInteractionMarkers}
         />
       ) : null}
       {renderState.shouldRenderInteractiveShell ? (
-        <StoryQaPanel
-          visible={storyQaState.isOpen}
-          question={storyQaState.question}
-          answer={storyQaState.answer}
-          error={storyQaState.error}
-          isLoading={storyQaState.isLoading}
-          onChangeQuestion={(question) => setStoryQaState((state) => ({ ...state, question }))}
-          onSubmit={handleSubmitStoryQa}
-          onClose={() => setStoryQaState((state) => ({ ...state, isOpen: false }))}
+        <WatchAssistantPanel
+          visible={assistantState.isOpen}
+          message={assistantState.message}
+          reply={assistantState.reply}
+          error={assistantState.error}
+          isLoading={assistantState.isLoading}
+          voiceState={assistantState.voiceState}
+          voiceDurationSec={0}
+          toolCalls={assistantState.toolCalls}
+          executionHint={assistantState.executionHint}
+          onChangeMessage={(message) => setAssistantState((state) => ({ ...state, message }))}
+          onSubmit={handleSubmitWatchAssistant}
+          onToggleVoiceRecording={handleToggleVoiceRecording}
+          onCancelVoiceRecording={handleCancelVoiceRecording}
+          onClose={() => setAssistantState((state) => ({ ...state, isOpen: false }))}
         />
       ) : null}
     </View>

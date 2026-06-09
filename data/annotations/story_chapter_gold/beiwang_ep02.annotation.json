@@ -1,0 +1,28 @@
+{
+  "video_id": "beiwang_ep02",
+  "duration_seconds": 133.6,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 70.7,
+      "ending_chapter_summary": "男主和男二讨论返程计划，之后在一路的骑行和聊天，然后镜头切换到一个女人在岸边准备脱衣服走向河中，进入下一部分：劝女子别跳河"
+    }
+  ],
+  "final_chapter_summary": "两人过去劝告女子",
+  "chapters": [
+    {
+      "chapter_id": "gold_beiwang_ep02_001",
+      "video_id": "beiwang_ep02",
+      "start_time": 0.0,
+      "end_time": 70.7,
+      "summary": "男主和男二讨论返程计划，之后在一路的骑行和聊天，然后镜头切换到一个女人在岸边准备脱衣服走向河中，进入下一部分：劝女子别跳河"
+    },
+    {
+      "chapter_id": "gold_beiwang_ep02_002",
+      "video_id": "beiwang_ep02",
+      "start_time": 70.7,
+      "end_time": 133.6,
+      "summary": "两人过去劝告女子"
+    }
+  ]
+}

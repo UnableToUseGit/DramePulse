@@ -1,0 +1,1857 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d17" for="edge" attr.name="truncate" attr.type="string"/>
+<key id="d16" for="edge" attr.name="created_at" attr.type="long"/>
+<key id="d15" for="edge" attr.name="chapter_ids" attr.type="string"/>
+<key id="d14" for="edge" attr.name="chapter_id" attr.type="long"/>
+<key id="d13" for="edge" attr.name="file_path" attr.type="string"/>
+<key id="d12" for="edge" attr.name="source_id" attr.type="string"/>
+<key id="d11" for="edge" attr.name="keywords" attr.type="string"/>
+<key id="d10" for="edge" attr.name="description" attr.type="string"/>
+<key id="d9" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d8" for="node" attr.name="truncate" attr.type="string"/>
+<key id="d7" for="node" attr.name="created_at" attr.type="long"/>
+<key id="d6" for="node" attr.name="chapter_ids" attr.type="string"/>
+<key id="d5" for="node" attr.name="chapter_id" attr.type="long"/>
+<key id="d4" for="node" attr.name="file_path" attr.type="string"/>
+<key id="d3" for="node" attr.name="source_id" attr.type="string"/>
+<key id="d2" for="node" attr.name="description" attr.type="string"/>
+<key id="d1" for="node" attr.name="entity_type" attr.type="string"/>
+<key id="d0" for="node" attr.name="entity_id" attr.type="string"/>
+<graph edgedefault="undirected"><node id="蔡晓艳">
+  <data key="d0">蔡晓艳</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳是小说中的女主角，一位性格刚烈、泼辣护短的年轻母亲。她是冷冻一厂的女工，离异并独自抚养儿子邵一帆（小名一帆）。她因母亲逼迫儿子改口而掀桌反抗，也曾因不满王日新检查伤口而强行拉李医生去诊治，展现出强势的一面。蔡晓艳在路灯下遇到陈海清，最终同意结婚，成为陈海清的再婚妻子、陈爽的后妈以及吴翠芳的儿媳。在喜宴上，她与婆婆吴翠芳发生口角，得到丈夫陈海清的维护。她酒量好，但被家人逼迫离家。总体而言，蔡晓艳是一个经历离异、独自带子、性格泼辣刚烈、在再婚家庭中面临婆媳矛盾但仍坚持自我的女性角色。&lt;SEP&gt;陈海清的妻子，陈爽的后妈，外表泼辣实则内心温柔，将荷包蛋藏在碗底。&lt;SEP&gt;蔡晓艳是陈海清的新婚妻子，对陈爽表现出理解与包容的态度。&lt;SEP&gt;蔡晓艳是新婚妻子，看到存折余额后震惊，收到手表后感动。&lt;SEP&gt;小说中的女性角色，陈海清的新婚妻子，性格泼辣善良，愿意为家庭付出。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-a75b1ab700f5b4f1cb167256d2b1c73c&lt;SEP&gt;chunk-7e03ddb31a572e01f3696cf658aa16d7&lt;SEP&gt;chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-567349ef7a90cbdf621439bd40c4ec1b&lt;SEP&gt;chunk-78b00b694560174d975884c5f72d9ecd&lt;SEP&gt;chunk-2c850dc74d2a782f5f482565236058ba&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54&lt;SEP&gt;chunk-f5cc324c2b825b92bd68f7d148437c43&lt;SEP&gt;chunk-46bd64a44d403eb4d032b979591dfa37&lt;SEP&gt;chunk-9a54b4345e5c2a6bbd298586a60c0bcc&lt;SEP&gt;chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第3集.txt&lt;SEP&gt;第2集.txt&lt;SEP&gt;第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2, 3, 4, 5]</data>
+  <data key="d7">1780672628</data>
+  <data key="d8"></data>
+</node>
+<node id="陈海清">
+  <data key="d0">陈海清</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清是川南冷冻机厂（冷冻机总厂）的车间主任（陈主任），具有大学学历，即将升任总厂副厂长。他年约30岁，有一个11岁的女儿陈爽，性格温和，不抽烟、不喝酒、不赌博，酒量不佳。作为新任年轻领导，他颇有权威，曾在目睹冲突后取消王日新的优秀员工评选资格，并对蔡晓艳表示欣赏。陈海清是吴翠芳的儿子，与蔡晓艳新婚成为其丈夫，同时也是陈爽的父亲，他努力让女儿接受新家庭。在喜宴上，他果断反驳母亲的决定，宣布搬家，并将工资交由妻子蔡晓艳管理，展现了支持妻子管钱的态度。&lt;SEP&gt;陈海清是厂里的领导，新婚后将存折和手表交给妻子蔡晓艳。&lt;SEP&gt;小说中的男性角色，蔡晓艳的丈夫，沉默而深情，对妻子充满感激。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-a75b1ab700f5b4f1cb167256d2b1c73c&lt;SEP&gt;chunk-7e03ddb31a572e01f3696cf658aa16d7&lt;SEP&gt;chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-567349ef7a90cbdf621439bd40c4ec1b&lt;SEP&gt;chunk-78b00b694560174d975884c5f72d9ecd&lt;SEP&gt;chunk-f5cc324c2b825b92bd68f7d148437c43&lt;SEP&gt;chunk-46bd64a44d403eb4d032b979591dfa37&lt;SEP&gt;chunk-9a54b4345e5c2a6bbd298586a60c0bcc&lt;SEP&gt;chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第3集.txt&lt;SEP&gt;第2集.txt&lt;SEP&gt;第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2, 3, 4, 5]</data>
+  <data key="d7">1780672628</data>
+  <data key="d8"></data>
+</node>
+<node id="刘厂长">
+  <data key="d0">刘厂长</data>
+  <data key="d1">other</data>
+  <data key="d2">刘厂长是厂里的厂长，与陈海清交谈。&lt;SEP&gt;冷冻一厂厂长，对陈海清巴结讨好，并呵斥王日新。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672405</data>
+  <data key="d8"></data>
+</node>
+<node id="邵一帆">
+  <data key="d0">邵一帆</data>
+  <data key="d1">other</data>
+  <data key="d2">邵一帆是蔡晓艳的儿子，七八岁，读一年级。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672406</data>
+  <data key="d8"></data>
+</node>
+<node id="赵春红">
+  <data key="d0">赵春红</data>
+  <data key="d1">other</data>
+  <data key="d2">赵春红是蔡晓艳的嫂子，怀有身孕，性格泼辣。&lt;SEP&gt;蔡晓磊的妻子，对蔡晓艳刻薄。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2]</data>
+  <data key="d7">1780672522</data>
+  <data key="d8"></data>
+</node>
+<node id="蔡晓磊">
+  <data key="d0">蔡晓磊</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓磊是蔡晓艳的哥哥，赵春红的丈夫。&lt;SEP&gt;蔡晓艳的哥哥，已婚。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2]</data>
+  <data key="d7">1780672522</data>
+  <data key="d8"></data>
+</node>
+<node id="蔡母">
+  <data key="d0">蔡母</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡母是蔡晓艳和蔡晓磊的母亲。&lt;SEP&gt;蔡晓艳的母亲，小一帆的外婆，试图撮合女儿与老张，逼迫外孙改口。</data>
+  <data key="d3">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2]</data>
+  <data key="d7">1780672516</data>
+  <data key="d8"></data>
+</node>
+<node id="特大洪水">
+  <data key="d0">特大洪水</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">1981年长江中游爆发的一场罕见的特大洪水，导致冷冻机厂严重受灾。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672407</data>
+  <data key="d8"></data>
+</node>
+<node id="川南冷冻机厂">
+  <data key="d0">川南冷冻机厂</data>
+  <data key="d1">other</data>
+  <data key="d2">受灾严重的冷冻机厂，车间内充满潮湿与腐烂气味，地面上有泥泞和杂物。&lt;SEP&gt;一个位于川南地区的机械制造厂，小说中陈海清工作的地点。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2&lt;SEP&gt;chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第3集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 3]</data>
+  <data key="d7">1780672498</data>
+  <data key="d8"></data>
+</node>
+<node id="独轮车">
+  <data key="d0">独轮车</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">用于搬运杂物和清理工具的运输工具，车轮陷入深泥中。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672409</data>
+  <data key="d8"></data>
+</node>
+<node id="机械手表">
+  <data key="d0">机械手表</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">副主任陈海清手腕上佩戴的机械手表，在夜色下闪烁微光。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672409</data>
+  <data key="d8"></data>
+</node>
+<node id="大出血">
+  <data key="d0">大出血</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">蔡晓艳的嫂子因被困在车间多日，出现大出血症状，急需医疗救治。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672410</data>
+  <data key="d8"></data>
+</node>
+<node id="骨折">
+  <data key="d0">骨折</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">车间内多名女工因车间结构损坏导致骨头被砸断，需要救助。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672410</data>
+  <data key="d8"></data>
+</node>
+<node id="救灾">
+  <data key="d0">救灾</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">灾后的清理和救援行动，包括搬运杂物、救助伤员等。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672410</data>
+  <data key="d8"></data>
+</node>
+<node id="医务室">
+  <data key="d0">医务室</data>
+  <data key="d1">other</data>
+  <data key="d2">位于办公楼二楼的医务室，用于处理伤员伤情，灯光昏黄。&lt;SEP&gt;冷冻机三分厂内部的医疗站点，是陈海清和蔡晓艳初次见面的地点。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2&lt;SEP&gt;chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2]</data>
+  <data key="d7">1780672514</data>
+  <data key="d8"></data>
+</node>
+<node id="川南冷冻机厂车间">
+  <data key="d0">川南冷冻机厂车间</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">川南冷冻机厂内受灾严重的车间，地面上有大量泥泞和杂物，是人员被困和受伤的主要场所。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672411</data>
+  <data key="d8"></data>
+</node>
+<node id="独轮车陷入深泥">
+  <data key="d0">独轮车陷入深泥</data>
+  <data key="d1">system_state</data>
+  <data key="d2">独轮车在救灾过程中车轮陷入深泥，无法正常推动的状态。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672412</data>
+  <data key="d8"></data>
+</node>
+<node id="医疗救助">
+  <data key="d0">医疗救助</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">针对大出血和骨折等伤员的急救行动，由李医生负责实施，但因领导占用医生而受阻。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672413</data>
+  <data key="d8"></data>
+</node>
+<node id="办公楼">
+  <data key="d0">办公楼</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">厂区内亮着灯的办公楼，二楼设有医务室，是救助伤员和领导处理伤口的地点。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672413</data>
+  <data key="d8"></data>
+</node>
+<node id="王日新额头伤口">
+  <data key="d0">王日新额头伤口</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">二分厂财务主任王日新额头上有细小的伤口，正在渗血，占用李医生进行非紧急处理。</data>
+  <data key="d3">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672414</data>
+  <data key="d8"></data>
+</node>
+<node id="王日新">
+  <data key="d0">王日新</data>
+  <data key="d1">other</data>
+  <data key="d2">冷冻一厂财务科员工，因额头微小伤口与蔡晓艳发生冲突，并被陈海清取消优秀员工评选资格。</data>
+  <data key="d3">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672414</data>
+  <data key="d8"></data>
+</node>
+<node id="李医生">
+  <data key="d0">李医生</data>
+  <data key="d1">other</data>
+  <data key="d2">厂医务室医生，被蔡晓艳强行拉走。</data>
+  <data key="d3">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672414</data>
+  <data key="d8"></data>
+</node>
+<node id="冷冻一厂财务科">
+  <data key="d0">冷冻一厂财务科</data>
+  <data key="d1">other</data>
+  <data key="d2">冷冻一厂的下属部门，王日新是该部门员工。</data>
+  <data key="d3">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672414</data>
+  <data key="d8"></data>
+</node>
+<node id="年底优秀员工评选活动">
+  <data key="d0">年底优秀员工评选活动</data>
+  <data key="d1">other</data>
+  <data key="d2">冷冻一厂组织的年度活动，王日新被陈海清取消参与资格。</data>
+  <data key="d3">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672414</data>
+  <data key="d8"></data>
+</node>
+<node id="冷冻一厂">
+  <data key="d0">冷冻一厂</data>
+  <data key="d1">other</data>
+  <data key="d2">故事发生的工厂，是王日新、蔡晓艳、陈海清、刘厂长、李医生及冷冻一厂财务科所属的单位。</data>
+  <data key="d3">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780672416</data>
+  <data key="d8"></data>
+</node>
+<node id="家属区">
+  <data key="d0">家属区</data>
+  <data key="d1">other</data>
+  <data key="d2">川南冷冻机厂为职工及其家属提供的居住区域。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672498</data>
+  <data key="d8"></data>
+</node>
+<node id="陈爽">
+  <data key="d0">陈爽</data>
+  <data key="d1">other</data>
+  <data key="d2">站在门口的陈家女儿。&lt;SEP&gt;陈海清的女儿，小说中的核心人物。&lt;SEP&gt;一个女孩，陈海清的女儿，起初对后妈有偏见，后来因藏着的荷包蛋而感动。&lt;SEP&gt;陈爽是陈海清的女儿，性格倔强，因母亲早逝而对继母蔡晓艳心存抵触。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7&lt;SEP&gt;chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-f5cc324c2b825b92bd68f7d148437c43&lt;SEP&gt;chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第3集.txt&lt;SEP&gt;第4集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3, 4]</data>
+  <data key="d7">1780672603</data>
+  <data key="d8"></data>
+</node>
+<node id="胖男孩">
+  <data key="d0">胖男孩</data>
+  <data key="d1">other</data>
+  <data key="d2">一个穿棕色粗线毛衣的胖男孩，在陈海清婚礼上出言调侃陈爽的后妈身份。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672500</data>
+  <data key="d8"></data>
+</node>
+<node id="男同事">
+  <data key="d0">男同事</data>
+  <data key="d1">other</data>
+  <data key="d2">穿深蓝色中山装的男同事，在婚宴上劝陈海清喝酒。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672500</data>
+  <data key="d8"></data>
+</node>
+<node id="年轻男工">
+  <data key="d0">年轻男工</data>
+  <data key="d1">other</data>
+  <data key="d2">#|&gt;在婚宴上起哄陈海清喝酒的年轻工人。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672501</data>
+  <data key="d8"></data>
+</node>
+<node id="灰色平房">
+  <data key="d0">灰色平房</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清居住的灰色平房，位于川南冷冻机厂家属区内。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672502</data>
+  <data key="d8"></data>
+</node>
+<node id="红双喜字">
+  <data key="d0">红双喜字</data>
+  <data key="d1">other</data>
+  <data key="d2">婚礼装饰，贴于灰色平房的大门和窗户上。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672503</data>
+  <data key="d8"></data>
+</node>
+<node id="新婚喜宴">
+  <data key="d0">新婚喜宴</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清与蔡晓艳在灰色平房内举办的结婚宴席。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672503</data>
+  <data key="d8"></data>
+</node>
+<node id="鞭炮">
+  <data key="d0">鞭炮</data>
+  <data key="d1">other</data>
+  <data key="d2">陈爽在地上点燃的小鞭炮，爆炸后产生火光和硝烟。</data>
+  <data key="d3">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672503</data>
+  <data key="d8"></data>
+</node>
+<node id="吴翠芳">
+  <data key="d0">吴翠芳</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清的母亲，在喜宴上提出家规并试图收管儿子和儿媳的工资。&lt;SEP&gt;陈海清母亲，对儿媳二婚身份不满。&lt;SEP&gt;吴翠芳是陈海清的母亲，对儿媳蔡晓艳不满，多次挑拨陈爽与蔡晓艳的关系。</data>
+  <data key="d3">chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-567349ef7a90cbdf621439bd40c4ec1b&lt;SEP&gt;chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第3集.txt&lt;SEP&gt;第4集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3, 4]</data>
+  <data key="d7">1780672609</data>
+  <data key="d8"></data>
+</node>
+<node id="家庭工资管理权">
+  <data key="d0">家庭工资管理权</data>
+  <data key="d1">other</data>
+  <data key="d2">吴翠芳计划收取并管理陈海清和蔡晓艳工资的旧有家庭安排。</data>
+  <data key="d3">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672503</data>
+  <data key="d8"></data>
+</node>
+<node id="新家规">
+  <data key="d0">新家规</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清在喜宴上宣布的不需妻子尊奉旧规、工资由妻子管理的新家庭安排。</data>
+  <data key="d3">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672505</data>
+  <data key="d8"></data>
+</node>
+<node id="喜宴">
+  <data key="d0">喜宴</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清和蔡晓艳的婚宴，席间发生冲突和互动。</data>
+  <data key="d3">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672505</data>
+  <data key="d8"></data>
+</node>
+<node id="起哄男工">
+  <data key="d0">起哄男工</data>
+  <data key="d1">other</data>
+  <data key="d2">在喜宴上不怀好意地起哄陈海清喝酒的年轻男工。</data>
+  <data key="d3">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672506</data>
+  <data key="d8"></data>
+</node>
+<node id="女工">
+  <data key="d0">女工</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清单位的女同事，在喜宴上翻看并议论婚纱照。</data>
+  <data key="d3">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672506</data>
+  <data key="d8"></data>
+</node>
+<node id="婚纱照">
+  <data key="d0">婚纱照</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清和蔡晓艳花费三四十元拍摄的黑白染色结婚照。</data>
+  <data key="d3">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672506</data>
+  <data key="d8"></data>
+</node>
+<node id="白酒">
+  <data key="d0">白酒</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳在喜宴上替陈海清喝下的烈性酒。</data>
+  <data key="d3">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780672506</data>
+  <data key="d8"></data>
+</node>
+<node id="一帆">
+  <data key="d0">一帆</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳的儿子，在路边陪同母亲。&lt;SEP&gt;蔡晓艳的儿子，陈海清的继子，天真活泼，叫陈海清回家。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd&lt;SEP&gt;chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d4">第2集.txt&lt;SEP&gt;第4集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2, 4]</data>
+  <data key="d7">1780672605</data>
+  <data key="d8"></data>
+</node>
+<node id="冷冻机总厂">
+  <data key="d0">冷冻机总厂</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清工作的单位，是一家工厂。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672510</data>
+  <data key="d8"></data>
+</node>
+<node id="黑色煤块">
+  <data key="d0">黑色煤块</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清手里握着的物品，后来被描述为蜂窝煤。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672511</data>
+  <data key="d8"></data>
+</node>
+<node id="蜂窝煤">
+  <data key="d0">蜂窝煤</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清握紧的煤块，象征其决心。&lt;SEP&gt;冬季取暖用的蜂窝煤，在搬家过程中摔碎。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672511</data>
+  <data key="d8"></data>
+</node>
+<node id="路灯">
+  <data key="d0">路灯</data>
+  <data key="d1">other</data>
+  <data key="d2">昏黄的路灯，提供照明场景。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672512</data>
+  <data key="d8"></data>
+</node>
+<node id="高屏区第一歪婆娘">
+  <data key="d0">高屏区第一歪婆娘</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳自称的称号，表示她凶悍泼辣。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672512</data>
+  <data key="d8"></data>
+</node>
+<node id="冷冻机三分厂">
+  <data key="d0">冷冻机三分厂</data>
+  <data key="d1">other</data>
+  <data key="d2">冷冻机总厂下属的一个分厂，陈海清曾在分厂医务室门口遇见蔡晓艳。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672514</data>
+  <data key="d8"></data>
+</node>
+<node id="自行车">
+  <data key="d0">自行车</data>
+  <data key="d1">other</data>
+  <data key="d2">一辆二八大杠自行车，用于搬运全部家当。&lt;SEP&gt;蔡晓艳推着的交通工具，也用于载一帆。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672514</data>
+  <data key="d8"></data>
+</node>
+<node id="高屏区">
+  <data key="d0">高屏区</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳自称来自的区域，她被称为高屏区第一歪婆娘。</data>
+  <data key="d3">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672515</data>
+  <data key="d8"></data>
+</node>
+<node id="小一帆">
+  <data key="d0">小一帆</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳的儿子，被外婆强迫叫他人爸爸，感到委屈和抗拒。&lt;SEP&gt;蔡晓艳的儿子，懂事坚强。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672515</data>
+  <data key="d8"></data>
+</node>
+<node id="老张">
+  <data key="d0">老张</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡父的朋友，被蔡母介绍给蔡晓艳，神情局促并试图讨好。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672517</data>
+  <data key="d8"></data>
+</node>
+<node id="折叠方桌">
+  <data key="d0">折叠方桌</data>
+  <data key="d1">other</data>
+  <data key="d2">院子里的一张旧方桌，上面摆满了菜肴，后被蔡晓艳掀翻。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672518</data>
+  <data key="d8"></data>
+</node>
+<node id="红烧肉">
+  <data key="d0">红烧肉</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡母用来引诱小一帆的菜肴，肥瘦相间，油亮红润。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672518</data>
+  <data key="d8"></data>
+</node>
+<node id="筷子">
+  <data key="d0">筷子</data>
+  <data key="d1">other</data>
+  <data key="d2">小一帆使用的餐具，后被蔡母夺走。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672519</data>
+  <data key="d8"></data>
+</node>
+<node id="家庭冲突">
+  <data key="d0">家庭冲突</data>
+  <data key="d1">other</data>
+  <data key="d2">因蔡母逼迫小一帆叫爸爸并强迫蔡晓艳嫁人而引发的激烈争吵和掀桌事件。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672519</data>
+  <data key="d8"></data>
+</node>
+<node id="掀桌">
+  <data key="d0">掀桌</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳为保护儿子尊严而采取的反抗行动，将满桌饭菜掀翻在地。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672519</data>
+  <data key="d8"></data>
+</node>
+<node id="院子">
+  <data key="d0">院子</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡家院子，是冲突发生的物理地点，内有一张折叠方桌。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672520</data>
+  <data key="d8"></data>
+</node>
+<node id="蔡家">
+  <data key="d0">蔡家</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳、蔡母、小一帆所属的家庭单位。</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672521</data>
+  <data key="d8"></data>
+</node>
+<node id="缝纫机">
+  <data key="d0">缝纫机</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">蔡晓艳购买的缝纫机。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672522</data>
+  <data key="d8"></data>
+</node>
+<node id="收音机">
+  <data key="d0">收音机</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">蔡晓艳购买的收音机。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672523</data>
+  <data key="d8"></data>
+</node>
+<node id="四合院">
+  <data key="d0">四合院</data>
+  <data key="d1">other</data>
+  <data key="d2">蔡晓艳原本居住的地方。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672524</data>
+  <data key="d8"></data>
+</node>
+<node id="桥洞洞">
+  <data key="d0">桥洞洞</data>
+  <data key="d1">other</data>
+  <data key="d2">小一帆提议去居住的地方。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672524</data>
+  <data key="d8"></data>
+</node>
+<node id="冷冻机三分厂医务室">
+  <data key="d0">冷冻机三分厂医务室</data>
+  <data key="d1">other</data>
+  <data key="d2">故事中提及的地点，是之前遇到年轻领导的地方。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672525</data>
+  <data key="d8"></data>
+</node>
+<node id="年轻领导">
+  <data key="d0">年轻领导</data>
+  <data key="d1">other</data>
+  <data key="d2">在冷冻机三分厂医务室门口遇见的年轻男性领导，捡起蜂窝煤安慰蔡晓艳。</data>
+  <data key="d3">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672526</data>
+  <data key="d8"></data>
+</node>
+<node id="家庭">
+  <data key="d0">家庭</data>
+  <data key="d3">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d2">小一帆是蔡晓艳与家庭的核心成员，因冲突受到直接伤害。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780672528</data>
+  <data key="d8"></data>
+</node>
+<node id="荷包蛋">
+  <data key="d0">荷包蛋</data>
+  <data key="d1">other</data>
+  <data key="d2">一种食物，被人物咬了一大口，其滚烫的温度融化了心中的偏见。&lt;SEP&gt;煎得金黄酥脆的荷包蛋，被蔡晓艳藏在汤面碗底，象征长辈的偏爱。</data>
+  <data key="d3">chunk-f5cc324c2b825b92bd68f7d148437c43&lt;SEP&gt;chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672605</data>
+  <data key="d8"></data>
+</node>
+<node id="汤面">
+  <data key="d0">汤面</data>
+  <data key="d1">other</data>
+  <data key="d2">一碗热气腾腾的汤面，浇着红油和青菜，是给陈爽准备的晚餐。</data>
+  <data key="d3">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672605</data>
+  <data key="d8"></data>
+</node>
+<node id="陈爽内心坚冰融化">
+  <data key="d0">陈爽内心坚冰融化</data>
+  <data key="d1">system_state</data>
+  <data key="d2">陈爽因发现碗底的荷包蛋而内心感动，偏见消失，情感防线瓦解。</data>
+  <data key="d3">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672605</data>
+  <data key="d8"></data>
+</node>
+<node id="奶奶">
+  <data key="d0">奶奶</data>
+  <data key="d1">other</data>
+  <data key="d2">陈爽的奶奶，曾评价蔡晓艳“只会向着自家娃儿”，但实际蔡晓艳对陈爽也关爱。</data>
+  <data key="d3">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672606</data>
+  <data key="d8"></data>
+</node>
+<node id="偏见的坚冰">
+  <data key="d0">偏见的坚冰</data>
+  <data key="d1">other</data>
+  <data key="d2">人物心中对他人存在的偏见，被比喻为坚冰，在荷包蛋的温度下融化。</data>
+  <data key="d3">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672607</data>
+  <data key="d8"></data>
+</node>
+<node id="屋子">
+  <data key="d0">屋子</data>
+  <data key="d1">other</data>
+  <data key="d2">人物所在的室内空间，夜风清冷，但屋内因一碗面升起暖意。</data>
+  <data key="d3">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672608</data>
+  <data key="d8"></data>
+</node>
+<node id="夜风">
+  <data key="d0">夜风</data>
+  <data key="d1">other</data>
+  <data key="d2">屋檐外的自然风，带有清冷温度。</data>
+  <data key="d3">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672608</data>
+  <data key="d8"></data>
+</node>
+<node id="新家庭">
+  <data key="d0">新家庭</data>
+  <data key="d1">other</data>
+  <data key="d2">人物融入的新家庭，带来融融暖意。</data>
+  <data key="d3">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672609</data>
+  <data key="d8"></data>
+</node>
+<node id="融融暖意">
+  <data key="d0">融融暖意</data>
+  <data key="d1">other</data>
+  <data key="d2">新家庭所带来的温暖感觉，在屋内升起。</data>
+  <data key="d3">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672609</data>
+  <data key="d8"></data>
+</node>
+<node id="吴志平">
+  <data key="d0">吴志平</data>
+  <data key="d1">other</data>
+  <data key="d2">吴志平是陈海清的舅舅，在家庭冲突中保持沉默。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672609</data>
+  <data key="d8"></data>
+</node>
+<node id="陈爽对吴翠芳的反驳">
+  <data key="d0">陈爽对吴翠芳的反驳</data>
+  <data key="d1">other</data>
+  <data key="d2">陈爽当面反驳吴翠芳关于后妈的挑拨言语的事件。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672610</data>
+  <data key="d8"></data>
+</node>
+<node id="吴翠芳离席">
+  <data key="d0">吴翠芳离席</data>
+  <data key="d1">other</data>
+  <data key="d2">吴翠芳因被反驳而生气地离开饭桌的行为。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672611</data>
+  <data key="d8"></data>
+</node>
+<node id="陈海清要求陈爽叫蔡晓艳妈妈">
+  <data key="d0">陈海清要求陈爽叫蔡晓艳妈妈</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清在晚上要求陈爽正式称呼蔡晓艳为妈妈的事件。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672611</data>
+  <data key="d8"></data>
+</node>
+<node id="陈爽拒绝叫蔡晓艳妈妈">
+  <data key="d0">陈爽拒绝叫蔡晓艳妈妈</data>
+  <data key="d1">other</data>
+  <data key="d2">陈爽明确拒绝称呼蔡晓艳为妈妈的行为，并说“我妈早就死了”。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672612</data>
+  <data key="d8"></data>
+</node>
+<node id="陈爽母亲去世">
+  <data key="d0">陈爽母亲去世</data>
+  <data key="d1">other</data>
+  <data key="d2">陈爽的亲生母亲已经死亡的事实，成为陈爽抵触后妈的根本原因。</data>
+  <data key="d3">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780672612</data>
+  <data key="d8"></data>
+</node>
+<node id="活期储蓄存折">
+  <data key="d0">活期储蓄存折</data>
+  <data key="d1">other</data>
+  <data key="d2">中国农业银行高屏县分行的存折，余额为3000元，由陈海清交给蔡晓艳。</data>
+  <data key="d3">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672628</data>
+  <data key="d8"></data>
+</node>
+<node id="海鸥牌机械女表">
+  <data key="d0">海鸥牌机械女表</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清送给蔡晓艳的结婚礼物，价值两百多元，做工精致。</data>
+  <data key="d3">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672629</data>
+  <data key="d8"></data>
+</node>
+<node id="结婚礼物">
+  <data key="d0">结婚礼物</data>
+  <data key="d1">other</data>
+  <data key="d2">陈海清为蔡晓艳准备的海鸥牌机械女表，作为新婚礼物。</data>
+  <data key="d3">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672629</data>
+  <data key="d8"></data>
+</node>
+<node id="中国农业银行高屏县分行">
+  <data key="d0">中国农业银行高屏县分行</data>
+  <data key="d1">other</data>
+  <data key="d2">中国农业银行在高屏县的分支机构，是活期储蓄存折的发行银行。</data>
+  <data key="d3">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672630</data>
+  <data key="d8"></data>
+</node>
+<node id="陈海清所在工厂">
+  <data key="d0">陈海清所在工厂</data>
+  <data key="d1">other</data>
+  <data key="d2">全国第一个自负盈亏试点厂，陈海清是厂里的领导。</data>
+  <data key="d3">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672630</data>
+  <data key="d8"></data>
+</node>
+<node id="手表">
+  <data key="d0">手表</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">蔡晓艳手腕上佩戴的计时装置，在灯光下滴答走动。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672631</data>
+  <data key="d8"></data>
+</node>
+<node id="台灯">
+  <data key="d0">台灯</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">屋内照明设备，最后被陈海清关闭，房间陷入黑暗。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672632</data>
+  <data key="d8"></data>
+</node>
+<node id="喜被">
+  <data key="d0">喜被</data>
+  <data key="d1">other</data>
+  <data key="d2">大红色绣有龙凤呈祥图案的被子，蔡晓艳钻入其中。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672633</data>
+  <data key="d8"></data>
+</node>
+<node id="对付你妈">
+  <data key="d0">对付你妈</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">蔡晓艳提出的应对婆婆的策略，旨在保护丈夫和家庭。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672633</data>
+  <data key="d8"></data>
+</node>
+<node id="挡酒">
+  <data key="d0">挡酒</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">蔡晓艳在喜宴上主动替陈海清挡酒的行为，体现其护短。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672633</data>
+  <data key="d8"></data>
+</node>
+<node id="争锋相对">
+  <data key="d0">争锋相对</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">蔡晓艳在偏屋与婆婆对抗的行为，以自己恶名筑起防火墙。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672633</data>
+  <data key="d8"></data>
+</node>
+<node id="掀翻桌子">
+  <data key="d0">掀翻桌子</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">蔡晓艳在喜宴上掀翻桌子的行为，以对抗家庭压力。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672634</data>
+  <data key="d8"></data>
+</node>
+<node id="屋里陷入了一片黑暗">
+  <data key="d0">屋里陷入了一片黑暗</data>
+  <data key="d1">system_state</data>
+  <data key="d2">陈海清关闭台灯后，房间进入完全黑暗的状态。</data>
+  <data key="d3">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780672634</data>
+  <data key="d8"></data>
+</node>
+<edge source="蔡晓艳" target="邵一帆">
+  <data key="d9">1.0</data>
+  <data key="d10">邵一帆是蔡晓艳的儿子，属于蔡晓艳的家庭成员。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672416</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="蔡晓磊">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓磊是蔡晓艳的哥哥，属于同一家庭。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672419</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="蔡母">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡母是蔡晓艳的母亲。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672420</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="赵春红">
+  <data key="d9">2.0</data>
+  <data key="d10">赵春红是蔡晓艳的嫂子，属于同一家庭。&lt;SEP&gt;赵春红对蔡晓艳的逼迫和抢夺行为导致蔡晓艳不得不离家。</data>
+  <data key="d11">CAUSES,PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a&lt;SEP&gt;chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d13">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1, 2]</data>
+  <data key="d16">1780672538</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳是冷冻一厂的女工。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672423</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="陈海清">
+  <data key="d9">4.0</data>
+  <data key="d10">陈海清的维护和决定化解了蔡晓艳的防备与尖锐情绪。&lt;SEP&gt;蔡晓艳在保护陈海清时声称“他是我的男人”，表明两人是夫妻关系。&lt;SEP&gt;蔡晓艳是陈海清的新婚妻子，陈爽的后妈。&lt;SEP&gt;陈海清的自我介绍和求婚导致蔡晓艳同意结婚。</data>
+  <data key="d11">CAUSES,PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7&lt;SEP&gt;chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-567349ef7a90cbdf621439bd40c4ec1b&lt;SEP&gt;chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d13">第3集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2, 3]</data>
+  <data key="d16">1780672533</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="新婚喜宴">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳是新婚喜宴的主要人物之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672524</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="起哄男工">
+  <data key="d9">1.0</data>
+  <data key="d10">起哄男工的挑衅行为导致蔡晓艳夺杯代饮，保护丈夫。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672531</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="吴翠芳">
+  <data key="d9">2.0</data>
+  <data key="d10">吴翠芳当众顶撞蔡晓艳并宣布家规，引发了婆媳间的紧张关系。&lt;SEP&gt;吴翠芳在喜宴上公开抱怨儿媳，引发了蔡晓艳针锋相对的反驳。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2f4734498d75384e892983161341973c&lt;SEP&gt;chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672533</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="一帆">
+  <data key="d9">1.0</data>
+  <data key="d10">一帆是蔡晓艳的儿子，属于其家庭组成部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672535</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="蔡家">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳是蔡家的一名成员。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672536</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="蜂窝煤">
+  <data key="d9">1.0</data>
+  <data key="d10">蜂窝煤摔碎导致蔡晓艳情绪崩溃哭泣。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f0b9c95e4551501f5b3be906cf9b2a54</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672540</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="陈爽内心坚冰融化">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳隐藏荷包蛋的温柔行为直接引发了陈爽内心的感动与偏见消解。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672614</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="荷包蛋">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳将荷包蛋藏在陈爽的汤面碗底，导致荷包蛋出现在碗中。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672619</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="活期储蓄存折">
+  <data key="d9">1.0</data>
+  <data key="d10">活期储蓄存折上的3000元余额导致蔡晓艳感到震惊和慌乱。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672635</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="对付你妈">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳提出对付婆婆的策略，为后续家庭冲突埋下伏笔。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672637</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="挡酒">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳的挡酒行为展现了她的担当，加深了陈海清的理解。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672638</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓艳" target="争锋相对">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳与婆婆的争锋相对，构建了保护家庭的防线。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672639</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清是冷冻一厂的领导。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672424</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="王日新">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清决定取消王日新的优秀员工评选资格，导致王日新情绪失落。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672427</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="陈爽">
+  <data key="d9">1.0</data>
+  <data key="d10">陈爽是陈海清的女儿。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672508</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="川南冷冻机厂">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清是川南冷冻机厂的主任。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672513</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="新婚喜宴">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清是新婚喜宴的主要人物之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672517</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="吴翠芳">
+  <data key="d9">1.0</data>
+  <data key="d10">吴翠芳提出的收管工资要求直接导致了母子间的冲突。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672519</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="家庭工资管理权">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清宣布不再将工资交给母亲，转而交给妻子管理。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672524</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="新家规">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清的宣布搬家、新工资管理决定构成了新家规。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672528</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="起哄男工">
+  <data key="d9">1.0</data>
+  <data key="d10">起哄男工以“是不是男人”为由起哄，迫使陈海清面临饮酒压力。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672530</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="冷冻机总厂">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清是冷冻机总厂的副主任，属于该厂成员。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672531</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清" target="陈海清所在工厂">
+  <data key="d9">1.0</data>
+  <data key="d10">陈海清是该工厂的领导，属于工厂的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672635</data>
+  <data key="d17"></data>
+</edge>
+<edge source="刘厂长" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">刘厂长是冷冻一厂的厂长。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672426</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵春红" target="蔡母">
+  <data key="d9">1.0</data>
+  <data key="d10">赵春红是蔡母的儿媳。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672416</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵春红" target="蔡晓磊">
+  <data key="d9">1.0</data>
+  <data key="d10">赵春红是蔡晓磊的妻子，属于夫妻关系。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672423</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡晓磊" target="蔡母">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡母是蔡晓磊的母亲。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7363ed7eb610b6247b5394bbdc37250a</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672421</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡母" target="家庭冲突">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡母逼迫小一帆叫爸爸并强迫蔡晓艳嫁人，直接导致了家庭冲突的爆发。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672528</data>
+  <data key="d17"></data>
+</edge>
+<edge source="蔡母" target="蔡家">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡母是蔡家的一名成员。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672538</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="川南冷冻机厂">
+  <data key="d9">1.0</data>
+  <data key="d10">特大洪水直接导致川南冷冻机厂严重受灾，车间被淹、设备受损。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672417</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="大出血">
+  <data key="d9">1.0</data>
+  <data key="d10">洪水造成人员被困多日，引发蔡晓艳嫂子的大出血病理状态。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672418</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="骨折">
+  <data key="d9">1.0</data>
+  <data key="d10">洪水导致车间结构损坏，使女工被砸伤骨折。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672419</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="川南冷冻机厂车间">
+  <data key="d9">1.0</data>
+  <data key="d10">特大洪水导致川南冷冻机厂车间被淹，环境泥泞，设备损坏。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672420</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="独轮车陷入深泥">
+  <data key="d9">1.0</data>
+  <data key="d10">特大洪水造成地面大量泥泞，使独轮车车轮陷入深泥中。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672422</data>
+  <data key="d17"></data>
+</edge>
+<edge source="特大洪水" target="医疗救助">
+  <data key="d9">1.0</data>
+  <data key="d10">特大洪水造成多名工人受伤，从而引发医疗救助行动的需求。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672425</data>
+  <data key="d17"></data>
+</edge>
+<edge source="大出血" target="医疗救助">
+  <data key="d9">1.0</data>
+  <data key="d10">蔡晓艳嫂子因大出血迫切需要医疗救助，推动了李医生出诊的请求。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672427</data>
+  <data key="d17"></data>
+</edge>
+<edge source="骨折" target="医疗救助">
+  <data key="d9">1.0</data>
+  <data key="d10">多名女工骨折导致亟需医疗救助，与李医生被占用情况形成冲突。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672428</data>
+  <data key="d17"></data>
+</edge>
+<edge source="医务室" target="冷冻机三分厂">
+  <data key="d9">1.0</data>
+  <data key="d10">医务室是冷冻机三分厂的一个组成部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-78b00b694560174d975884c5f72d9ecd</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672528</data>
+  <data key="d17"></data>
+</edge>
+<edge source="医疗救助" target="王日新额头伤口">
+  <data key="d9">1.0</data>
+  <data key="d10">王日新的小伤导致其占用李医生进行检查，与紧急救助伤员产生矛盾。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2ba5d304a64cf13df75748ebb2b0bcb2</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672429</data>
+  <data key="d17"></data>
+</edge>
+<edge source="王日新" target="冷冻一厂财务科">
+  <data key="d9">1.0</data>
+  <data key="d10">王日新是冷冻一厂财务科的员工。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672422</data>
+  <data key="d17"></data>
+</edge>
+<edge source="王日新" target="年底优秀员工评选活动">
+  <data key="d9">1.0</data>
+  <data key="d10">王日新原本是年底优秀员工评选活动的参与者。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672426</data>
+  <data key="d17"></data>
+</edge>
+<edge source="李医生" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">李医生是冷冻一厂医务室的医生。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672428</data>
+  <data key="d17"></data>
+</edge>
+<edge source="冷冻一厂财务科" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">冷冻一厂财务科是冷冻一厂的下属部门。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672430</data>
+  <data key="d17"></data>
+</edge>
+<edge source="年底优秀员工评选活动" target="冷冻一厂">
+  <data key="d9">1.0</data>
+  <data key="d10">年底优秀员工评选活动是冷冻一厂的活动。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-a75b1ab700f5b4f1cb167256d2b1c73c</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780672429</data>
+  <data key="d17"></data>
+</edge>
+<edge source="家属区" target="灰色平房">
+  <data key="d9">1.0</data>
+  <data key="d10">灰色平房是川南冷冻机厂家属区的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672508</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈爽" target="胖男孩">
+  <data key="d9">1.0</data>
+  <data key="d10">胖男孩调侃陈爽后妈身份的话语导致陈爽愤怒并出言威胁。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-7e03ddb31a572e01f3696cf658aa16d7</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672509</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈爽" target="吴翠芳">
+  <data key="d9">1.0</data>
+  <data key="d10">吴翠芳的挑拨言语导致陈爽当场反驳，引发直接冲突。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672615</data>
+  <data key="d17"></data>
+</edge>
+<edge source="吴翠芳" target="家庭工资管理权">
+  <data key="d9">1.0</data>
+  <data key="d10">吴翠芳提出要收管儿子的工资，从而产生了家庭工资管理权的安排。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2f4734498d75384e892983161341973c</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672533</data>
+  <data key="d17"></data>
+</edge>
+<edge source="吴翠芳" target="女工">
+  <data key="d9">1.0</data>
+  <data key="d10">女工对婚纱照奢侈的议论引发吴翠芳对儿媳的不满和公开抱怨。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-567349ef7a90cbdf621439bd40c4ec1b</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780672535</data>
+  <data key="d17"></data>
+</edge>
+<edge source="小一帆" target="家庭">
+  <data key="d9">1.0</data>
+  <data key="d10">小一帆是蔡晓艳与家庭的核心成员，因冲突受到直接伤害。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672531</data>
+  <data key="d17"></data>
+</edge>
+<edge source="小一帆" target="蔡家">
+  <data key="d9">1.0</data>
+  <data key="d10">小一帆是蔡家的一名成员。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672540</data>
+  <data key="d17"></data>
+</edge>
+<edge source="折叠方桌" target="院子">
+  <data key="d9">1.0</data>
+  <data key="d10">折叠方桌位于蔡家院子中，是冲突发生的物理场景。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672529</data>
+  <data key="d17"></data>
+</edge>
+<edge source="家庭冲突" target="掀桌">
+  <data key="d9">1.0</data>
+  <data key="d10">家庭冲突愈演愈烈，最终导致蔡晓艳采取掀桌这一极端反抗行为。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-2c850dc74d2a782f5f482565236058ba</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780672531</data>
+  <data key="d17"></data>
+</edge>
+<edge source="荷包蛋" target="汤面">
+  <data key="d9">1.0</data>
+  <data key="d10">荷包蛋被隐藏在汤面的碗底，是汤面的组成部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672614</data>
+  <data key="d17"></data>
+</edge>
+<edge source="荷包蛋" target="陈爽内心坚冰融化">
+  <data key="d9">1.0</data>
+  <data key="d10">荷包蛋的出现直接引发了陈爽内心的感动与偏见消解。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f5cc324c2b825b92bd68f7d148437c43</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672617</data>
+  <data key="d17"></data>
+</edge>
+<edge source="荷包蛋" target="偏见的坚冰">
+  <data key="d9">1.0</data>
+  <data key="d10">荷包蛋滚烫的温度融化了人物心中名为偏见的坚冰。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672619</data>
+  <data key="d17"></data>
+</edge>
+<edge source="屋子" target="夜风">
+  <data key="d9">1.0</data>
+  <data key="d10">屋檐外的夜风构成屋外环境的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672615</data>
+  <data key="d17"></data>
+</edge>
+<edge source="新家庭" target="融融暖意">
+  <data key="d9">1.0</data>
+  <data key="d10">新家庭的存在使屋内升起融融暖意。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-856e9aeca4f8d60c734c54dc6b99f814</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672615</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈爽对吴翠芳的反驳" target="吴翠芳离席">
+  <data key="d9">1.0</data>
+  <data key="d10">陈爽的反驳直接激怒了吴翠芳，导致她以胃痛为由生气离席。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672617</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈海清要求陈爽叫蔡晓艳妈妈" target="陈爽拒绝叫蔡晓艳妈妈">
+  <data key="d9">1.0</data>
+  <data key="d10">父亲的要求引发了女儿本能的抗拒和拒绝。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672617</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈爽拒绝叫蔡晓艳妈妈" target="陈爽母亲去世">
+  <data key="d9">1.0</data>
+  <data key="d10">亲生母亲的去世是陈爽无法接受新母亲的根本心理原因。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-46bd64a44d403eb4d032b979591dfa37</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780672618</data>
+  <data key="d17"></data>
+</edge>
+<edge source="活期储蓄存折" target="中国农业银行高屏县分行">
+  <data key="d9">1.0</data>
+  <data key="d10">活期储蓄存折是由中国农业银行高屏县分行发行的储蓄凭证。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672637</data>
+  <data key="d17"></data>
+</edge>
+<edge source="海鸥牌机械女表" target="结婚礼物">
+  <data key="d9">1.0</data>
+  <data key="d10">海鸥牌机械女表是陈海清送给蔡晓艳的结婚礼物的组成部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9a54b4345e5c2a6bbd298586a60c0bcc</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672635</data>
+  <data key="d17"></data>
+</edge>
+<edge source="对付你妈" target="掀翻桌子">
+  <data key="d9">1.0</data>
+  <data key="d10">掀翻桌子是蔡晓艳实施“对付你妈”策略的具体行动之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672638</data>
+  <data key="d17"></data>
+</edge>
+<edge source="对付你妈" target="挡酒">
+  <data key="d9">1.0</data>
+  <data key="d10">挡酒是蔡晓艳实施“对付你妈”策略的具体行动之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672639</data>
+  <data key="d17"></data>
+</edge>
+<edge source="对付你妈" target="争锋相对">
+  <data key="d9">1.0</data>
+  <data key="d10">争锋相对是蔡晓艳实施“对付你妈”策略的具体行动之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-56aaa65868079c930163e3188c71196a</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780672640</data>
+  <data key="d17"></data>
+</edge>
+</graph></graphml>

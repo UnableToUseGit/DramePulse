@@ -261,6 +261,9 @@ function shouldPlaceRoleCommerceAdAfterVideo({
   if (ad.placement === "after_first_video") {
     return videoIndex === 0;
   }
+  if (typeof ad.afterEpisodeNo === "number") {
+    return video.episodeNo === ad.afterEpisodeNo;
+  }
   return ad.afterVideoId === video.videoId;
 }
 

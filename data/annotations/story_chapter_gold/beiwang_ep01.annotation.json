@@ -1,0 +1,50 @@
+{
+  "video_id": "beiwang_ep01",
+  "duration_seconds": 301.133,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 83.6,
+      "ending_chapter_summary": "男主和一行人讨债成功，镜头切到城市远景过度到下个场景"
+    },
+    {
+      "time": 135.8,
+      "ending_chapter_summary": "男主和男二去银行汇款并在汇款后发现自己没啥钱，买不起太贵的机票"
+    },
+    {
+      "time": 247.0,
+      "ending_chapter_summary": "男主和老妈打电话，说明自己的情况，经典煽情桥段"
+    }
+  ],
+  "final_chapter_summary": "男主和老妈打完电话，两个人开始提出返乡计划",
+  "chapters": [
+    {
+      "chapter_id": "gold_beiwang_ep01_001",
+      "video_id": "beiwang_ep01",
+      "start_time": 0.0,
+      "end_time": 83.6,
+      "summary": "男主和一行人讨债成功，镜头切到城市远景过度到下个场景"
+    },
+    {
+      "chapter_id": "gold_beiwang_ep01_002",
+      "video_id": "beiwang_ep01",
+      "start_time": 83.6,
+      "end_time": 135.8,
+      "summary": "男主和男二去银行汇款并在汇款后发现自己没啥钱，买不起太贵的机票"
+    },
+    { 
+      "chapter_id": "gold_beiwang_ep01_003",
+      "video_id": "beiwang_ep01",
+      "start_time": 135.8,
+      "end_time": 247.0,
+      "summary": "男主和老妈打电话，说明自己的情况，经典煽情桥段"
+    },
+    {
+      "chapter_id": "gold_beiwang_ep01_004",
+      "video_id": "beiwang_ep01",
+      "start_time": 247.0,
+      "end_time": 301.133,
+      "summary": "男主和老妈打完电话，两个人开始提出返乡计划"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ import {
   StoryboardManifest,
   StoryChapter
 } from "../domain/storyNavigation";
+import type { InteractionDebugMarker } from "../domain/interactionAssetCues";
 import { colors, radii, spacing } from "../theme";
 
 const DRAG_ACTIVATION_DISTANCE_PX = 6;
@@ -31,7 +32,8 @@ export function PlayerControls({
   onSeekCommit,
   onDragStateChange,
   storyChapters,
-  storyboard
+  storyboard,
+  debugInteractionMarkers = []
 }: {
   currentTime: number;
   duration: number;
@@ -42,6 +44,7 @@ export function PlayerControls({
   onDragStateChange?: (isDragging: boolean) => void;
   storyChapters?: StoryChapter[];
   storyboard?: StoryboardManifest;
+  debugInteractionMarkers?: InteractionDebugMarker[];
 }) {
   const safeDuration = duration > 0 ? duration : 1;
   const viewport = useWindowDimensions();
@@ -59,7 +62,7 @@ export function PlayerControls({
   const shouldShowNextEpisodeHint = hasNextEpisode && !isDragging && remainingSeconds >= 1 && remainingSeconds <= 3;
   const chapterTicks = getChapterTicks(storyChapters, safeDuration);
   const dragChapter = isDragging ? getStoryChapterAtTime(storyChapters, visibleTime) : undefined;
-  const storyboardCell = isDragging ? getStoryboardCell(storyboard, visibleTime) : undefined;
+  const storyboardCell = getStoryboardCell(storyboard, visibleTime);
   const timelinePresentation = getTimelinePresentation(isDragging);
   const chapterTitleRailItems = isDragging ? getChapterTitleRailItems(storyChapters, visibleTime) : [];
   const lastHapticBoundaryRef = useRef<string | undefined>(undefined);
@@ -110,15 +113,16 @@ export function PlayerControls({
 
   return (
     <View style={[styles.root, { bottom: bottomOffset }]}>
-      {isDragging ? (
-        <View pointerEvents="none" style={styles.dragPreview}>
-          {storyboardCell ? <StoryboardPreview cell={storyboardCell} /> : null}
-          <ChapterTitleRail items={chapterTitleRailItems} fallbackTitle={dragChapter?.title} />
+      <StoryboardWarmLayer storyboard={storyboard} />
+      <View pointerEvents="none" style={[styles.dragPreview, { opacity: isDragging ? 1 : 0 }]}>
+        <StoryboardPreview cell={storyboardCell} isVisible={isDragging && storyboardCell !== undefined} />
+        {isDragging ? <ChapterTitleRail items={chapterTitleRailItems} fallbackTitle={dragChapter?.title} /> : null}
+        {isDragging ? (
           <Text style={styles.timeLabel}>
             {formatTime(visibleTime)} <Text style={styles.timeTotal}>/ {formatTime(safeDuration)}</Text>
           </Text>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
       {isDragging ? (
         <View
           style={[styles.fullscreenScrubLayer, { bottom: -bottomOffset, height: viewport.height }]}
@@ -195,6 +199,7 @@ export function PlayerControls({
               ]}
             />
             <ChapterProgressTicks ticks={chapterTicks} presentation={timelinePresentation} />
+            <InteractionDebugMarkers markers={debugInteractionMarkers} duration={safeDuration} />
             <View
               style={[
                 styles.thumb,
@@ -217,6 +222,35 @@ export function PlayerControls({
         </Text>
       ) : null}
     </View>
+  );
+}
+
+function InteractionDebugMarkers({
+  markers,
+  duration
+}: {
+  markers: InteractionDebugMarker[];
+  duration: number;
+}) {
+  if (markers.length === 0 || duration <= 0) {
+    return null;
+  }
+  return (
+    <>
+      {markers.map((marker) => (
+        <View
+          key={marker.markerId}
+          pointerEvents="none"
+          style={[
+            styles.interactionDebugMarker,
+            marker.mode === "emotional_button"
+              ? styles.interactionDebugMarkerEmotion
+              : styles.interactionDebugMarkerInnerVoice,
+            { left: `${clamp((marker.time / duration) * 100, 0, 100)}%` }
+          ]}
+        />
+      ))}
+    </>
   );
 }
 
@@ -292,24 +326,47 @@ function ChapterTitleRail({
   );
 }
 
-function StoryboardPreview({ cell }: { cell: NonNullable<ReturnType<typeof getStoryboardCell>> }) {
-  const previewWidth = 64;
-  const previewHeight = Math.max(1, Math.round((previewWidth * cell.frameHeight) / cell.frameWidth));
-  const scale = previewWidth / cell.frameWidth;
+function StoryboardWarmLayer({ storyboard }: { storyboard?: StoryboardManifest }) {
+  if (!storyboard || storyboard.sheets.length === 0) {
+    return null;
+  }
   return (
-    <View style={[styles.storyboardFrame, { width: previewWidth, height: previewHeight }]}>
-      <Image
-        source={{ uri: cell.sheetUrl }}
-        style={[
-          styles.storyboardImage,
-          {
-            width: cell.sheetWidth * scale,
-            height: cell.sheetHeight * scale,
-            left: cell.offsetX * scale,
-            top: cell.offsetY * scale
-          }
-        ]}
-      />
+    <View pointerEvents="none" style={styles.storyboardWarmLayer}>
+      {storyboard.sheets.map((sheet) => (
+        <Image key={sheet.url} source={{ uri: sheet.url }} style={styles.storyboardWarmImage} />
+      ))}
+    </View>
+  );
+}
+
+function StoryboardPreview({
+  cell,
+  isVisible
+}: {
+  cell: ReturnType<typeof getStoryboardCell>;
+  isVisible: boolean;
+}) {
+  const previewWidth = 64;
+  const fallbackFrameWidth = cell?.frameWidth ?? 16;
+  const fallbackFrameHeight = cell?.frameHeight ?? 9;
+  const previewHeight = Math.max(1, Math.round((previewWidth * fallbackFrameHeight) / fallbackFrameWidth));
+  const scale = previewWidth / fallbackFrameWidth;
+  return (
+    <View style={[styles.storyboardFrame, { width: previewWidth, height: previewHeight, opacity: isVisible ? 1 : 0 }]}>
+      {cell ? (
+        <Image
+          source={{ uri: cell.sheetUrl }}
+          style={[
+            styles.storyboardImage,
+            {
+              width: cell.sheetWidth * scale,
+              height: cell.sheetHeight * scale,
+              left: cell.offsetX * scale,
+              top: cell.offsetY * scale
+            }
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -347,6 +404,21 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.text
   },
+  interactionDebugMarker: {
+    position: "absolute",
+    top: -4,
+    width: 2,
+    height: 11,
+    marginLeft: -1,
+    borderRadius: 2,
+    opacity: 0.95
+  },
+  interactionDebugMarkerEmotion: {
+    backgroundColor: "#ff8a3d"
+  },
+  interactionDebugMarkerInnerVoice: {
+    backgroundColor: "#6ee7f2"
+  },
   fill: {
     height: "100%",
     backgroundColor: colors.text
@@ -380,6 +452,17 @@ const styles = StyleSheet.create({
   },
   storyboardImage: {
     position: "absolute"
+  },
+  storyboardWarmLayer: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: "hidden"
+  },
+  storyboardWarmImage: {
+    width: 1,
+    height: 1
   },
   chapterTitleRail: {
     width: "92%",

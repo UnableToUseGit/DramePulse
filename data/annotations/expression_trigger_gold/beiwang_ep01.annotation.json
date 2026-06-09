@@ -1,0 +1,45 @@
+{
+  "video_id": "beiwang_ep01",
+  "series_id": "beiwang",
+  "video_path": "/api/episodes/beiwang_ep01/video",
+  "subtitle_path": "/api/episodes/beiwang_ep01/subtitle",
+  "source_json_path": "/api/episodes/beiwang_ep01/danmaku",
+  "annotations": [
+    {
+      "annotation_id": "gold_beiwang_ep01_001",
+      "cue_time": 25.578,
+      "primary_expression": "笑死",
+      "reason": "男主带人去要账，踹门而入，结果门没锁，直接摔地上了。"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_002",
+      "cue_time": 40.328,
+      "primary_expression": "笑死",
+      "reason": "男主因踹门而入，坐在地上，老板看到了问他干嘛，男主说了句‘过年好“"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_003",
+      "cue_time": 60.423,
+      "primary_expression": "看哭了",
+      "reason": "本来是来要帐的，结果老板说自己卖了套房子凑够了钱给到了男主，有点小感动。"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_004",
+      "cue_time": 81.88,
+      "primary_expression": "笑死",
+      "reason": "老板看到讨债的工人手上拿着啥，大家伙很尴尬的说“甘蔗”，然后开始啃，这种窘迫的行为很搞笑"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_005",
+      "cue_time": 203.883,
+      "primary_expression": "看哭了",
+      "reason": "男主和老妈打电话，老妈说还回家过年不，男主说不回去了，然后就是很辛酸的铺垫，男主看老妈太伤心了，转念一说“我要回去”。老妈瞬间变得开心了。让人感动"
+    },
+    {
+      "annotation_id": "gold_beiwang_ep01_006",
+      "cue_time": 291.344,
+      "primary_expression": "笑死",
+      "reason": "这里有一个拍摄手法蒙太奇吧。上来就是男二吐槽你这个东西怎么回家啊，此时拍摄画面是一辆跑车，然后男二吐槽完之后，跑车走了，漏出两辆破摩托车。"
+    }
+  ]
+}

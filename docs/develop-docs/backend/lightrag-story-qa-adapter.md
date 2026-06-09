@@ -24,20 +24,20 @@ conda run -n Flask python -c "from lightrag import LightRAG, QueryParam; from li
 
 ## Data migration
 
-Build or update the knowledge graph offline in the LightRAG project. Copy the full working directory, not only the GraphML file:
+Build or update the knowledge graph offline in the chapter-aware LightRAG project. Insert each episode with the correct `chapter_ids` value, then copy the full working directory, not only the GraphML file:
 
 ```text
-from: D:\XuProject\KG_RAG\LightRAG-main\LightRAG-main\rag_storage\*
-to:   data/story_qa/demo-drama/episode-001/lightrag/
+from: D:\XuProject\KG_RAG\LightRAG-main\LightRAG-main\rag_storage\<series_id>\*
+to:   data/story_qa/<series_id>/lightrag/
 ```
 
-The current demo working directory was generated from `gpt还原剧本.txt` and contains one processed document with four chunks, 35 entities, and 21 relations.
+The working directory must contain chunk metadata with `chapter_id`. DramePulse maps `/api/story-qa/ask.series_id` to `data/story_qa/{series_id}/lightrag` and maps `current_episode` to LightRAG `QueryParam.current_chapter_id`, so episode 1 can only retrieve chunks, entities, and relations sourced from that drama with `chapter_id <= 1`.
 
 ## Runtime config
 
 ```env
 STORY_QA_BACKEND=lightrag
-LIGHTRAG_WORKING_DIR=data/story_qa/demo-drama/episode-001/lightrag
+LIGHTRAG_WORKING_ROOT=data/story_qa
 LIGHTRAG_QUERY_MODE=hybrid
 LIGHTRAG_ENABLE_RERANK=false
 LIGHTRAG_EMBEDDING_MODEL=text-embedding-3-small
@@ -57,9 +57,9 @@ When `STORY_QA_BACKEND=chroma`, DramePulse uses the existing Chroma/LlamaIndex b
 
 ## Boundaries
 
-The LightRAG backend does not run online KG extraction. `/api/story-qa/ingest` only validates that a prebuilt LightRAG working directory exists.
+The LightRAG backend does not run online KG extraction. `/api/story-qa/ingest` only validates that `LIGHTRAG_WORKING_ROOT/{series_id}/lightrag` exists.
 
-The current demo index covers the first three episodes as a whole, so it cannot strictly enforce `current_time` spoiler filtering within an episode. Strict spoiler control requires generating separate LightRAG working directories by episode or playback time bucket.
+The LightRAG backend isolates dramas by selecting a different working directory for each `series_id`. It enforces episode-level spoiler filtering when that working directory was built with `chapter_id` metadata. Legacy working directories without `chapter_id` are expected to return sparse or empty results under the optimized LightRAG filter; DramePulse does not fall back to another drama or to unfiltered LightRAG retrieval. `current_time` is not used by the LightRAG backend, so second-level spoiler control requires a future time-bucket index design.
 
 ## Frontend player usage
 

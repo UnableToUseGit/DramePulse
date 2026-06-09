@@ -33,26 +33,32 @@ get_json "${BASE_URL}/api/health"
 # section "videos"
 # get_json "${BASE_URL}/api/videos"
 
-section "video detail"
-get_json "${BASE_URL}/api/videos/${VIDEO_ID}"
+# section "video detail"
+# get_json "${BASE_URL}/api/videos/${VIDEO_ID}"
 
 # section "video danmaku (truncated)"
 # get_json_limited "${BASE_URL}/api/videos/${VIDEO_ID}/danmaku"
 
-section "video interaction plans"
-get_json "${BASE_URL}/api/videos/${VIDEO_ID}/interaction-plans"
+# section "video interaction plans"
+# get_json "${BASE_URL}/api/videos/${VIDEO_ID}/interaction-plans"
 
-# section "video stream headers"
-# get_headers "${BASE_URL}/api/videos/${VIDEO_ID}/stream"
+# section "series list"
+# get_json "${BASE_URL}/api/series"
 
-section "series list"
-get_json "${BASE_URL}/api/series"
+# section "series episodes"
+# get_json "${BASE_URL}/api/series/${SERIES_ID}/episodes"
 
-section "series episodes"
-get_json "${BASE_URL}/api/series/${SERIES_ID}/episodes"
+# section "series episode by number"
+# get_json "${BASE_URL}/api/series/${SERIES_ID}/episodes/${EPISODE_NO}"
 
-section "series episode by number"
-get_json "${BASE_URL}/api/series/${SERIES_ID}/episodes/${EPISODE_NO}"
+# section "home feed"
+# get_json "${BASE_URL}/api/feed/home"
 
-section "home feed"
-get_json "${BASE_URL}/api/feed/home"
+# section "video assets"
+# get_json "${BASE_URL}/api/videos/${VIDEO_ID}/playback-assets"
+
+section "video storyboard"
+get_json "${BASE_URL}/api/videos/${VIDEO_ID}/storyboard"
+
+section "video story-chapters"
+get_json "${BASE_URL}/api/videos/${VIDEO_ID}/story-chapters"

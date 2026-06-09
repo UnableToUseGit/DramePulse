@@ -1,0 +1,50 @@
+{
+  "video_id": "jiali_jiawai_ep01",
+  "duration_seconds": 213.64,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 93.9,
+      "ending_chapter_summary": "女主和领导吵架把医生强行带走去救伤者，然后男主正好走过来对女主一见钟情，后面的剧情是男主面对刚才为难女主的领导进行打抱不平，反击出气，同时还从旁边的人那了解到了女主是谁"
+    },
+    {
+      "time": 125.6,
+      "ending_chapter_summary": "男主反击了难为女主的领导，然后进入下一段，从旁人得知女主的身份"
+    },
+    {
+      "time": 164.4,
+      "ending_chapter_summary": "男人从旁人得知女主的身份，并且表露出很感兴趣的样子"
+    }
+  ],
+  "final_chapter_summary": "镜头切换到农村景别俯拍，剧情切换到女主带着孩子在娘家，然后嫂子态度恶劣在背后和丈夫抱怨他",
+  "chapters": [
+    {
+      "chapter_id": "gold_jiali_jiawai_ep01_001",
+      "video_id": "jiali_jiawai_ep01",
+      "start_time": 0.0,
+      "end_time": 93.9,
+      "summary": "女主和领导吵架把医生强行带走去救伤者，然后男主正好走过来对女主一见钟情，后面的剧情是男主面对刚才为难女主的领导进行打抱不平，反击出气，同时还从旁边的人那了解到了女主是谁"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep01_002",
+      "video_id": "jiali_jiawai_ep01",
+      "start_time": 93.9,
+      "end_time": 125.6,
+      "summary": "男主反击了难为女主的领导，然后进入下一段，从旁人得知女主的身份"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep01_003",
+      "video_id": "jiali_jiawai_ep01",
+      "start_time": 125.6,
+      "end_time": 164.4,
+      "summary": "男人从旁人得知女主的身份，并且表露出很感兴趣的样子"
+    },
+    {
+      "chapter_id": "gold_jiali_jiawai_ep01_004",
+      "video_id": "jiali_jiawai_ep01",
+      "start_time": 164.4,
+      "end_time": 213.64,
+      "summary": "镜头切换到农村景别俯拍，剧情切换到女主带着孩子在娘家，然后嫂子态度恶劣在背后和丈夫抱怨他"
+    }
+  ]
+}

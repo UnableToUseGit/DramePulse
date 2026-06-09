@@ -195,6 +195,20 @@ describe("playerFeed", () => {
     ]);
   });
 
+  it("places role commerce ads after the configured episode number", () => {
+    const videos = [
+      makeVideo({ videoId: "s1e1", episodeNo: 1 }),
+      makeVideo({ videoId: "s1e2", episodeNo: 2 })
+    ];
+    const ad = makeAd({ adId: "ad_after_ep2", placement: "after_video", afterEpisodeNo: 2 });
+
+    expect(buildPlayerFeedItems({ videos, roleCommerceAds: [ad], mode: "series" }).map((item) => item.itemId)).toEqual([
+      "video:s1e1",
+      "video:s1e2",
+      "role-commerce:ad_after_ep2"
+    ]);
+  });
+
   it("requests feed navigation only when a new target video differs from the active item", () => {
     const videos = [makeVideo({ videoId: "s1e1" }), makeVideo({ videoId: "s1e2" })];
     const items = buildPlayerFeedItems({ videos, roleCommerceAds: [makeAd()], mode: "series" });

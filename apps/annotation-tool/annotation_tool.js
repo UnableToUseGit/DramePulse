@@ -61,7 +61,11 @@
   }
 
   function normalizeVideoList(payload) {
-    const videos = Array.isArray(payload) ? payload : payload && typeof payload === "object" ? payload.videos : payload;
+    const videos = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === "object"
+        ? payload.videos || payload.episodes
+        : payload;
     if (!Array.isArray(videos)) return [];
     return videos.filter((item) => item && typeof item === "object" && String(item.video_id || "").trim());
   }
@@ -78,9 +82,17 @@
     const source = video && typeof video === "object" ? video : {};
     const currentConfig = config && typeof config === "object" ? config : {};
     const videoId = String(source.video_id || currentConfig.videoId || currentConfig.video_id || "").trim();
-    const streamPath = source.stream_url || source.video_url || source.videoPath || source.video_path || "";
-    const danmakuPath = source.danmaku_url || source.source_json_url || source.sourceJsonPath || source.source_json_path || "";
-    const subtitlePath = source.subtitle_url || source.subtitlePath || source.subtitle_path || "";
+    const episodeApiBase = videoId ? `/api/episodes/${encodeURIComponent(videoId)}` : "";
+    const isAlgorithmEpisode = Boolean(episodeApiBase && ("episode_dir" in source || "series_id" in source || "episode_id" in source));
+    const streamPath = isAlgorithmEpisode
+      ? `${episodeApiBase}/video`
+      : source.stream_url || source.video_url || source.videoPath || source.video_path || (episodeApiBase ? `${episodeApiBase}/video` : "");
+    const danmakuPath = isAlgorithmEpisode
+      ? `${episodeApiBase}/danmaku`
+      : source.danmaku_url || source.source_json_url || source.sourceJsonPath || source.source_json_path || (episodeApiBase ? `${episodeApiBase}/danmaku` : "");
+    const subtitlePath = isAlgorithmEpisode
+      ? `${episodeApiBase}/subtitle`
+      : source.subtitle_url || source.subtitlePath || source.subtitle_path || (episodeApiBase ? `${episodeApiBase}/subtitle` : "");
     return {
       videoId,
       title: String(source.title || source.episode_label || videoId || "未命名视频"),
@@ -122,7 +134,7 @@
       annotations: annotations.map((item, index) => ({
         annotation_id: `gold_${videoId}_${String(index + 1).padStart(3, "0")}`,
         cue_time: roundTime(item.cue_time),
-        emotion: String(item.emotion || "").trim(),
+        primary_expression: String(item.primary_expression || item.emotion || "").trim(),
         reason: String(item.reason || "").trim(),
       })),
     };

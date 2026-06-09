@@ -1,0 +1,50 @@
+{
+  "video_id": "nanian_dongzhi_ep01",
+  "duration_seconds": 186.48,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 17.3,
+      "ending_chapter_summary": "intro部分结束，快速交代了女主和男主闪婚了"
+    },
+    {
+      "time": 48.8,
+      "ending_chapter_summary": "男主揭露事实，说自己一年后就要取安乐死，并提出给女主补偿，揭露了形婚的事实"
+    },
+    {
+      "time": 170.4,
+      "ending_chapter_summary": "非常长的一段，女主提出自己的诉求，即想要个孩子，男主不同意，但是在女主胡闹，强制爱的推进下，两人达成协商：先培养感情"
+    }
+  ],
+  "final_chapter_summary": "写上结束后，镜头拉远，女主直接亲吻男主，片尾曲进场，第一集结束",
+  "chapters": [
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep01_001",
+      "video_id": "nanian_dongzhi_ep01",
+      "start_time": 0.0,
+      "end_time": 17.3,
+      "summary": "intro部分结束，快速交代了女主和男主闪婚了"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep01_002",
+      "video_id": "nanian_dongzhi_ep01",
+      "start_time": 17.3,
+      "end_time": 48.8,
+      "summary": "男主揭露事实，说自己一年后就要取安乐死，并提出给女主补偿，揭露了形婚的事实"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep01_003",
+      "video_id": "nanian_dongzhi_ep01",
+      "start_time": 48.8,
+      "end_time": 170.4,
+      "summary": "非常长的一段，女主提出自己的诉求，即想要个孩子，男主不同意，但是在女主胡闹，强制爱的推进下，两人达成协商：先培养感情"
+    },
+    {
+      "chapter_id": "gold_nanian_dongzhi_ep01_004",
+      "video_id": "nanian_dongzhi_ep01",
+      "start_time": 170.4,
+      "end_time": 186.48,
+      "summary": "写上结束后，镜头拉远，女主直接亲吻男主，片尾曲进场，第一集结束"
+    }
+  ]
+}

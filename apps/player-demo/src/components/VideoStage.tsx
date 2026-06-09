@@ -6,6 +6,12 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserver";
 import { getVideoBufferHealthSample } from "../domain/videoBufferHealth";
 import { getVideoPlaybackCommand, type VideoPlaybackCommand } from "../domain/videoPlayback";
+import {
+  createVideoReadinessState,
+  reduceVideoReadinessState,
+  type VideoReadinessEvent,
+  type VideoReadinessState
+} from "../domain/videoReadiness";
 import { buildVideoStageSource } from "../domain/videoSource";
 import { colors, radii, spacing } from "../theme";
 
@@ -64,6 +70,7 @@ export const VideoStage = memo(function VideoStage({
   onDurationChange,
   onPlayToEnd,
   onSeekHandled,
+  onPlaybackReady,
   playbackRate,
   bufferOptions,
   enableCaching = false,
@@ -80,6 +87,7 @@ export const VideoStage = memo(function VideoStage({
   onDurationChange: (duration: number) => void;
   onPlayToEnd: () => void;
   onSeekHandled: () => void;
+  onPlaybackReady?: () => void;
   playbackRate: number;
   bufferOptions?: BufferOptions;
   enableCaching?: boolean;
@@ -89,6 +97,8 @@ export const VideoStage = memo(function VideoStage({
   const onTimeChangeRef = useRef(onTimeChange);
   const lastBufferHealthReportedTimeRef = useRef<number | undefined>(undefined);
   const lastHandledSeekIdRef = useRef<number | undefined>(undefined);
+  const readinessStateRef = useRef<VideoReadinessState>(createVideoReadinessState(initialPlaybackTime));
+  const didReportPlaybackReadyRef = useRef(false);
   const recordObservation = (
     eventType: Parameters<HomeFeedPlaybackObserver["record"]>[0]["eventType"],
     details?: Record<string, string | number | boolean | undefined>
@@ -120,8 +130,18 @@ export const VideoStage = memo(function VideoStage({
     seekRequest !== undefined &&
     seekRequest.id !== lastHandledSeekIdRef.current &&
     seekRequest.blocksPlaybackUntilHandled !== false;
+  const reduceReadiness = (event: VideoReadinessEvent) => {
+    const nextState = reduceVideoReadinessState(readinessStateRef.current, event);
+    readinessStateRef.current = nextState;
+    if (nextState.isReady && !didReportPlaybackReadyRef.current) {
+      didReportPlaybackReadyRef.current = true;
+      onPlaybackReady?.();
+    }
+  };
 
   useEffect(() => {
+    readinessStateRef.current = createVideoReadinessState(initialPlaybackTime);
+    didReportPlaybackReadyRef.current = false;
     recordObservation("player_create");
     if (initialPlaybackTime > 0) {
       recordObservation("resume_position_initialized", { time: initialPlaybackTime });
@@ -139,7 +159,9 @@ export const VideoStage = memo(function VideoStage({
   }, [onTimeChange]);
 
   useEventListener(player, "timeUpdate", ({ bufferedPosition, currentTime }) => {
-    onTimeChangeRef.current(currentTime ?? 0);
+    const resolvedCurrentTime = currentTime ?? 0;
+    onTimeChangeRef.current(resolvedCurrentTime);
+    reduceReadiness({ type: "time_update", currentTime: resolvedCurrentTime });
     const bufferHealth = getVideoBufferHealthSample({
       bufferedPosition,
       currentTime,
@@ -155,6 +177,7 @@ export const VideoStage = memo(function VideoStage({
 
   useEventListener(player, "playingChange", ({ isPlaying: playerIsPlaying }) => {
     recordObservation("playing_change", { isPlaying: playerIsPlaying });
+    reduceReadiness({ type: "playing_change", isPlaying: playerIsPlaying });
     const command = getVideoPlaybackCommand({
       isStarted,
       shouldPlay: isPlaying,
@@ -249,7 +272,10 @@ export const VideoStage = memo(function VideoStage({
         allowsPictureInPicture={false}
         allowsVideoFrameAnalysis={false}
         surfaceType={VIDEO_SURFACE_TYPE}
-        onFirstFrameRender={() => recordObservation("first_frame_render")}
+        onFirstFrameRender={() => {
+          recordObservation("first_frame_render");
+          reduceReadiness({ type: "first_frame_render" });
+        }}
       />
       {!isStarted && showStartEntry ? (
         <View style={styles.startOverlay}>

@@ -9,7 +9,8 @@ import {
   PlayerVideo
 } from "./playerApi";
 import { groupVideosBySeries, SeriesGroup } from "./playerFeed";
-import { normalizeStoryboardManifest, StoryboardManifest } from "./storyNavigation";
+import type { RoleCommerceFeedAd } from "./roleCommerceAds";
+import { normalizeStoryboardManifest, normalizeStoryChapters, StoryboardManifest, StoryChapter } from "./storyNavigation";
 
 function extractVideosPayload(payload: unknown) {
   return isRecord(payload) && Array.isArray(payload.videos) ? payload.videos : [];
@@ -166,6 +167,62 @@ export async function loadSeriesEpisodes({
   return series?.episodes ?? [];
 }
 
+function normalizeSeriesAdSlot(value: unknown, apiBaseUrl: string): RoleCommerceFeedAd | undefined {
+  if (!isRecord(value) || value.status === "inactive" || !isRecord(value.ad)) {
+    return undefined;
+  }
+  const ad = value.ad;
+  const adId = toOptionalString(ad.ad_id);
+  const productName = toOptionalString(ad.product_name);
+  if (!adId || !productName) {
+    return undefined;
+  }
+  const streamPath = toOptionalString(ad.stream_url) ?? toOptionalString(ad.video_url);
+  const productDescription = toOptionalString(ad.product_description) ?? productName;
+  const characterName = toOptionalString(ad.character_name) ?? "";
+  const afterEpisodeNo = toNumber(value.after_episode_no, Number.NaN);
+  return {
+    adId,
+    campaignId: toOptionalString(value.slot_id) ?? adId,
+    placement: "after_video",
+    ...(Number.isFinite(afterEpisodeNo) && afterEpisodeNo > 0 ? { afterEpisodeNo } : {}),
+    sponsorLabel: toOptionalString(ad.sponsor_label) ?? "广告",
+    characterName,
+    productName,
+    title: productName,
+    hook: productDescription,
+    productDescription,
+    voiceoverLines: [],
+    sellingPoints: Array.isArray(ad.selling_points) ? ad.selling_points.filter((item): item is string => typeof item === "string") : [],
+    priceText: toOptionalString(ad.price_text) ?? "",
+    ctaText: toOptionalString(ad.cta_text) ?? "查看同款",
+    ...(streamPath ? { streamUrl: joinUrl(apiBaseUrl, streamPath) } : {}),
+    ...(Number.isFinite(toNumber(ad.duration, Number.NaN)) ? { duration: toNumber(ad.duration) } : {})
+  };
+}
+
+export async function loadSeriesAdSlots({
+  apiBaseUrl,
+  seriesId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  seriesId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<RoleCommerceFeedAd[]> {
+  try {
+    const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/series/${seriesId}/ad-slots`), timeoutMs);
+    const rawSlots = isRecord(payload) && Array.isArray(payload.slots) ? payload.slots : [];
+    return rawSlots
+      .map((slot) => normalizeSeriesAdSlot(slot, apiBaseUrl))
+      .filter((slot): slot is RoleCommerceFeedAd => slot !== undefined);
+  } catch {
+    return [];
+  }
+}
+
 async function loadLegacySeriesGroups({
   apiBaseUrl,
   fetcher,
@@ -244,23 +301,36 @@ async function loadPlaybackVideo({
   return video;
 }
 
-export interface PlaybackAssets {
+export interface LightweightPlaybackAssets {
   video: PlayerVideo;
   storyChapters: NonNullable<PlayerVideo["storyChapters"]>;
   storyboard?: PlayerVideo["storyboard"];
   interactionPlans: unknown[];
+  interactionAssets: InteractionAsset[];
 }
 
-async function loadVideoStoryboard({
+export interface InteractionAsset {
+  interactionId: string;
+  videoId?: string;
+  interactionMode?: string;
+  triggerTime: number;
+  expireTime?: number;
+  durationSec?: number;
+  content?: Record<string, unknown>;
+  sourceAssetId?: string;
+  status?: string;
+}
+
+export async function loadVideoStoryboard({
   apiBaseUrl,
   videoId,
-  fetcher,
-  timeoutMs
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
 }: {
   apiBaseUrl: string;
   videoId: string;
-  fetcher: FetchLike;
-  timeoutMs: number;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<StoryboardManifest | undefined> {
   try {
     const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}/storyboard`), timeoutMs);
@@ -274,7 +344,7 @@ async function loadVideoStoryboard({
   }
 }
 
-export async function loadPlaybackAssets({
+export async function loadVideoInteractionPlans({
   apiBaseUrl,
   videoId,
   fetcher = fetch,
@@ -284,28 +354,124 @@ export async function loadPlaybackAssets({
   videoId: string;
   fetcher?: FetchLike;
   timeoutMs?: number;
-}): Promise<PlaybackAssets> {
-  const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
-  const storyboard = await loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs });
-  const enhancedVideo: PlayerVideo = storyboard ? { ...video, storyboard } : video;
-
-  let interactionPlans: unknown[] = [];
+}): Promise<unknown[]> {
   try {
     const plansPayload = await fetchJson(
       fetcher,
       joinUrl(apiBaseUrl, `/api/videos/${videoId}/interaction-plans`),
       timeoutMs
     );
-    interactionPlans =
-      isRecord(plansPayload) && Array.isArray(plansPayload.interaction_plans) ? plansPayload.interaction_plans : [];
+    return isRecord(plansPayload) && Array.isArray(plansPayload.interaction_plans)
+      ? plansPayload.interaction_plans
+      : [];
   } catch {
-    interactionPlans = [];
+    return [];
   }
+}
+
+function normalizeInteractionAssets(value: unknown): InteractionAsset[] {
+  if (!isRecord(value) || value.available === false || !Array.isArray(value.items)) {
+    return [];
+  }
+  return value.items
+    .filter(isRecord)
+    .map((item) => {
+      const interactionId = toOptionalString(item.interaction_id) ?? toOptionalString(item.interactionId);
+      const triggerTime = toNumber(item.trigger_time ?? item.triggerTime, Number.NaN);
+      if (!interactionId || !Number.isFinite(triggerTime)) {
+        return undefined;
+      }
+      const content = isRecord(item.content) ? item.content : undefined;
+      return {
+        interactionId,
+        ...(toOptionalString(item.video_id) ? { videoId: toOptionalString(item.video_id) } : {}),
+        ...(toOptionalString(item.interaction_mode) ? { interactionMode: toOptionalString(item.interaction_mode) } : {}),
+        triggerTime,
+        ...(Number.isFinite(toNumber(item.expire_time ?? item.expireTime, Number.NaN))
+          ? { expireTime: toNumber(item.expire_time ?? item.expireTime) }
+          : {}),
+        ...(Number.isFinite(toNumber(item.duration_sec ?? item.durationSec, Number.NaN))
+          ? { durationSec: toNumber(item.duration_sec ?? item.durationSec) }
+          : {}),
+        ...(content ? { content } : {}),
+        ...(toOptionalString(item.source_asset_id) ? { sourceAssetId: toOptionalString(item.source_asset_id) } : {}),
+        ...(toOptionalString(item.status) ? { status: toOptionalString(item.status) } : {})
+      };
+    })
+    .filter((item): item is InteractionAsset => item !== undefined)
+    .sort((a, b) => a.triggerTime - b.triggerTime);
+}
+
+export async function loadVideoInteractionAssets({
+  apiBaseUrl,
+  videoId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<InteractionAsset[]> {
+  try {
+    const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}/interaction-assets`), timeoutMs);
+    return normalizeInteractionAssets(payload);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadVideoStoryChapters({
+  apiBaseUrl,
+  videoId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<StoryChapter[]> {
+  try {
+    const payload = await fetchJson(fetcher, joinUrl(apiBaseUrl, `/api/videos/${videoId}/story-chapters`), timeoutMs);
+    if (isRecord(payload) && payload.available === false) {
+      return [];
+    }
+    return normalizeStoryChapters(isRecord(payload) ? payload.chapters : undefined);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadLightweightPlaybackAssets({
+  apiBaseUrl,
+  videoId,
+  fetcher = fetch,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+}: {
+  apiBaseUrl: string;
+  videoId: string;
+  fetcher?: FetchLike;
+  timeoutMs?: number;
+}): Promise<LightweightPlaybackAssets> {
+  const video = await loadPlaybackVideo({ apiBaseUrl, videoId, fetcher, timeoutMs });
+  const [storyboard, storyChaptersFromEndpoint, interactionAssets] = await Promise.all([
+    loadVideoStoryboard({ apiBaseUrl, videoId, fetcher, timeoutMs }),
+    loadVideoStoryChapters({ apiBaseUrl, videoId, fetcher, timeoutMs }),
+    loadVideoInteractionAssets({ apiBaseUrl, videoId, fetcher, timeoutMs })
+  ]);
+  const storyChapters = storyChaptersFromEndpoint.length > 0 ? storyChaptersFromEndpoint : video.storyChapters ?? [];
+  const enhancedVideo: PlayerVideo = {
+    ...video,
+    ...(storyboard ? { storyboard } : {}),
+    ...(storyChapters.length > 0 ? { storyChapters } : {})
+  };
 
   return {
     video: enhancedVideo,
-    storyChapters: enhancedVideo.storyChapters ?? [],
+    storyChapters,
     storyboard: enhancedVideo.storyboard,
-    interactionPlans
+    interactionPlans: [],
+    interactionAssets
   };
 }

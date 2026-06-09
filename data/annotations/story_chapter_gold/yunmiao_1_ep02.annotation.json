@@ -1,0 +1,28 @@
+{
+  "video_id": "yunmiao_1_ep02",
+  "duration_seconds": 148.0,
+  "annotation_type": "story_chapter_boundaries",
+  "boundaries": [
+    {
+      "time": 120.8,
+      "ending_chapter_summary": "弟妹七嘴八舌的瞎起哄供火，说老爷子肯定是有老相好"
+    }
+  ],
+  "final_chapter_summary": "老爷子的老婆震怒说到要看看到底是谁",
+  "chapters": [
+    {
+      "chapter_id": "gold_yunmiao_1_ep02_001",
+      "video_id": "yunmiao_1_ep02",
+      "start_time": 0.0,
+      "end_time": 120.8,
+      "summary": "弟妹七嘴八舌的瞎起哄供火，说老爷子肯定是有老相好"
+    },
+    {
+      "chapter_id": "gold_yunmiao_1_ep02_002",
+      "video_id": "yunmiao_1_ep02",
+      "start_time": 120.8,
+      "end_time": 148.0,
+      "summary": "老爷子的老婆震怒说到要看看到底是谁"
+    }
+  ]
+}
