@@ -7,8 +7,10 @@ from urllib.parse import quote
 
 from ..config import get_settings
 from ..db import db_cursor, sql_placeholder
+from .assets import public_object_url
 from .danmaku import get_video_danmaku
 from .interactions import list_interaction_plans
+from .story_chapters import list_story_chapters
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
@@ -119,11 +121,13 @@ def list_series() -> list[dict[str, Any]]:
                 COALESCE(NULLIF(v.series_id, ''), v.video_id) AS series_id,
                 MAX(v.series_name) AS series_name,
                 COUNT(*) AS episode_count,
-                {("MAX(a.cover_url)" if has_series_assets else "NULL")} AS cover_url,
+                {("MAX(a.cover_object_key)" if has_series_assets else "NULL")} AS cover_object_key,
                 {("MAX(a.status)" if has_series_assets else "NULL")} AS asset_status
             FROM videos v
             {("LEFT JOIN series_assets a ON a.series_id = COALESCE(NULLIF(v.series_id, ''), v.video_id) AND a.status = 'active'" if has_series_assets else "")}
             WHERE v.status = 'active'
+              AND v.series_id IS NOT NULL
+              AND v.series_id <> ''
             GROUP BY COALESCE(NULLIF(v.series_id, ''), v.video_id)
             ORDER BY series_id
             """
@@ -142,7 +146,7 @@ def list_series() -> list[dict[str, Any]]:
             {
                 "series_id": series_id,
                 "title": str(title or series_id),
-                "cover_url": row.get("cover_url"),
+                "cover_url": public_object_url(str(row["cover_object_key"])) if row.get("cover_object_key") else None,
                 "summary": None,
                 "episode_count": int(row.get("episode_count") or 0),
                 "first_video_id": first_video.get("video_id") if first_video else None,
@@ -329,7 +333,7 @@ def get_video_playback_assets(video_id: str) -> dict[str, Any] | None:
         "video": video,
         "danmaku": danmaku,
         "storyboard": get_video_storyboard(video_id),
-        "story_chapters": [],
+        "story_chapters": list_story_chapters(video_id),
         "interaction_plans": list_interaction_plans(video_id),
     }
 

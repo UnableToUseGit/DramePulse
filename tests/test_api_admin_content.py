@@ -196,6 +196,27 @@ class AdminContentApiTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["object_key"], "dramas/tianxiadiyiwanku/cover.jpg")
         self.assertEqual((self.tmp_path / "dramas" / "tianxiadiyiwanku" / "cover.jpg").read_bytes(), b"image-bytes")
+        asset_response = self.client.get("/api/assets/dramas/tianxiadiyiwanku/cover.jpg")
+        self.assertEqual(asset_response.status_code, 200)
+        self.assertEqual(asset_response.content, b"image-bytes")
+        self.assertEqual(asset_response.headers["content-type"], "image/jpeg")
+
+    def test_series_list_cover_url_is_publicly_fetchable_after_upload(self) -> None:
+        self._insert_video("tianxiadiyiwanku_ep01", "tianxiadiyiwanku", "天下第一纨绔", 1)
+        upload_response = self.client.post(
+            "/api/admin/series/tianxiadiyiwanku/cover",
+            files={"file": ("cover.jpg", b"image-bytes", "image/jpeg")},
+        )
+        self.assertEqual(upload_response.status_code, 200)
+
+        series_response = self.client.get("/api/series")
+
+        self.assertEqual(series_response.status_code, 200)
+        series = next(item for item in series_response.json()["series"] if item["series_id"] == "tianxiadiyiwanku")
+        self.assertEqual(series["cover_url"], "/api/assets/dramas/tianxiadiyiwanku/cover.jpg")
+        cover_response = self.client.get(series["cover_url"])
+        self.assertEqual(cover_response.status_code, 200)
+        self.assertEqual(cover_response.content, b"image-bytes")
 
     def test_rejects_non_image_cover(self) -> None:
         response = self.client.post(

@@ -41,6 +41,9 @@ def retrieve_video_playback_assets(video_id: str) -> PlaybackAssetsResponse:
 
 @router.get("/videos/{video_id}/storyboard", response_model=StoryboardResponse)
 def retrieve_video_storyboard(video_id: str) -> StoryboardResponse:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
     return StoryboardResponse(**get_video_storyboard(video_id))
 
 

@@ -9,14 +9,17 @@ from fastapi.staticfiles import StaticFiles
 from .config import get_settings
 from .routers import (
     admin,
+    assets,
     danmaku,
     dev_logs,
     events,
     feed,
     health,
     interactions,
+    new_assets,
     playback_events,
     series,
+    story_chapters,
     story_qa,
     videos,
     watch_assistant,
@@ -50,10 +53,14 @@ def create_app() -> FastAPI:
             logger.warning("Story Q&A LightRAG warmup failed; falling back to lazy init: %s", exc)
 
     app.include_router(health.router, prefix="/api", tags=["health"])
+    app.include_router(assets.router, prefix="/api", tags=["assets"])
+    app.include_router(assets.root_router, tags=["assets"])
     app.include_router(admin.router, prefix="/api", tags=["admin"])
     app.include_router(feed.router, prefix="/api", tags=["feed"])
     app.include_router(series.router, prefix="/api", tags=["series"])
     app.include_router(videos.router, prefix="/api", tags=["videos"])
+    app.include_router(story_chapters.router, prefix="/api", tags=["story-chapters"])
+    app.include_router(new_assets.router, prefix="/api", tags=["new-assets"])
     app.include_router(danmaku.router, prefix="/api", tags=["danmaku"])
     app.include_router(interactions.router, prefix="/api", tags=["interactions"])
     app.include_router(events.router, prefix="/api", tags=["events"])
