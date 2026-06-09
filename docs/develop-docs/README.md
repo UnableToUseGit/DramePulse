@@ -16,6 +16,7 @@
 
 - `api/interface-requirements.md`：移动端播放器需要的后端 API 形态。
 - `api/player-api-next-requirements.md`：播放器首页、剧场、剧集和播放资产所需的新增 API 说明。
+- `api/series-ad-slots.md`：Series Player 切片广告位 API 的最小约定。
 - `backend/lightrag-story-qa-adapter.md`：Story Q&A 的 LightRAG 可选后端接入说明。
 
 ## 数据与标注
