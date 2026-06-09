@@ -1,0 +1,1626 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d17" for="edge" attr.name="truncate" attr.type="string"/>
+<key id="d16" for="edge" attr.name="created_at" attr.type="long"/>
+<key id="d15" for="edge" attr.name="chapter_ids" attr.type="string"/>
+<key id="d14" for="edge" attr.name="chapter_id" attr.type="long"/>
+<key id="d13" for="edge" attr.name="file_path" attr.type="string"/>
+<key id="d12" for="edge" attr.name="source_id" attr.type="string"/>
+<key id="d11" for="edge" attr.name="keywords" attr.type="string"/>
+<key id="d10" for="edge" attr.name="description" attr.type="string"/>
+<key id="d9" for="edge" attr.name="weight" attr.type="double"/>
+<key id="d8" for="node" attr.name="truncate" attr.type="string"/>
+<key id="d7" for="node" attr.name="created_at" attr.type="long"/>
+<key id="d6" for="node" attr.name="chapter_ids" attr.type="string"/>
+<key id="d5" for="node" attr.name="chapter_id" attr.type="long"/>
+<key id="d4" for="node" attr.name="file_path" attr.type="string"/>
+<key id="d3" for="node" attr.name="source_id" attr.type="string"/>
+<key id="d2" for="node" attr.name="description" attr.type="string"/>
+<key id="d1" for="node" attr.name="entity_type" attr.type="string"/>
+<key id="d0" for="node" attr.name="entity_id" attr.type="string"/>
+<graph edgedefault="undirected"><node id="陈哥">
+  <data key="d0">陈哥</data>
+  <data key="d1">other</data>
+  <data key="d2">别墅主人，工人们的讨薪对象，穿红黑条纹POLO衫，拿公文包，戴金色手表。&lt;SEP&gt;工地包工头，穿着整洁，眼神锐利，将凑够的工钱发给工人。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5&lt;SEP&gt;chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671767</data>
+  <data key="d8"></data>
+</node>
+<node id="许成名">
+  <data key="d0">许成名</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名是一名在南方打工的工人，同时也是一位力工和讨薪行动的组织者。由于机票昂贵，他曾一度放弃回家过年的念头，但后来计划骑摩托车长途返乡，并与赵野结伴同行。两人驾驶一辆老摩托在国道上行驶。在讨薪过程中，许成名作为工人的领头人，曾用身体撞击铁大门，最终见到“陈哥”后下跪，成功拿到了工钱。此外，他还在工地干活时，在江边劝解一名欲跳江的女人。许成名是一位东北汉子，参与对话时起初语气冷峻，后展现出憨厚与热心的一面。他是一名年轻男性，故事中既有长途骑行的计划，也有为工友出头、热心助人的经历。&lt;SEP&gt;出席葬礼的人，与赵野一同安慰沈父。&lt;SEP&gt;沈心如的朋友，帮助策划假葬礼，并宣读伪造的遗嘱。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5&lt;SEP&gt;chunk-d69004d7c6c17f45956d80553521c26f&lt;SEP&gt;chunk-3ecbbe9927d3ffd70e02579851e7aa70&lt;SEP&gt;chunk-e69ec60e9fb59a36b18a90f7f2120697&lt;SEP&gt;chunk-e6b7699fe0780db35af7c3f814ee0b36&lt;SEP&gt;chunk-52b09aeb2855a2cf06b8b5c3bcefb999&lt;SEP&gt;chunk-299ad761a03598a1ad115547ca18a663&lt;SEP&gt;chunk-9605715a7c1c11bd3ea2ab970512604e&lt;SEP&gt;chunk-e7dbf05e448f26e0956e4230aae6cab3&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第3集.txt&lt;SEP&gt;第2集.txt&lt;SEP&gt;第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2, 3, 4, 5]</data>
+  <data key="d7">1780671915</data>
+  <data key="d8"></data>
+</node>
+<node id="赵野">
+  <data key="d0">赵野</data>
+  <data key="d1">other</data>
+  <data key="d2">赵野是一名在南方打工的东北汉子，性格直率但有所顾虑，不愿轻易帮忙。他与许成名同行，两人关系密切，既是同伴也被视作兄弟。赵野曾与许成名一起驾驶老摩托在国道上行驶，计划长途骑行回家，同时也曾准备买票返乡。他携带行李并抱怨行程中的劳顿。在旅途中，赵野参与劝解一名欲跳江的女人。此外，他出席了一场葬礼，将沈心如的遗书亲手交给了沈父。赵野还曾从富滇银行寄钱回家，体现了对家庭的牵挂。&lt;SEP&gt;沈心如的朋友，帮助传递信件。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5&lt;SEP&gt;chunk-3ecbbe9927d3ffd70e02579851e7aa70&lt;SEP&gt;chunk-e69ec60e9fb59a36b18a90f7f2120697&lt;SEP&gt;chunk-e6b7699fe0780db35af7c3f814ee0b36&lt;SEP&gt;chunk-52b09aeb2855a2cf06b8b5c3bcefb999&lt;SEP&gt;chunk-299ad761a03598a1ad115547ca18a663&lt;SEP&gt;chunk-9605715a7c1c11bd3ea2ab970512604e&lt;SEP&gt;chunk-e7dbf05e448f26e0956e4230aae6cab3&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第3集.txt&lt;SEP&gt;第2集.txt&lt;SEP&gt;第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2, 3, 4, 5]</data>
+  <data key="d7">1780671916</data>
+  <data key="d8"></data>
+</node>
+<node id="红色百元大钞">
+  <data key="d0">红色百元大钞</data>
+  <data key="d1">other</data>
+  <data key="d2">崭新的红色百元钞票，装在牛皮纸信封中，作为工钱发放。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671768</data>
+  <data key="d8"></data>
+</node>
+<node id="富滇银行">
+  <data key="d0">富滇银行</data>
+  <data key="d1">other</data>
+  <data key="d2">城市中的银行，赵野从此寄钱回家。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671768</data>
+  <data key="d8"></data>
+</node>
+<node id="工钱">
+  <data key="d0">工钱</data>
+  <data key="d1">other</data>
+  <data key="d2">陈哥发放给工人的劳动报酬，装在牛皮纸信封中。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671769</data>
+  <data key="d8"></data>
+</node>
+<node id="牛皮纸信封">
+  <data key="d0">牛皮纸信封</data>
+  <data key="d1">other</data>
+  <data key="d2">装现金的信封，陈哥用来放百元大钞。&lt;SEP&gt;装有沈心如遗书的信封，由赵野交给沈父。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第4集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 4]</data>
+  <data key="d7">1780671895</data>
+  <data key="d8"></data>
+</node>
+<node id="甘蔗">
+  <data key="d0">甘蔗</data>
+  <data key="d1">other</data>
+  <data key="d2">工人们手中拿的、冬天吃的清甜食物。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671769</data>
+  <data key="d8"></data>
+</node>
+<node id="带头的胖工人">
+  <data key="d0">带头的胖工人</data>
+  <data key="d1">other</data>
+  <data key="d2">工地上带头吃甘蔗的工人。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671771</data>
+  <data key="d8"></data>
+</node>
+<node id="红河牌香烟">
+  <data key="d0">红河牌香烟</data>
+  <data key="d1">other</data>
+  <data key="d2">赵野购买并寄回家的香烟品牌。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671771</data>
+  <data key="d8"></data>
+</node>
+<node id="赵野的家">
+  <data key="d0">赵野的家</data>
+  <data key="d1">other</data>
+  <data key="d2">赵野寄钱回家的目的地。</data>
+  <data key="d3">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671771</data>
+  <data key="d8"></data>
+</node>
+<node id="铁大门">
+  <data key="d0">铁大门</data>
+  <data key="d1">other</data>
+  <data key="d2">别墅的黑色铁质大门，许成名撞击的对象。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671772</data>
+  <data key="d8"></data>
+</node>
+<node id="工人没拿到钱">
+  <data key="d0">工人没拿到钱</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">许成名等工人一年未结工资，引发讨薪行动。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671773</data>
+  <data key="d8"></data>
+</node>
+<node id="讨薪行动">
+  <data key="d0">讨薪行动</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">许成名带领工友携带武器前往别墅讨要工资。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671773</data>
+  <data key="d8"></data>
+</node>
+<node id="铁大门敞开状态">
+  <data key="d0">铁大门敞开状态</data>
+  <data key="d1">system_state</data>
+  <data key="d2">铁大门被许成名撞开后呈现的状态。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671773</data>
+  <data key="d8"></data>
+</node>
+<node id="门没锁">
+  <data key="d0">门没锁</data>
+  <data key="d1">system_state</data>
+  <data key="d2">铁大门实际上并未上锁，导致撞击轻易成功。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671773</data>
+  <data key="d8"></data>
+</node>
+<node id="青皮甘蔗">
+  <data key="d0">青皮甘蔗</data>
+  <data key="d1">other</data>
+  <data key="d2">工人们用来作为武器的工具类物品，婴儿手臂粗细。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671775</data>
+  <data key="d8"></data>
+</node>
+<node id="上铺的兄弟">
+  <data key="d0">上铺的兄弟</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名的工友，在宿舍中建议“干死这帮坏人”。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671775</data>
+  <data key="d8"></data>
+</node>
+<node id="年轻工人">
+  <data key="d0">年轻工人</data>
+  <data key="d1">other</data>
+  <data key="d2">跟随许成名讨薪的工友，发现铁门未锁后嘲笑许成名。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671775</data>
+  <data key="d8"></data>
+</node>
+<node id="红砖宿舍楼">
+  <data key="d0">红砖宿舍楼</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名等工人们居住的破旧工人宿舍建筑。</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671776</data>
+  <data key="d8"></data>
+</node>
+<node id="老摩托">
+  <data key="d0">老摩托</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">一辆破旧的摩托车，载着两个年轻人的家当与希望，喷出黑烟并颤抖行驶。</data>
+  <data key="d3">chunk-3ecbbe9927d3ffd70e02579851e7aa70</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671776</data>
+  <data key="d8"></data>
+</node>
+<node id="黑烟">
+  <data key="d0">黑烟</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">发动机启动时喷出的黑色烟雾，表明燃烧不充分或存在故障。&lt;SEP&gt;老摩托发动机喷出的黑烟，表示发动机存在故障。</data>
+  <data key="d3">chunk-3ecbbe9927d3ffd70e02579851e7aa70&lt;SEP&gt;chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671777</data>
+  <data key="d8"></data>
+</node>
+<node id="安全头盔">
+  <data key="d0">安全头盔</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">许成名和赵野佩戴的有擦痕的安全头盔。</data>
+  <data key="d3">chunk-3ecbbe9927d3ffd70e02579851e7aa70</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671777</data>
+  <data key="d8"></data>
+</node>
+<node id="颤抖状态">
+  <data key="d0">颤抖状态</data>
+  <data key="d1">system_state</data>
+  <data key="d2">老摩托因故障而颤抖的前进状态。</data>
+  <data key="d3">chunk-3ecbbe9927d3ffd70e02579851e7aa70</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671777</data>
+  <data key="d8"></data>
+</node>
+<node id="母亲">
+  <data key="d0">母亲</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名的母亲，在家中准备过年并期盼儿子回家。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671779</data>
+  <data key="d8"></data>
+</node>
+<node id="红色老旧嘉陵摩托车">
+  <data key="d0">红色老旧嘉陵摩托车</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">一辆落满灰尘的红色老旧摩托车，搭载许成名和赵野以及他们的行李。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671779</data>
+  <data key="d8"></data>
+</node>
+<node id="漆黑的大铁锅">
+  <data key="d0">漆黑的大铁锅</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">赵野用麻绳挂在脖子上的大铁锅，作为行李的一部分。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671779</data>
+  <data key="d8"></data>
+</node>
+<node id="绿色军被">
+  <data key="d0">绿色军被</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名背在背上的厚重军被，用于旅途保暖。&lt;SEP&gt;绑在摩托车后座的绿色军用被子。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697&lt;SEP&gt;chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第1集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1, 2]</data>
+  <data key="d7">1780671859</data>
+  <data key="d8"></data>
+</node>
+<node id="发动机">
+  <data key="d0">发动机</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">摩托车的动力部件，启动时发出轰鸣并喷出黑烟。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671780</data>
+  <data key="d8"></data>
+</node>
+<node id="电话">
+  <data key="d0">电话</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">许成名与母亲通话使用的通讯设备。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671781</data>
+  <data key="d8"></data>
+</node>
+<node id="屏幕">
+  <data key="d0">屏幕</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">手机或视频设备的显示屏幕，用于视频通话。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671781</data>
+  <data key="d8"></data>
+</node>
+<node id="打火杆">
+  <data key="d0">打火杆</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">摩托车上的启动部件，许成名通过用力踩压来启动发动机。</data>
+  <data key="d3">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671781</data>
+  <data key="d8"></data>
+</node>
+<node id="许成名母亲">
+  <data key="d0">许成名母亲</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名的母亲，在视频通话中得知儿子不回家过年而难过。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671782</data>
+  <data key="d8"></data>
+</node>
+<node id="8900元">
+  <data key="d0">8900元</data>
+  <data key="d1">other</data>
+  <data key="d2">一张回家的机票价格，对于许成名等人来说是一笔巨大开支。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671782</data>
+  <data key="d8"></data>
+</node>
+<node id="红色红河牌香烟">
+  <data key="d0">红色红河牌香烟</data>
+  <data key="d1">other</data>
+  <data key="d2">一种香烟品牌，赵野和许成名在抽烟。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671782</data>
+  <data key="d8"></data>
+</node>
+<node id="手机">
+  <data key="d0">手机</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">用于购票和视频通话的电子设备。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671784</data>
+  <data key="d8"></data>
+</node>
+<node id="父亲">
+  <data key="d0">父亲</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名的父亲，在视频通话中母亲提到与父亲一起去姥家过年。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671784</data>
+  <data key="d8"></data>
+</node>
+<node id="打火机">
+  <data key="d0">打火机</data>
+  <data key="d1">hardware_component</data>
+  <data key="d2">赵野和许成名用于点烟的物品。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671784</data>
+  <data key="d8"></data>
+</node>
+<node id="机票">
+  <data key="d0">机票</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名查询的从南方到东北的单程机票，价格8900元。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671785</data>
+  <data key="d8"></data>
+</node>
+<node id="许成名不回家过年">
+  <data key="d0">许成名不回家过年</data>
+  <data key="d1">system_state</data>
+  <data key="d2">许成名因机票昂贵而决定不返回东北老家过年的状态。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671785</data>
+  <data key="d8"></data>
+</node>
+<node id="母亲难过">
+  <data key="d0">母亲难过</data>
+  <data key="d1">system_state</data>
+  <data key="d2">许成名的母亲得知儿子不回家过年后的悲伤情绪。</data>
+  <data key="d3">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671785</data>
+  <data key="d8"></data>
+</node>
+<node id="别墅">
+  <data key="d0">别墅</data>
+  <data key="d3">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d2">铁大门是别墅入口的组成部分。</data>
+  <data key="d1">UNKNOWN</data>
+  <data key="d4">第1集.txt</data>
+  <data key="d5">1</data>
+  <data key="d6">[1]</data>
+  <data key="d7">1780671790</data>
+  <data key="d8"></data>
+</node>
+<node id="女人">
+  <data key="d0">女人</data>
+  <data key="d1">other</data>
+  <data key="d2">一位陷入绝望并试图自杀的女子，后因劝解而重燃希望并请求帮助。&lt;SEP&gt;一名因丈夫出轨而情绪崩溃、欲跳江轻生的年轻女子。</data>
+  <data key="d3">chunk-52b09aeb2855a2cf06b8b5c3bcefb999&lt;SEP&gt;chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第3集.txt&lt;SEP&gt;第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2, 3]</data>
+  <data key="d7">1780671860</data>
+  <data key="d8"></data>
+</node>
+<node id="女人的姑娘">
+  <data key="d0">女人的姑娘</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的女儿，是女人在对话中被提及的牵挂对象。</data>
+  <data key="d3">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780671833</data>
+  <data key="d8"></data>
+</node>
+<node id="女人的闺蜜">
+  <data key="d0">女人的闺蜜</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的朋友，与女人的丈夫存在不正当关系。</data>
+  <data key="d3">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780671833</data>
+  <data key="d8"></data>
+</node>
+<node id="女人的老公">
+  <data key="d0">女人的老公</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的丈夫，与女人的闺蜜有不正当关系。</data>
+  <data key="d3">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780671833</data>
+  <data key="d8"></data>
+</node>
+<node id="女人的绝望">
+  <data key="d0">女人的绝望</data>
+  <data key="d1">system_state</data>
+  <data key="d2">女人因遭受丈夫和闺蜜背叛而产生的绝望心理状态。</data>
+  <data key="d3">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d4">第3集.txt</data>
+  <data key="d5">3</data>
+  <data key="d6">[3]</data>
+  <data key="d7">1780671833</data>
+  <data key="d8"></data>
+</node>
+<node id="摩托车">
+  <data key="d0">摩托车</data>
+  <data key="d1">other</data>
+  <data key="d2">故事中两人返乡骑行所使用的交通工具。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671854</data>
+  <data key="d8"></data>
+</node>
+<node id="中国交通地图">
+  <data key="d0">中国交通地图</data>
+  <data key="d1">other</data>
+  <data key="d2">故事中两人规划骑行路线的参考地图。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671855</data>
+  <data key="d8"></data>
+</node>
+<node id="跳河女">
+  <data key="d0">跳河女</data>
+  <data key="d1">other</data>
+  <data key="d2">故事中一名试图跳河自杀的年轻女性。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671855</data>
+  <data key="d8"></data>
+</node>
+<node id="返乡骑行计划">
+  <data key="d0">返乡骑行计划</data>
+  <data key="d1">system_state</data>
+  <data key="d2">故事中许成名和赵野制定的、在年三十前骑行返乡的计划。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671856</data>
+  <data key="d8"></data>
+</node>
+<node id="跳河行为">
+  <data key="d0">跳河行为</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">故事中跳河女意图走入江中自杀的行为。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671856</data>
+  <data key="d8"></data>
+</node>
+<node id="劝说行为">
+  <data key="d0">劝说行为</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">故事中许成名和赵野为阻止跳河女自杀而采取的行动。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671856</data>
+  <data key="d8"></data>
+</node>
+<node id="中途停车行为">
+  <data key="d0">中途停车行为</data>
+  <data key="d1">system_state</data>
+  <data key="d2">故事中赵野和许成名因目睹跳河女而中断骑行、停车查看的状态。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671858</data>
+  <data key="d8"></data>
+</node>
+<node id="黑盔">
+  <data key="d0">黑盔</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名骑摩托车时佩戴的黑色头盔。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671858</data>
+  <data key="d8"></data>
+</node>
+<node id="白盔">
+  <data key="d0">白盔</data>
+  <data key="d1">other</data>
+  <data key="d2">赵野骑摩托车时佩戴的白色头盔。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671858</data>
+  <data key="d8"></data>
+</node>
+<node id="水桶">
+  <data key="d0">水桶</data>
+  <data key="d1">other</data>
+  <data key="d2">绑在摩托车后座的水桶。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671859</data>
+  <data key="d8"></data>
+</node>
+<node id="塑料桶">
+  <data key="d0">塑料桶</data>
+  <data key="d1">other</data>
+  <data key="d2">绑在摩托车后座的沾满灰尘的塑料桶。</data>
+  <data key="d3">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671859</data>
+  <data key="d8"></data>
+</node>
+<node id="老公出轨">
+  <data key="d0">老公出轨</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的丈夫与女人的闺蜜发生了婚外情，是导致女人轻生念头的直接原因。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671861</data>
+  <data key="d8"></data>
+</node>
+<node id="女人与闺蜜">
+  <data key="d0">女人与闺蜜</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的闺蜜与女人的丈夫出轨，构成了对女人的双重背叛关系。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671861</data>
+  <data key="d8"></data>
+</node>
+<node id="女人处于轻生边缘">
+  <data key="d0">女人处于轻生边缘</data>
+  <data key="d1">system_state</data>
+  <data key="d2">女人因感情背叛而处于情绪崩溃状态，并试图跳江轻生。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671861</data>
+  <data key="d8"></data>
+</node>
+<node id="劝解行动">
+  <data key="d0">劝解行动</data>
+  <data key="d1">mitigation_action</data>
+  <data key="d2">许成名和赵野在江边对试图跳江的女人进行言语劝解和阻拦。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671862</data>
+  <data key="d8"></data>
+</node>
+<node id="丈夫">
+  <data key="d0">丈夫</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的丈夫，与女人的闺蜜发生了婚外情，是导致女人轻生的直接原因之一。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671862</data>
+  <data key="d8"></data>
+</node>
+<node id="闺蜜">
+  <data key="d0">闺蜜</data>
+  <data key="d1">other</data>
+  <data key="d2">女人的闺蜜，与女人的丈夫发生了婚外情，构成了对女人的双重背叛。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671863</data>
+  <data key="d8"></data>
+</node>
+<node id="江边">
+  <data key="d0">江边</data>
+  <data key="d1">other</data>
+  <data key="d2">事件发生的地点，女人试图跳江轻生的南国江边。</data>
+  <data key="d3">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d4">第2集.txt</data>
+  <data key="d5">2</data>
+  <data key="d6">[2]</data>
+  <data key="d7">1780671863</data>
+  <data key="d8"></data>
+</node>
+<node id="白漆雕花大门">
+  <data key="d0">白漆雕花大门</data>
+  <data key="d1">other</data>
+  <data key="d2">一扇紧闭的白漆雕花大门，位于走廊尽头。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671888</data>
+  <data key="d8"></data>
+</node>
+<node id="陈天翔">
+  <data key="d0">陈天翔</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如的丈夫，在豪宅与张蕊偷情。&lt;SEP&gt;故事中的男性角色，与张蕊在灵堂内对话，表现出狂热和惊恐。&lt;SEP&gt;沈心如的丈夫，与张蕊有私情，企图占有沈心如的财产。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4, 5]</data>
+  <data key="d7">1780671914</data>
+  <data key="d8"></data>
+</node>
+<node id="张蕊">
+  <data key="d0">张蕊</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如的闺蜜，与陈天翔偷情。&lt;SEP&gt;故事中的女性角色，与陈天翔在灵堂内，表现出惊恐。&lt;SEP&gt;沈心如的闺蜜，与陈天翔勾结，意图获取沈心如的遗产。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4, 5]</data>
+  <data key="d7">1780671915</data>
+  <data key="d8"></data>
+</node>
+<node id="沈心如">
+  <data key="d0">沈心如</data>
+  <data key="d1">other</data>
+  <data key="d2">已故女性，沈父沈母的女儿，陈天翔的妻子。&lt;SEP&gt;故事中的女性角色，身穿黑色风衣，出现在门外，表情冷静并带有冷笑。&lt;SEP&gt;故事中的女性角色，假装跳河自杀，实际是设计揭露丈夫和闺蜜的阴谋。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4, 5]</data>
+  <data key="d7">1780671914</data>
+  <data key="d8"></data>
+</node>
+<node id="极度惊恐">
+  <data key="d0">极度惊恐</data>
+  <data key="d1">fault_mode</data>
+  <data key="d2">陈天翔和张蕊在发现沈心如出现后表现出的强烈恐惧状态。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671889</data>
+  <data key="d8"></data>
+</node>
+<node id="绝笔信">
+  <data key="d0">绝笔信</data>
+  <data key="d1">other</data>
+  <data key="d2">一纸绝笔信，由两个东北汉子构成，作为“请柬”的一部分。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671890</data>
+  <data key="d8"></data>
+</node>
+<node id="东北汉子">
+  <data key="d0">东北汉子</data>
+  <data key="d1">other</data>
+  <data key="d2">两个东北汉子，协助织就“请柬”的人物。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671890</data>
+  <data key="d8"></data>
+</node>
+<node id="请柬">
+  <data key="d0">请柬</data>
+  <data key="d1">other</data>
+  <data key="d2">由两个东北汉子和一纸绝笔信共同织就的“请柬”，将陈天翔和张蕊拽入深渊。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671890</data>
+  <data key="d8"></data>
+</node>
+<node id="灵堂">
+  <data key="d0">灵堂</data>
+  <data key="d1">other</data>
+  <data key="d2">为沈心如举行葬礼的场所。&lt;SEP&gt;事件发生的场所，其中白布与泪水被描述为虚假。</data>
+  <data key="d3">chunk-f090bf555fad843c35481e2b0c4da005&lt;SEP&gt;chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671892</data>
+  <data key="d8"></data>
+</node>
+<node id="沈母">
+  <data key="d0">沈母</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如的母亲，在灵堂哭泣。&lt;SEP&gt;沈心如的母亲，配合演出悲痛。</data>
+  <data key="d3">chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4, 5]</data>
+  <data key="d7">1780671916</data>
+  <data key="d8"></data>
+</node>
+<node id="沈父">
+  <data key="d0">沈父</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如的父亲，拿着女儿遗书悲痛愤怒。&lt;SEP&gt;沈心如的父亲，配合演出悲痛。</data>
+  <data key="d3">chunk-d08e8ff90d3d800595465fde9fa61d0a&lt;SEP&gt;chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第4集.txt&lt;SEP&gt;第5集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4, 5]</data>
+  <data key="d7">1780671916</data>
+  <data key="d8"></data>
+</node>
+<node id="豪宅">
+  <data key="d0">豪宅</data>
+  <data key="d1">other</data>
+  <data key="d2">陈天翔与张蕊偷情的欧式豪华住宅。</data>
+  <data key="d3">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671893</data>
+  <data key="d8"></data>
+</node>
+<node id="遗照">
+  <data key="d0">遗照</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如的遗照，置于灵堂供桌上。</data>
+  <data key="d3">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671894</data>
+  <data key="d8"></data>
+</node>
+<node id="遗书">
+  <data key="d0">遗书</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如留下的信件，记录了其遗言，由赵野交给沈父。</data>
+  <data key="d3">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d4">第4集.txt</data>
+  <data key="d5">4</data>
+  <data key="d6">[4]</data>
+  <data key="d7">1780671895</data>
+  <data key="d8"></data>
+</node>
+<node id="遗嘱">
+  <data key="d0">遗嘱</data>
+  <data key="d1">other</data>
+  <data key="d2">许成名编造的虚假文件，声称将财产转给张蕊。</data>
+  <data key="d3">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780671916</data>
+  <data key="d8"></data>
+</node>
+<node id="假葬礼">
+  <data key="d0">假葬礼</data>
+  <data key="d1">other</data>
+  <data key="d2">由沈心如、许成名、赵野等人策划的骗局，旨在揭露陈天翔和张蕊的真面目。</data>
+  <data key="d3">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780671918</data>
+  <data key="d8"></data>
+</node>
+<node id="信">
+  <data key="d0">信</data>
+  <data key="d1">other</data>
+  <data key="d2">沈心如写给父母的解释信，揭露真相。</data>
+  <data key="d3">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d4">第5集.txt</data>
+  <data key="d5">5</data>
+  <data key="d6">[5]</data>
+  <data key="d7">1780671918</data>
+  <data key="d8"></data>
+</node>
+<edge source="陈哥" target="许成名">
+  <data key="d9">1.0</data>
+  <data key="d10">陈哥的出现导致许成名跪地。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671787</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈哥" target="红色百元大钞">
+  <data key="d9">1.0</data>
+  <data key="d10">陈哥发放红色百元大钞作为工钱，导致许成名获得资金。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671789</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈哥" target="工钱">
+  <data key="d9">1.0</data>
+  <data key="d10">陈哥发放工钱导致工人获得报酬。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671792</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="铁大门敞开状态">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名用身体大力撞击铁大门，导致其敞开。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671789</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="工钱">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名收到工钱解决了自己的困境。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671795</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="赵野">
+  <data key="d9">2.0</data>
+  <data key="d10">二者是兄弟或挚友关系，结伴同行。&lt;SEP&gt;许成名和赵野是同伴关系，共同进入房间并与女子对话。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-299ad761a03598a1ad115547ca18a663&lt;SEP&gt;chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671838</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="女人">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名通过言语劝解，对女人的心理状态产生了影响，使其放弃轻生念头。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671839</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="返乡骑行计划">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名是返乡骑行计划的参与者和执行者。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671867</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="劝解行动">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名是劝解行动的主要实施者之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671874</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名" target="遗嘱">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名是伪造遗嘱的执行者和宣读人。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671919</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="赵野的家">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野通过银行将钱寄回家导致家庭获得资金。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671787</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="富滇银行">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野去富滇银行办理汇款导致钱被寄回家。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671790</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="女人">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野通过直白的斥责与质问，对女人的心理状态产生了影响，帮助其认清现实。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671839</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="跳河行为">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野发现跳河女的行为后，决定干预并通知许成名。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671868</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="返乡骑行计划">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野是返乡骑行计划的参与者和执行者。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671872</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="劝解行动">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野是劝解行动的主要实施者之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671875</data>
+  <data key="d17"></data>
+</edge>
+<edge source="赵野" target="信">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野负责递交沈心如的信件。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671920</data>
+  <data key="d17"></data>
+</edge>
+<edge source="甘蔗" target="带头的胖工人">
+  <data key="d9">1.0</data>
+  <data key="d10">胖工人吃甘蔗导致欢乐气氛。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-04329281658a7ee02b80cbaa15e1b3d5</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671787</data>
+  <data key="d17"></data>
+</edge>
+<edge source="铁大门" target="别墅">
+  <data key="d9">1.0</data>
+  <data key="d10">铁大门是别墅入口的组成部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671793</data>
+  <data key="d17"></data>
+</edge>
+<edge source="工人没拿到钱" target="讨薪行动">
+  <data key="d9">1.0</data>
+  <data key="d10">工人未拿到工资成为讨薪行动的直接原因。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671787</data>
+  <data key="d17"></data>
+</edge>
+<edge source="讨薪行动" target="上铺的兄弟">
+  <data key="d9">1.0</data>
+  <data key="d10">上铺的兄弟参与了许成名组织的讨薪行动。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671790</data>
+  <data key="d17"></data>
+</edge>
+<edge source="讨薪行动" target="年轻工人">
+  <data key="d9">1.0</data>
+  <data key="d10">年轻工人参与了许成名组织的讨薪行动。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671793</data>
+  <data key="d17"></data>
+</edge>
+<edge source="铁大门敞开状态" target="门没锁">
+  <data key="d9">1.0</data>
+  <data key="d10">铁大门未上锁是导致其被轻易撞开的原因之一。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-d69004d7c6c17f45956d80553521c26f</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671791</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老摩托" target="黑烟">
+  <data key="d9">1.0</data>
+  <data key="d10">老摩托发动机故障导致喷出黑烟。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-3ecbbe9927d3ffd70e02579851e7aa70</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671792</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老摩托" target="颤抖状态">
+  <data key="d9">1.0</data>
+  <data key="d10">老摩托故障导致其出现颤抖状态。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-3ecbbe9927d3ffd70e02579851e7aa70</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671795</data>
+  <data key="d17"></data>
+</edge>
+<edge source="黑烟" target="发动机">
+  <data key="d9">1.0</data>
+  <data key="d10">发动机工作异常(如燃烧不充分)直接导致喷出黑烟。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671796</data>
+  <data key="d17"></data>
+</edge>
+<edge source="红色老旧嘉陵摩托车" target="发动机">
+  <data key="d9">1.0</data>
+  <data key="d10">发动机是摩托车的一个组成部分，提供动力。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671793</data>
+  <data key="d17"></data>
+</edge>
+<edge source="红色老旧嘉陵摩托车" target="打火杆">
+  <data key="d9">1.0</data>
+  <data key="d10">打火杆是摩托车启动系统的一部分，用于踩踏启动发动机。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671796</data>
+  <data key="d17"></data>
+</edge>
+<edge source="电话" target="屏幕">
+  <data key="d9">1.0</data>
+  <data key="d10">屏幕是电话的一个组成部分，用于显示视频画面。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e69ec60e9fb59a36b18a90f7f2120697</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671794</data>
+  <data key="d17"></data>
+</edge>
+<edge source="许成名不回家过年" target="母亲难过">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名不回家过年的决定导致母亲产生难过情绪。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e6b7699fe0780db35af7c3f814ee0b36</data>
+  <data key="d13">第1集.txt</data>
+  <data key="d14">1</data>
+  <data key="d15">[1]</data>
+  <data key="d16">1780671796</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人" target="女人的姑娘">
+  <data key="d9">1.0</data>
+  <data key="d10">女人是女儿的监护人，二人存在家庭关系。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671835</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人" target="老公出轨">
+  <data key="d9">1.0</data>
+  <data key="d10">女人的丈夫与闺蜜出轨的行为，直接导致女人产生轻生念头和情绪崩溃。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671869</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人" target="劝解行动">
+  <data key="d9">1.0</data>
+  <data key="d10">女人是劝解行动的对象。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671876</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人的闺蜜" target="女人的老公">
+  <data key="d9">1.0</data>
+  <data key="d10">二者之间存在不正当的、涉及背叛的亲密关系。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671836</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人的闺蜜" target="女人的绝望">
+  <data key="d9">1.0</data>
+  <data key="d10">闺蜜的背叛行为加剧了女人的绝望心理。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671838</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人的老公" target="女人的绝望">
+  <data key="d9">1.0</data>
+  <data key="d10">丈夫的背叛行为直接导致了女人的绝望情绪。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-52b09aeb2855a2cf06b8b5c3bcefb999</data>
+  <data key="d13">第3集.txt</data>
+  <data key="d14">3</data>
+  <data key="d15">[3]</data>
+  <data key="d16">1780671837</data>
+  <data key="d17"></data>
+</edge>
+<edge source="摩托车" target="返乡骑行计划">
+  <data key="d9">1.0</data>
+  <data key="d10">摩托车是返乡骑行计划中使用的交通工具。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671870</data>
+  <data key="d17"></data>
+</edge>
+<edge source="摩托车" target="黑盔">
+  <data key="d9">1.0</data>
+  <data key="d10">黑盔是摩托车骑行时佩戴的装备。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671872</data>
+  <data key="d17"></data>
+</edge>
+<edge source="摩托车" target="白盔">
+  <data key="d9">1.0</data>
+  <data key="d10">白盔是摩托车骑行时佩戴的装备。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671874</data>
+  <data key="d17"></data>
+</edge>
+<edge source="中国交通地图" target="返乡骑行计划">
+  <data key="d9">1.0</data>
+  <data key="d10">中国交通地图是返乡骑行计划中用于规划路线的工具。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671869</data>
+  <data key="d17"></data>
+</edge>
+<edge source="跳河行为" target="中途停车行为">
+  <data key="d9">1.0</data>
+  <data key="d10">赵野目睹跳河女试图自杀，导致其决定停车干预。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671867</data>
+  <data key="d17"></data>
+</edge>
+<edge source="劝说行为" target="中途停车行为">
+  <data key="d9">1.0</data>
+  <data key="d10">许成名和赵野停车后，开始对跳河女进行劝阻。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-9605715a7c1c11bd3ea2ab970512604e</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671868</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老公出轨" target="女人与闺蜜">
+  <data key="d9">1.0</data>
+  <data key="d10">丈夫的出轨行为使得女人与闺蜜之间形成了背叛关系，加深了女人的绝望感。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671870</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老公出轨" target="女人处于轻生边缘">
+  <data key="d9">1.0</data>
+  <data key="d10">丈夫与闺蜜的出轨是导致女人处于轻生边缘这一系统状态的根本原因。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671871</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老公出轨" target="丈夫">
+  <data key="d9">1.0</data>
+  <data key="d10">丈夫的出轨行为直接导致了“老公出轨”这一事件的发生。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671873</data>
+  <data key="d17"></data>
+</edge>
+<edge source="老公出轨" target="闺蜜">
+  <data key="d9">1.0</data>
+  <data key="d10">闺蜜的出轨行为是“老公出轨”事件的一部分，共同导致了女人的绝望。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671874</data>
+  <data key="d17"></data>
+</edge>
+<edge source="女人处于轻生边缘" target="劝解行动">
+  <data key="d9">1.0</data>
+  <data key="d10">女人处于轻生边缘的状态，触发了许成名和赵野的劝解行动。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-e7dbf05e448f26e0956e4230aae6cab3</data>
+  <data key="d13">第2集.txt</data>
+  <data key="d14">2</data>
+  <data key="d15">[2]</data>
+  <data key="d16">1780671873</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="豪宅">
+  <data key="d9">1.0</data>
+  <data key="d10">陈天翔在豪宅中活动，豪宅属于他的财产。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671904</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="极度惊恐">
+  <data key="d9">1.0</data>
+  <data key="d10">极度惊恐是陈天翔当时所处的状态。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671905</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="请柬">
+  <data key="d9">1.0</data>
+  <data key="d10">“请柬”将陈天翔拽入万劫不复的深渊。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671906</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="张蕊">
+  <data key="d9">1.0</data>
+  <data key="d10">陈天翔与张蕊的私情和财产图谋，导致了假葬礼的揭露。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671919</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="沈心如">
+  <data key="d9">1.0</data>
+  <data key="d10">沈心如的归来导致陈天翔的阴谋破产。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671921</data>
+  <data key="d17"></data>
+</edge>
+<edge source="陈天翔" target="假葬礼">
+  <data key="d9">1.0</data>
+  <data key="d10">假葬礼导致陈天翔和张蕊的丑恶嘴脸在众人面前暴露。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671921</data>
+  <data key="d17"></data>
+</edge>
+<edge source="张蕊" target="极度惊恐">
+  <data key="d9">1.0</data>
+  <data key="d10">极度惊恐是张蕊当时所处的状态。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671906</data>
+  <data key="d17"></data>
+</edge>
+<edge source="张蕊" target="请柬">
+  <data key="d9">1.0</data>
+  <data key="d10">“请柬”将张蕊拽入万劫不复的深渊。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671907</data>
+  <data key="d17"></data>
+</edge>
+<edge source="张蕊" target="豪宅">
+  <data key="d9">1.0</data>
+  <data key="d10">张蕊在豪宅中与陈天翔偷情。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671908</data>
+  <data key="d17"></data>
+</edge>
+<edge source="沈心如" target="极度惊恐">
+  <data key="d9">1.0</data>
+  <data key="d10">沈心如的突然出现导致了陈天翔和张蕊的极度惊恐。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671902</data>
+  <data key="d17"></data>
+</edge>
+<edge source="沈心如" target="假葬礼">
+  <data key="d9">1.0</data>
+  <data key="d10">沈心如假死并策划假葬礼，导致陈天翔和张蕊的贪婪暴露。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671919</data>
+  <data key="d17"></data>
+</edge>
+<edge source="绝笔信" target="请柬">
+  <data key="d9">2.0</data>
+  <data key="d10">绝笔信是“请柬”的组成部分之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671902</data>
+  <data key="d17"></data>
+</edge>
+<edge source="东北汉子" target="请柬">
+  <data key="d9">1.0</data>
+  <data key="d10">东北汉子是构成“请柬”的关键要素之一。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-f090bf555fad843c35481e2b0c4da005</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671904</data>
+  <data key="d17"></data>
+</edge>
+<edge source="灵堂" target="遗照">
+  <data key="d9">1.0</data>
+  <data key="d10">遗照放置在灵堂供桌上，是灵堂的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671903</data>
+  <data key="d17"></data>
+</edge>
+<edge source="沈母" target="假葬礼">
+  <data key="d9">1.0</data>
+  <data key="d10">沈母配合假葬礼演出，是计划的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671923</data>
+  <data key="d17"></data>
+</edge>
+<edge source="沈父" target="遗书">
+  <data key="d9">1.0</data>
+  <data key="d10">沈父阅读遗书内容后情绪激动，受到巨大冲击。</data>
+  <data key="d11">CAUSES</data>
+  <data key="d12">chunk-d08e8ff90d3d800595465fde9fa61d0a</data>
+  <data key="d13">第4集.txt</data>
+  <data key="d14">4</data>
+  <data key="d15">[4]</data>
+  <data key="d16">1780671904</data>
+  <data key="d17"></data>
+</edge>
+<edge source="沈父" target="假葬礼">
+  <data key="d9">1.0</data>
+  <data key="d10">沈父配合假葬礼演出，是计划的一部分。</data>
+  <data key="d11">PART_OF</data>
+  <data key="d12">chunk-b6b2476abe38d4531d740f954535171b</data>
+  <data key="d13">第5集.txt</data>
+  <data key="d14">5</data>
+  <data key="d15">[5]</data>
+  <data key="d16">1780671922</data>
+  <data key="d17"></data>
+</edge>
+</graph></graphml>
