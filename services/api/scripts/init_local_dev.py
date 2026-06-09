@@ -5,6 +5,7 @@ from pathlib import Path
 import sqlite3
 
 from services.api.config import get_settings
+from services.api.repositories.admin_analysis import create_analysis_table_sqlite
 
 
 DEMO_VIDEO_ID = "demo_ep01"
@@ -309,6 +310,7 @@ def init_local_dev() -> None:
             """
         )
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_interaction_option_stats_plan ON interaction_option_stats (interaction_id)")
+        create_analysis_table_sqlite(cursor)
         cursor.execute(
             """
             INSERT INTO videos (

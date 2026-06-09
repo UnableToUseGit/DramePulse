@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 import sqlite3
 from typing import Any
 
 from ..config import get_settings
 from ..db import db_cursor, sql_placeholder
+from .admin_analysis import latest_analysis_jobs_by_video
 
 
 DRAMA_OBJECT_KEY_PREFIX = "dramas/%"
@@ -17,6 +19,12 @@ def _rows(cursor: Any) -> list[dict[str, Any]]:
 
 def _int(value: Any) -> int:
     return int(value or 0)
+
+
+def _datetime_text(value: Any) -> Any:
+    if isinstance(value, datetime | date):
+        return value.isoformat()
+    return value
 
 
 def _table_exists(cursor: Any, table_name: str) -> bool:
@@ -383,6 +391,8 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
         (DRAMA_OBJECT_KEY_PREFIX,),
     )
     recent_events = _rows(cursor)
+    for event in recent_events:
+        event["server_time"] = _datetime_text(event.get("server_time"))
 
     for video in videos:
         video["interaction_count"] = _int(video.get("interaction_count"))
@@ -399,6 +409,7 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
             video["asset_status"] = "missing_interaction"
         else:
             video["asset_status"] = "ready"
+    _attach_analysis_jobs(videos)
 
     for row in series:
         row["episode_count"] = _int(row.get("episode_count"))
@@ -454,3 +465,13 @@ def _get_admin_dashboard(cursor: Any) -> dict[str, Any]:
         "interactions": interactions,
         "recent_events": recent_events,
     }
+
+
+def _attach_analysis_jobs(videos: list[dict[str, Any]]) -> None:
+    jobs = latest_analysis_jobs_by_video([str(video["video_id"]) for video in videos])
+    for video in videos:
+        job = jobs.get(str(video["video_id"]))
+        video["analysis_status"] = str(job.get("status") if job else "not_started")
+        video["analysis_stage"] = job.get("stage") if job else None
+        video["analysis_job_id"] = job.get("job_id") if job else None
+        video["analysis_result_path"] = job.get("result_text_path") if job else None

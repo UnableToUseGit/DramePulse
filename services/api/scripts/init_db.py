@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from services.api.config import get_settings, require_complete_cloud_settings
 from services.api.db import connect_mysql
+from services.api.repositories.admin_analysis import create_analysis_table_mysql
 
 
 VIDEO_COLUMNS_MYSQL = {
@@ -211,6 +212,7 @@ def init_db() -> None:
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                 """
             )
+            create_analysis_table_mysql(cursor)
         connection.commit()
     except Exception:
         connection.rollback()
