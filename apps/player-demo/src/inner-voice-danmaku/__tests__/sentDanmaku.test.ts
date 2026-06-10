@@ -13,7 +13,8 @@ describe("inner voice sent danmaku adapter", () => {
       {
         danmaku_id: "voice-1-1000",
         time_sec: 12.3,
-        text: "她终于怼回去了"
+        text: "她终于怼回去了",
+        variant: "inner_voice"
       }
     ]);
   });

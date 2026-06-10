@@ -221,7 +221,8 @@ export function PlayerPage({
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
-  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, false);
+  const shouldLoadDanmaku = isActive && playbackState.isStarted;
+  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, shouldLoadDanmaku, currentTime);
   const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
   const renderState = getFeedPlaybackPagePresentationState({
     playbackPageRole: pageRole,
@@ -889,6 +890,7 @@ export function PlayerPage({
             currentTime={currentTime}
             danmaku={mergedDanmaku}
             isPlaying={playbackState.shouldPlay}
+            playbackRate={speedControls.effectivePlaybackRate}
             seekVersion={seekVersion}
           />
         ) : null}

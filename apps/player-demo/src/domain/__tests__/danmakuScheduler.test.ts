@@ -1,6 +1,7 @@
 import {
   advanceRunningDanmaku,
   calculateDanmakuDuration,
+  calculateDanmakuPlaybackDelta,
   findStartPositionAfterSeek,
   getDanmakuId,
   getNextPositionAfterDanmakuUpdate,
@@ -18,6 +19,16 @@ const danmaku: DanmakuItem[] = [
 describe("danmakuScheduler", () => {
   it("calculates shared duration from stage width and speed", () => {
     expect(calculateDanmakuDuration({ stageWidth: 360, speed: 90 })).toBe(4);
+  });
+
+  it("scales danmaku clock delta by playback rate", () => {
+    expect(calculateDanmakuPlaybackDelta({ deltaSec: 0.5, playbackRate: 2 })).toBe(1);
+    expect(calculateDanmakuPlaybackDelta({ deltaSec: 0.5, playbackRate: 0.75 })).toBe(0.375);
+  });
+
+  it("falls back to realtime danmaku clock delta for invalid playback rates", () => {
+    expect(calculateDanmakuPlaybackDelta({ deltaSec: 0.5, playbackRate: 0 })).toBe(0.5);
+    expect(calculateDanmakuPlaybackDelta({ deltaSec: 0.5, playbackRate: Number.NaN })).toBe(0.5);
   });
 
   it("finds the first danmaku at or after seek time", () => {
@@ -48,6 +59,25 @@ describe("danmakuScheduler", () => {
 
     expect(stale.nextPosition).toBe(3);
     expect(stale.items).toEqual([]);
+  });
+
+  it("preserves danmaku variants when moving items into the pending queue", () => {
+    const result = getPendingDanmaku({
+      danmaku: [{ danmaku_id: "voice", time_sec: 1.1, text: "这是我的心里话", variant: "inner_voice" }],
+      position: 0,
+      currentTime: 1.2,
+      durationSec: 4,
+      maxPending: 10
+    });
+
+    expect(result.items).toEqual([
+      {
+        id: "voice",
+        text: "这是我的心里话",
+        timeSec: 1.1,
+        variant: "inner_voice"
+      }
+    ]);
   });
 
   it("moves running danmaku by measured width and only removes it after it fully leaves screen", () => {
@@ -101,10 +131,20 @@ describe("danmakuScheduler", () => {
       getNextPositionAfterDanmakuUpdate({
         previousDanmaku: danmaku,
         nextDanmaku,
-        previousPosition: 3,
-        currentTime: 3
+        previousPosition: 3
       })
     ).toBe(3);
+  });
+
+  it("does not skip just-passed items when danmaku first loads during playback", () => {
+    expect(
+      getNextPositionAfterDanmakuUpdate({
+        previousDanmaku: [],
+        nextDanmaku: danmaku,
+        previousPosition: 0,
+        currentTime: 2
+      })
+    ).toBe(0);
   });
 
   it("repositions the scan when new danmaku is inserted before the scanned range", () => {
@@ -116,8 +156,7 @@ describe("danmakuScheduler", () => {
       getNextPositionAfterDanmakuUpdate({
         previousDanmaku: danmaku,
         nextDanmaku,
-        previousPosition: 3,
-        currentTime: 3
+        previousPosition: 3
       })
     ).toBe(4);
   });

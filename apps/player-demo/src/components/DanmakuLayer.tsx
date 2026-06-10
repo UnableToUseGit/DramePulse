@@ -3,6 +3,7 @@ import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
 import {
   advanceRunningDanmaku,
   calculateDanmakuDuration,
+  calculateDanmakuPlaybackDelta,
   findStartPositionAfterSeek,
   getNextPositionAfterDanmakuUpdate,
   getPendingDanmaku,
@@ -23,11 +24,13 @@ export function DanmakuLayer({
   currentTime,
   danmaku,
   isPlaying,
+  playbackRate = 1,
   seekVersion
 }: {
   currentTime: number;
   danmaku: DanmakuItem[];
   isPlaying: boolean;
+  playbackRate?: number;
   seekVersion: number;
 }) {
   const [stageWidth, setStageWidth] = useState(0);
@@ -58,10 +61,9 @@ export function DanmakuLayer({
     positionRef.current = getNextPositionAfterDanmakuUpdate({
       previousDanmaku,
       nextDanmaku: danmaku,
-      previousPosition: positionRef.current,
-      currentTime
+      previousPosition: positionRef.current
     });
-  }, [currentTime, danmaku]);
+  }, [danmaku]);
 
   useEffect(() => {
     positionRef.current = findStartPositionAfterSeek(danmaku, currentTime);
@@ -86,7 +88,7 @@ export function DanmakuLayer({
       const previousFrameMs = lastFrameMs.current ?? frameMs;
       const deltaSec = Math.max(0, (frameMs - previousFrameMs) / 1000);
       lastFrameMs.current = frameMs;
-      clockSecRef.current += deltaSec;
+      clockSecRef.current += calculateDanmakuPlaybackDelta({ deltaSec, playbackRate });
       const clockSec = clockSecRef.current;
       const pending = getPendingDanmaku({
         danmaku,
@@ -129,7 +131,7 @@ export function DanmakuLayer({
       lastFrameMs.current = undefined;
       lastRenderMs.current = 0;
     };
-  }, [danmaku, durationSec, isPlaying, stageWidth]);
+  }, [danmaku, durationSec, isPlaying, playbackRate, stageWidth]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setStageWidth(event.nativeEvent.layout.width);
@@ -183,9 +185,13 @@ const DanmakuText = memo(function DanmakuText({
   return (
     <View
       onLayout={(event) => onLayout(item.id, event)}
-      style={[styles.item, { top: LANES[item.laneIndex], transform: [{ translateX: item.x }] }]}
+      style={[
+        styles.item,
+        item.variant === "inner_voice" ? styles.innerVoiceItem : null,
+        { top: LANES[item.laneIndex], transform: [{ translateX: item.x }] }
+      ]}
     >
-      <Text numberOfLines={1} style={styles.text}>
+      <Text numberOfLines={1} style={[styles.text, item.variant === "inner_voice" ? styles.innerVoiceText : null]}>
         {item.text}
       </Text>
     </View>
@@ -198,17 +204,25 @@ const styles = StyleSheet.create({
   },
   item: {
     position: "absolute",
+    paddingHorizontal: 4,
+    paddingVertical: 3
+  },
+  innerVoiceItem: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.18)"
+    borderWidth: 1,
+    borderColor: "rgba(255,213,138,0.9)"
   },
   text: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.74)",
+    textShadowColor: "rgba(0,0,0,0.86)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4
+    textShadowRadius: 5
+  },
+  innerVoiceText: {
+    color: "#fff"
   }
 });

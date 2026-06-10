@@ -20,8 +20,12 @@ describe("inner voice danmaku gesture helpers", () => {
     expect(shouldSendInnerVoiceDraft({ dx: 34, dy: -18 })).toBe(true);
   });
 
-  it("does not send for taps, short drags, or downward movement", () => {
-    expect(shouldSendInnerVoiceDraft({ dx: 0, dy: 0 })).toBe(false);
+  it("sends when the draft is tapped without a meaningful drag", () => {
+    expect(shouldSendInnerVoiceDraft({ dx: 0, dy: 0 })).toBe(true);
+    expect(shouldSendInnerVoiceDraft({ dx: 3, dy: -2 })).toBe(true);
+  });
+
+  it("does not send for short drags or downward movement", () => {
     expect(shouldSendInnerVoiceDraft({ dx: 8, dy: -12 })).toBe(false);
     expect(shouldSendInnerVoiceDraft({ dx: 32, dy: 8 })).toBe(false);
   });
