@@ -3,7 +3,7 @@ import { NativeModules, Platform } from "react-native";
 const API_PORT = "8000";
 
 declare const process: {
-  env?: {
+  env: {
     EXPO_PUBLIC_API_BASE_URL?: string;
     EXPO_PUBLIC_API_REQUEST_TIMEOUT_MS?: string;
     EXPO_PUBLIC_ENABLE_INTERACTION_LAB?: string;
@@ -37,12 +37,12 @@ function getDefaultApiBaseUrl() {
 }
 
 function getRequestTimeoutMs() {
-  const timeoutMs = Number(process.env?.EXPO_PUBLIC_API_REQUEST_TIMEOUT_MS);
+  const timeoutMs = Number(process.env.EXPO_PUBLIC_API_REQUEST_TIMEOUT_MS);
   return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 8000;
 }
 
-export const API_BASE_URL = process.env?.EXPO_PUBLIC_API_BASE_URL?.trim() || getDefaultApiBaseUrl();
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL?.trim() || getDefaultApiBaseUrl();
 export const API_REQUEST_TIMEOUT_MS = getRequestTimeoutMs();
-export const ENABLE_INTERACTION_LAB = process.env?.EXPO_PUBLIC_ENABLE_INTERACTION_LAB === "true";
-export const ENABLE_PLAYBACK_DEBUG_PANEL = process.env?.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL === "true";
-export const ENABLE_FAST_STARTUP = process.env?.EXPO_PUBLIC_FAST_STARTUP === "true";
+export const ENABLE_INTERACTION_LAB = process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB === "true";
+export const ENABLE_PLAYBACK_DEBUG_PANEL = process.env.EXPO_PUBLIC_ENABLE_PLAYBACK_DEBUG_PANEL === "true";
+export const ENABLE_FAST_STARTUP = process.env.EXPO_PUBLIC_FAST_STARTUP === "true";
