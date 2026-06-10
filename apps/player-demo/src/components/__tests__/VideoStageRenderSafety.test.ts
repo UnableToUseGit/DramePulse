@@ -73,19 +73,21 @@ describe("VideoStage render safety", () => {
     expect(controlsSource).toContain("interactionDebugMarkerInnerVoice");
   });
 
-  it("does not enable remote danmaku loading from PlayerPage", () => {
+  it("loads remote danmaku only for the active playing page", () => {
     const fs = require("fs");
     const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
 
-    expect(source).toContain("useDanmakuFeed(video.danmakuUrl, false)");
-    expect(source).not.toContain("const shouldLoadDanmaku");
+    expect(source).toContain("const shouldLoadDanmaku = isActive && playbackState.isStarted");
+    expect(source).toContain("useDanmakuFeed(video.danmakuUrl, shouldLoadDanmaku, currentTime)");
   });
 
-  it("does not statically import expo-audio from PlayerPage so Expo Go can render text assistant", () => {
+  it("does not statically import expo-audio so Expo Go can render text assistant", () => {
     const fs = require("fs");
-    const source = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+    const pageSource = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+    const feedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
 
-    expect(source).not.toContain('from "expo-audio"');
-    expect(source).toContain('import("expo-audio")');
+    expect(pageSource).not.toContain('from "expo-audio"');
+    expect(feedSource).not.toContain('from "expo-audio"');
+    expect(feedSource).toContain('import("expo-audio")');
   });
 });

@@ -1,7 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Modal, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import { colors, radii, spacing } from "../theme";
+
+const SHEET_HIDDEN_TRANSLATE_Y = 340;
+const SWIPE_DISMISS_DISTANCE_PX = 72;
+const SWIPE_DISMISS_VELOCITY = 0.72;
 
 export function RoleCommerceProductSheet({
   visible,
@@ -12,19 +17,133 @@ export function RoleCommerceProductSheet({
   ad: RoleCommerceFeedAd;
   onClose: () => void;
 }) {
+  const [shouldRender, setShouldRender] = useState(visible);
+  const backdropOpacity = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(visible ? 0 : SHEET_HIDDEN_TRANSLATE_Y)).current;
+
+  const closeWithSheetAnimation = useCallback(() => {
+    if (!visible) {
+      return;
+    }
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: SHEET_HIDDEN_TRANSLATE_Y,
+        duration: 200,
+        useNativeDriver: true
+      })
+    ]).start(({ finished }) => {
+      if (finished) {
+        onClose();
+        setShouldRender(false);
+        requestAnimationFrame(() => {
+          backdropOpacity.setValue(0);
+          sheetTranslateY.setValue(SHEET_HIDDEN_TRANSLATE_Y);
+        });
+      }
+    });
+  }, [backdropOpacity, onClose, sheetTranslateY, visible]);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      sheetTranslateY.setValue(SHEET_HIDDEN_TRANSLATE_Y);
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 160,
+          useNativeDriver: true
+        }),
+        Animated.spring(sheetTranslateY, {
+          toValue: 0,
+          tension: 72,
+          friction: 12,
+          useNativeDriver: true
+        })
+      ]).start();
+      return;
+    }
+
+    if (!shouldRender) {
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: SHEET_HIDDEN_TRANSLATE_Y,
+        duration: 200,
+        useNativeDriver: true
+      })
+    ]).start(() => {
+      setShouldRender(false);
+    });
+  }, [backdropOpacity, sheetTranslateY, shouldRender, visible]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderMove: (_event, gesture) => {
+          sheetTranslateY.setValue(Math.max(0, gesture.dy));
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy > SWIPE_DISMISS_DISTANCE_PX || gesture.vy >= SWIPE_DISMISS_VELOCITY) {
+            closeWithSheetAnimation();
+            return;
+          }
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            tension: 84,
+            friction: 11,
+            useNativeDriver: true
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            tension: 84,
+            friction: 11,
+            useNativeDriver: true
+          }).start();
+        }
+      }),
+    [closeWithSheetAnimation, sheetTranslateY]
+  );
+
+  if (!shouldRender) {
+    return null;
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable accessibilityRole="button" accessibilityLabel="关闭商品页" style={styles.scrim} onPress={onClose} />
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
+    <Modal visible={shouldRender} transparent animationType="none" onRequestClose={closeWithSheetAnimation}>
+      <Animated.View style={[styles.scrimWrap, { opacity: backdropOpacity }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="关闭商品页"
+          style={styles.scrim}
+          onPress={closeWithSheetAnimation}
+        />
+      </Animated.View>
+      <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}>
+        <View style={styles.handleTouchArea} {...panResponder.panHandlers}>
+          <View style={styles.handle} />
+        </View>
         <View style={styles.header}>
           <View style={styles.badge}>
             <Ionicons name="cart-outline" size={16} color={colors.accent} />
             <Text style={styles.badgeText}>{ad.sponsorLabel}</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭商品页" hitSlop={12} onPress={onClose}>
-            <Ionicons name="close" size={24} color="rgba(255,255,255,0.64)" />
-          </Pressable>
         </View>
         <Text numberOfLines={2} style={styles.title}>
           {ad.productName}
@@ -34,24 +153,27 @@ export function RoleCommerceProductSheet({
         <View style={styles.sellingPoints}>
           {ad.sellingPoints.map((point) => (
             <View key={point} style={styles.sellingPoint}>
-              <Ionicons name="sparkles" size={13} color={colors.gold} />
+              <Ionicons name="sparkles" size={13} color={colors.accent} />
               <Text style={styles.sellingPointText}>{point}</Text>
             </View>
           ))}
         </View>
         <Pressable style={({ pressed }) => [styles.primaryButton, pressed ? styles.primaryButtonPressed : null]}>
-          <Ionicons name="bag-handle" size={20} color={colors.text} />
+          <Ionicons name="bag-handle" size={20} color="#FFFFFF" />
           <Text style={styles.primaryButtonText}>立即查看</Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  scrimWrap: {
+    ...StyleSheet.absoluteFillObject
+  },
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent"
+    backgroundColor: "rgba(0,0,0,0.18)"
   },
   sheet: {
     position: "absolute",
@@ -60,25 +182,36 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingTop: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingBottom: 34,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    backgroundColor: "rgba(12,12,14,0.97)",
+    paddingBottom: 36,
+    borderTopLeftRadius: radii.panel,
+    borderTopRightRadius: radii.panel,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)"
+    borderColor: "rgba(255,255,255,0.72)",
+    shadowColor: "rgba(0,0,0,0.18)",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 1,
+    shadowRadius: 20
+  },
+  handleTouchArea: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 28,
+    marginTop: -4
   },
   handle: {
     alignSelf: "center",
     width: 48,
     height: 5,
     borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.24)"
+    backgroundColor: "rgba(28,28,30,0.18)"
   },
   header: {
     marginTop: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "flex-start"
   },
   badge: {
     flexDirection: "row",
@@ -96,20 +229,20 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: spacing.lg,
-    color: colors.text,
+    color: "#3A3A3A",
     fontSize: 26,
     fontWeight: "900",
     lineHeight: 31
   },
   price: {
     marginTop: spacing.sm,
-    color: colors.gold,
+    color: colors.accent,
     fontSize: 20,
     fontWeight: "900"
   },
   description: {
     marginTop: spacing.md,
-    color: "rgba(255,255,255,0.76)",
+    color: "#5F6368",
     fontSize: 14,
     fontWeight: "700",
     lineHeight: 21
@@ -127,10 +260,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 7,
     borderRadius: radii.pill,
-    backgroundColor: "rgba(255,255,255,0.1)"
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB"
   },
   sellingPointText: {
-    color: colors.text,
+    color: "#424242",
     fontSize: 13,
     fontWeight: "800"
   },
@@ -148,7 +283,7 @@ const styles = StyleSheet.create({
     opacity: 0.84
   },
   primaryButtonText: {
-    color: colors.text,
+    color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "900"
   }

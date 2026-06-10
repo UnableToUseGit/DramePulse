@@ -75,6 +75,26 @@ describe("playerApi", () => {
     });
   });
 
+  it("prefers mp4_url over hls stream_url for playback", () => {
+    const video = normalizeVideo(
+      {
+        video_id: "beiwang_ep01",
+        series_id: "beiwang",
+        series_name: "北往",
+        title: "北往 第1集",
+        duration: 301.141,
+        stream_url: "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
+        stream_type: "hls",
+        hls_url: "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
+        mp4_url: "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/video.mp4",
+        danmaku_url: "/api/videos/beiwang_ep01/danmaku"
+      },
+      "http://api.test"
+    );
+
+    expect(video?.streamUrl).toBe("http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/video.mp4");
+  });
+
   it("normalizes available danmaku and removes empty text", () => {
     const danmaku = normalizeDanmakuResponse({
       available: true,

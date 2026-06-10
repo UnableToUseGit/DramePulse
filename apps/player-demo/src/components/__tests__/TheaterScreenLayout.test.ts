@@ -15,10 +15,11 @@ describe("TheaterScreen layout", () => {
   it("docks home player tabs in normal layout instead of the absolute player chrome overlay", () => {
     const fs = require("fs");
     const pageSource = fs.readFileSync("src/components/PlayerPage.tsx", "utf8");
+    const feedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
     const chromeSource = fs.readFileSync("src/components/PlayerChrome.tsx", "utf8");
 
-    expect(pageSource).toContain('presentation="docked"');
-    expect(pageSource).toContain('mode === "home" ? (');
+    expect(feedSource).toContain('presentation="docked"');
+    expect(feedSource).toContain('mode === "home" ? (');
     expect(pageSource).not.toContain('videoViewport: {\n    position: "absolute"');
     expect(chromeSource).not.toContain("PlayerBottomTabs");
   });

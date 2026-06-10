@@ -25,6 +25,7 @@ export function PlayerChrome({
   metaBottomOffset,
   actionRailBottomOffset,
   preTitleAccessory,
+  showTopBar = true,
   showActionRail = true,
   showMeta = true,
   showDanmakuEntry = true,
@@ -58,6 +59,7 @@ export function PlayerChrome({
   metaBottomOffset?: number;
   actionRailBottomOffset?: number;
   preTitleAccessory?: ReactNode;
+  showTopBar?: boolean;
   showActionRail?: boolean;
   showMeta?: boolean;
   showDanmakuEntry?: boolean;
@@ -77,15 +79,17 @@ export function PlayerChrome({
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
-      <PlayerTopBar
-        playbackRate={playbackRate}
-        isSpeedMenuOpen={isSpeedMenuOpen}
-        onToggleSpeedMenu={onToggleSpeedMenu}
-        onSelectPlaybackRate={onSelectPlaybackRate}
-        mode={mode}
-        episodeLabel={episodeLabel}
-        onBack={onBack}
-      />
+      {showTopBar ? (
+        <PlayerTopBar
+          playbackRate={playbackRate}
+          isSpeedMenuOpen={isSpeedMenuOpen}
+          onToggleSpeedMenu={onToggleSpeedMenu}
+          onSelectPlaybackRate={onSelectPlaybackRate}
+          mode={mode}
+          episodeLabel={episodeLabel}
+          onBack={onBack}
+        />
+      ) : null}
       {showActionRail ? (
         <PlayerActionRail
           liked={liked}

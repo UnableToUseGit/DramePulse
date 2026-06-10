@@ -94,4 +94,49 @@ describe("startupLoader", () => {
     ]);
     expect(calls.some((url) => url.includes("/episodes") || url.includes("danmaku") || url.includes("playback-assets"))).toBe(false);
   });
+
+  it("can skip startup preloads for fast UI iteration", async () => {
+    const cache = createPlaybackAssetCache();
+    const { fetcher, calls } = createFetcher({
+      "http://api.test/api/feed/home": {
+        videos: [
+          {
+            video_id: "v1",
+            series_id: "s1",
+            series_name: "短剧 A",
+            title: "短剧 A 第1集",
+            stream_url: "/api/videos/v1/stream",
+            danmaku_url: "/api/videos/v1/danmaku"
+          }
+        ]
+      },
+      "http://api.test/api/series": {
+        series: [
+          {
+            series_id: "s1",
+            title: "短剧 A",
+            cover_url: "/covers/s1.jpg",
+            episode_count: 2,
+            first_video_id: "v1",
+            status: "active"
+          }
+        ]
+      }
+    });
+    const prefetchImage = jest.fn(async () => true);
+
+    const startup = await loadStartupData({
+      apiBaseUrl: "http://api.test",
+      cache,
+      fetcher,
+      prefetchImage,
+      skipPreload: true
+    });
+
+    expect(startup.homeVideos.map((video) => video.videoId)).toEqual(["v1"]);
+    expect(startup.theaterSeries.map((series) => series.seriesKey)).toEqual(["id:s1"]);
+    expect(cache.get("v1")).toBeUndefined();
+    expect(prefetchImage).not.toHaveBeenCalled();
+    expect(calls).toEqual(["http://api.test/api/feed/home", "http://api.test/api/series"]);
+  });
 });

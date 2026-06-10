@@ -1,4 +1,5 @@
 const SEND_DISTANCE_PX = 28;
+const TAP_SEND_MAX_DISTANCE_PX = 6;
 const RESPONDER_VERTICAL_DISTANCE_PX = 6;
 const BASE_LAUNCH_Y_PX = 180;
 const MAX_EXTRA_LAUNCH_Y_PX = 64;
@@ -12,6 +13,10 @@ export function shouldClaimInnerVoiceDrag({ dx, dy }: { dx: number; dy: number }
 }
 
 export function shouldSendInnerVoiceDraft({ dx, dy }: { dx: number; dy: number }) {
+  const touchDistance = Math.sqrt(dx ** 2 + dy ** 2);
+  if (touchDistance <= TAP_SEND_MAX_DISTANCE_PX) {
+    return true;
+  }
   const upwardDistance = Math.max(0, -dy);
   const diagonalDistance = Math.sqrt(Math.max(0, dx) ** 2 + upwardDistance ** 2);
   return upwardDistance >= SEND_DISTANCE_PX || (dx > 0 && upwardDistance >= 14 && diagonalDistance >= SEND_DISTANCE_PX);

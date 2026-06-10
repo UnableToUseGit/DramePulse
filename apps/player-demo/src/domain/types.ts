@@ -8,6 +8,7 @@ export interface DanmakuItem {
   danmaku_id?: string;
   time_sec: number;
   text: string;
+  variant?: "normal" | "inner_voice";
   digg_count?: number;
   score?: number;
 }

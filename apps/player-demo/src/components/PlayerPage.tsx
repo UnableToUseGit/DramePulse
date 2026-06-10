@@ -35,11 +35,8 @@ import {
   toInteractionDebugMarkers
 } from "../domain/interactionAssetCues";
 import { InteractionAsset, loadLightweightPlaybackAssets } from "../domain/playerDataApi";
-import { resolveStoryQaContext } from "../domain/storyQa";
 import {
-  askWatchAssistant,
   WatchAssistantAction,
-  WatchAssistantToolCall,
   WatchAssistantTranscription
 } from "../domain/watchAssistant";
 import { FEED_VIDEO_SOURCE_CACHING_ENABLED, getFeedVideoBufferOptions } from "../domain/videoSource";
@@ -58,9 +55,8 @@ import { DanmakuLayer } from "./DanmakuLayer";
 import { FastForwardPressLayer } from "./FastForwardPressLayer";
 import { PlaybackHint } from "./PlaybackHint";
 import { PlayerChrome } from "./PlayerChrome";
-import { PlayerBottomTabs } from "./PlayerBottomTabs";
 import { PlayerControls } from "./PlayerControls";
-import { WatchAssistantPanel } from "./WatchAssistantPanel";
+import type { PlaybackRate } from "./SpeedSelector";
 import { SeekRequest, VideoStage } from "./VideoStage";
 import { SeriesEpisodeBar } from "./SeriesEpisodeBar";
 
@@ -98,6 +94,7 @@ interface PlayerPageProps {
   metaBottomOffset: number;
   actionRailBottomOffset: number;
   resumePlaybackTime: number;
+  playbackRate: PlaybackRate;
   hasNextEpisode: boolean;
   nextEpisodeLabel?: string;
   selectedPresentationType: InteractionPresentationType;
@@ -106,6 +103,9 @@ interface PlayerPageProps {
   onTimelineDragStateChange?: (isDragging: boolean) => void;
   onPlaybackReady?: () => void;
   onPlayNextEpisode: () => void;
+  onOpenWatchAssistant: () => void;
+  assistantActionRequest?: WatchAssistantActionRequest;
+  onAssistantActionApplied?: (requestId: number, executionHint?: string) => void;
   mode?: "home" | "series";
   seriesEpisodeCount?: number;
   onOpenTheater?: () => void;
@@ -119,39 +119,12 @@ interface VideoStageObservation {
   pageIndex: number;
 }
 
-interface WatchAssistantPanelState {
-  isOpen: boolean;
-  message: string;
-  reply?: string;
-  error?: string;
-  isLoading: boolean;
-  voiceState: "idle" | "recording" | "transcribing";
+export interface WatchAssistantActionRequest {
+  id: number;
+  actions: WatchAssistantAction[];
+  rawMessage: string;
+  inputMode: "text" | "voice";
   voiceMeta?: WatchAssistantTranscription;
-  toolCalls: WatchAssistantToolCall[];
-  executionHint?: string;
-}
-
-function resetWatchAssistantState(): WatchAssistantPanelState {
-  return {
-    isOpen: false,
-    message: "",
-    reply: undefined,
-    error: undefined,
-    isLoading: false,
-    voiceState: "idle",
-    voiceMeta: undefined,
-    toolCalls: [],
-    executionHint: undefined
-  };
-}
-
-function isWebMicrophoneBlockedByInsecureOrigin(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-  const hostname = window.location.hostname;
-  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  return window.isSecureContext === false && !isLocalhost;
 }
 
 export function PlayerPage({
@@ -168,6 +141,7 @@ export function PlayerPage({
   metaBottomOffset,
   actionRailBottomOffset,
   resumePlaybackTime,
+  playbackRate,
   hasNextEpisode,
   nextEpisodeLabel,
   selectedPresentationType,
@@ -176,6 +150,9 @@ export function PlayerPage({
   onTimelineDragStateChange,
   onPlaybackReady,
   onPlayNextEpisode,
+  onOpenWatchAssistant,
+  assistantActionRequest,
+  onAssistantActionApplied,
   mode = "home",
   seriesEpisodeCount,
   onOpenTheater,
@@ -189,6 +166,7 @@ export function PlayerPage({
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+  const [isInnerVoiceGestureActive, setIsInnerVoiceGestureActive] = useState(false);
   const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
   const [completedResonanceCueIds, setCompletedResonanceCueIds] = useState<Set<string>>(() => new Set());
   const [completedInteractionCueIds, setCompletedInteractionCueIds] = useState<Set<string>>(() => new Set());
@@ -197,7 +175,6 @@ export function PlayerPage({
   const [resonanceTapState, setResonanceTapState] = useState<ResonanceTapState>(() =>
     createInitialResonanceTapState()
   );
-  const [assistantState, setAssistantState] = useState<WatchAssistantPanelState>(() => resetWatchAssistantState());
   const [interactionAssets, setInteractionAssets] = useState<InteractionAsset[]>(
     () => playbackAssetCache.get(video.videoId)?.interactionAssets ?? []
   );
@@ -217,11 +194,12 @@ export function PlayerPage({
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
-  const assistantRequestRef = useRef(0);
+  const appliedAssistantActionRequestIdRef = useRef<number | undefined>(undefined);
   const resonanceButtonDismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const resonanceEffectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const playbackState = getVideoPlaybackState({ isActive, userPlaybackIntent });
-  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, false);
+  const shouldLoadDanmaku = isActive && playbackState.isStarted;
+  const { danmaku, danmakuState } = useDanmakuFeed(video.danmakuUrl, shouldLoadDanmaku, currentTime);
   const videoRenderState = getFeedPlaybackPageRenderState(pageRole);
   const renderState = getFeedPlaybackPagePresentationState({
     playbackPageRole: pageRole,
@@ -424,6 +402,7 @@ export function PlayerPage({
   const speedControls = usePlaybackSpeedControls({
     isActive,
     isStarted: playbackState.isStarted,
+    playbackRate,
     onResume: handleResume,
     onStart: handleResume,
     onTap: handleTogglePlay,
@@ -450,6 +429,8 @@ export function PlayerPage({
       setUserPlaybackIntent("playing");
       setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
+      setIsTimelineDragging(false);
+      setIsInnerVoiceGestureActive(false);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
       if (videoChanged) {
@@ -459,8 +440,6 @@ export function PlayerPage({
       setLaunchingInnerVoiceCue(undefined);
       setResonanceTapState(createInitialResonanceTapState());
       resetInteractionExample();
-      assistantRequestRef.current += 1;
-      setAssistantState(resetWatchAssistantState());
       previousTimeRef.current = resumeTime;
       lastPublishedTimeRef.current = resumeTime;
       lastReportedPositionRef.current = resumeTime;
@@ -468,7 +447,13 @@ export function PlayerPage({
       previousVideoIdRef.current = video.videoId;
     }
     wasActiveRef.current = true;
-  }, [isActive, resetInteractionExample, resumePlaybackTime, video.duration, video.videoId]);
+  }, [
+    isActive,
+    resetInteractionExample,
+    resumePlaybackTime,
+    video.duration,
+    video.videoId
+  ]);
 
   useEffect(() => {
     setResolvedDuration(video.duration);
@@ -607,9 +592,8 @@ export function PlayerPage({
   const handleTimelineDragStateChange = useCallback(
     (isDragging: boolean) => {
       setIsTimelineDragging(isDragging);
-      onTimelineDragStateChange?.(isDragging);
     },
-    [onTimelineDragStateChange]
+    []
   );
 
   const reportAssistantPlaybackEvent = useCallback(
@@ -691,12 +675,41 @@ export function PlayerPage({
     [handleSeekCommit, hasNextEpisode, onPlayNextEpisode, reportAssistantPlaybackEvent]
   );
 
+  useEffect(() => {
+    if (!isActive || !assistantActionRequest) {
+      return;
+    }
+    if (appliedAssistantActionRequestIdRef.current === assistantActionRequest.id) {
+      return;
+    }
+    appliedAssistantActionRequestIdRef.current = assistantActionRequest.id;
+    const executionHint = applyAssistantActions(
+      assistantActionRequest.actions,
+      assistantActionRequest.rawMessage,
+      assistantActionRequest.inputMode,
+      assistantActionRequest.voiceMeta
+    );
+    onAssistantActionApplied?.(assistantActionRequest.id, executionHint);
+  }, [applyAssistantActions, assistantActionRequest, isActive, onAssistantActionApplied]);
+
   const handleInnerVoiceGestureActiveChange = useCallback(
     (isGestureActive: boolean) => {
-      onTimelineDragStateChange?.(isGestureActive);
+      setIsInnerVoiceGestureActive(isGestureActive);
     },
-    [onTimelineDragStateChange]
+    []
   );
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    onTimelineDragStateChange?.(isTimelineDragging || isInnerVoiceGestureActive);
+  }, [
+    isActive,
+    isInnerVoiceGestureActive,
+    isTimelineDragging,
+    onTimelineDragStateChange
+  ]);
 
   const handleSendInnerVoiceDanmaku = useCallback(
     (cue: InnerVoiceDanmakuCue) => {
@@ -771,93 +784,6 @@ export function PlayerPage({
     selectedPresentationType
   ]);
 
-  const handleSubmitWatchAssistant = useCallback(
-    (quickMessage?: string, inputMode: "text" | "voice" = "text", voiceMeta?: WatchAssistantTranscription) => {
-      const nextMessage = (quickMessage ?? assistantState.message).trim();
-      setAssistantState((state) => ({
-        ...state,
-        message: nextMessage,
-        error: undefined,
-        reply: undefined,
-        voiceMeta,
-        executionHint: undefined,
-        toolCalls: []
-      }));
-      if (!nextMessage) {
-        setAssistantState((state) => ({ ...state, error: "请输入指令或剧情问题" }));
-        return;
-      }
-      const context = resolveStoryQaContext(video);
-      const requestId = assistantRequestRef.current + 1;
-      assistantRequestRef.current = requestId;
-      setAssistantState((state) => ({ ...state, isLoading: true }));
-      askWatchAssistant({
-        apiBaseUrl: API_BASE_URL,
-        message: nextMessage,
-        seriesId: context.seriesId,
-        videoId: video.videoId,
-        currentEpisode: context.currentEpisode,
-        currentTime,
-        duration: resolvedDuration
-      })
-        .then((response) => {
-          if (assistantRequestRef.current === requestId) {
-            const executionHint = applyAssistantActions(response.actions, nextMessage, inputMode, voiceMeta);
-            setAssistantState((state) => ({
-              ...state,
-              reply: response.reply,
-              toolCalls: response.toolCalls,
-              executionHint
-            }));
-          }
-        })
-        .catch((error: unknown) => {
-          if (assistantRequestRef.current === requestId) {
-            setAssistantState((state) => ({
-              ...state,
-              error: error instanceof Error ? error.message : "观看助手暂时不可用"
-            }));
-          }
-        })
-        .finally(() => {
-          if (assistantRequestRef.current === requestId) {
-            setAssistantState((state) => ({ ...state, isLoading: false }));
-          }
-        });
-    },
-    [applyAssistantActions, assistantState.message, currentTime, resolvedDuration, video]
-  );
-
-  const handleToggleVoiceRecording = useCallback(async () => {
-    if (assistantState.isLoading) {
-      return;
-    }
-    try {
-      if (isWebMicrophoneBlockedByInsecureOrigin()) {
-        throw new Error("当前页面不是 HTTPS，浏览器不会弹出麦克风授权。请使用 HTTPS 或本地 localhost 访问。");
-      }
-      await import("expo-audio");
-      setAssistantState((state) => ({
-        ...state,
-        voiceState: "idle",
-        error: "当前先用文本调试 Watch Assistant；语音录制留到 development build 阶段启用。"
-      }));
-    } catch (error) {
-      setAssistantState((state) => ({
-        ...state,
-        voiceState: "idle",
-        error:
-          error instanceof Error && error.message.includes("HTTPS")
-            ? error.message
-            : "Expo Go 不包含 ExpoAudio 原生模块。当前先用文本调试，语音输入需要 development build。"
-      }));
-    }
-  }, [assistantState.isLoading]);
-
-  const handleCancelVoiceRecording = useCallback(() => {
-    setAssistantState((state) => ({ ...state, voiceState: "idle" }));
-  }, []);
-
   return (
     <View style={[styles.root, { height }]}>
       <View style={[styles.videoViewport, { height: videoHeight }]}>
@@ -889,15 +815,13 @@ export function PlayerPage({
             currentTime={currentTime}
             danmaku={mergedDanmaku}
             isPlaying={playbackState.shouldPlay}
+            playbackRate={speedControls.effectivePlaybackRate}
             seekVersion={seekVersion}
           />
         ) : null}
         {isActive && playbackState.isStarted ? <Pressable style={styles.tapLayer} onPress={handleTogglePlay} /> : null}
         {renderState.shouldRenderInteractiveShell ? <PlaybackHint visible={playbackState.shouldShowPauseHint} /> : null}
       </View>
-      {mode === "home" ? (
-        <PlayerBottomTabs activeTab="首页" presentation="docked" onPressTheater={onOpenTheater} />
-      ) : null}
       {mode === "series" ? (
         <View style={[styles.seriesBottomDock, { height: Math.max(0, height - videoHeight) }]} />
       ) : null}
@@ -925,9 +849,7 @@ export function PlayerPage({
         <PlayerChrome
           liked={liked}
           onToggleLike={() => setLiked((current) => !current)}
-          onOpenWatchAssistant={() => {
-            setAssistantState((state) => ({ ...state, isOpen: true }));
-          }}
+          onOpenWatchAssistant={onOpenWatchAssistant}
           onOpenTheater={onOpenTheater}
           onBack={onBack}
           playbackRate={speedControls.playbackRate}
@@ -939,6 +861,7 @@ export function PlayerPage({
           episodeLabel={displayVideo.episodeLabel}
           metaBottomOffset={metaBottomOffset}
           actionRailBottomOffset={actionRailBottomOffset}
+          showTopBar={false}
           showActionRail={timelineChromeVisibility.showActionRail}
           showMeta={timelineChromeVisibility.showMeta}
           mode={mode}
@@ -974,24 +897,6 @@ export function PlayerPage({
           storyChapters={displayVideo.storyChapters}
           storyboard={displayVideo.storyboard}
           debugInteractionMarkers={debugInteractionMarkers}
-        />
-      ) : null}
-      {renderState.shouldRenderInteractiveShell ? (
-        <WatchAssistantPanel
-          visible={assistantState.isOpen}
-          message={assistantState.message}
-          reply={assistantState.reply}
-          error={assistantState.error}
-          isLoading={assistantState.isLoading}
-          voiceState={assistantState.voiceState}
-          voiceDurationSec={0}
-          toolCalls={assistantState.toolCalls}
-          executionHint={assistantState.executionHint}
-          onChangeMessage={(message) => setAssistantState((state) => ({ ...state, message }))}
-          onSubmit={handleSubmitWatchAssistant}
-          onToggleVoiceRecording={handleToggleVoiceRecording}
-          onCancelVoiceRecording={handleCancelVoiceRecording}
-          onClose={() => setAssistantState((state) => ({ ...state, isOpen: false }))}
         />
       ) : null}
     </View>

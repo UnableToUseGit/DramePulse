@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { API_BASE_URL, API_REQUEST_TIMEOUT_MS } from "./src/config";
+import { API_BASE_URL, API_REQUEST_TIMEOUT_MS, ENABLE_FAST_STARTUP } from "./src/config";
 import { loadSeriesEpisodes } from "./src/domain/playerDataApi";
 import { createPlaybackAssetCache, type PlaybackAssetCache } from "./src/domain/playbackAssetCache";
 import { getSeriesResumeTarget, groupVideosBySeries, SeriesGroup } from "./src/domain/playerFeed";
@@ -45,7 +45,8 @@ export default function App() {
       const startup = await loadStartupData({
         apiBaseUrl: API_BASE_URL,
         cache: playbackAssetCache,
-        timeoutMs: API_REQUEST_TIMEOUT_MS
+        timeoutMs: API_REQUEST_TIMEOUT_MS,
+        skipPreload: ENABLE_FAST_STARTUP
       });
       setHomeVideos(startup.homeVideos);
       setTheaterSeries(startup.theaterSeries);
@@ -109,34 +110,18 @@ export default function App() {
   }, []);
 
   const shouldShowStartupOverlay =
-    loadState === "loading" || (loadState === "ready" && !hasInitialVideoPlaybackReady);
+    loadState === "loading" || (!ENABLE_FAST_STARTUP && loadState === "ready" && !hasInitialVideoPlaybackReady);
 
   const startupOverlay = shouldShowStartupOverlay ? (
     <View style={[styles.startupOverlay, styles.centerState]} pointerEvents="auto">
-      <StatusBar style="light" hidden />
-      <View style={styles.bootBrand}>
-        <Text style={styles.bootBrandText}>DramePulse</Text>
+      <StatusBar style="dark" hidden />
+      <View style={styles.bootLogo} accessibilityRole="image" accessibilityLabel="DramePulse Logo">
+        <View style={[styles.bootLogoPulse, styles.bootLogoPulseShort]} />
+        <View style={[styles.bootLogoPulse, styles.bootLogoPulseTall]} />
+        <View style={[styles.bootLogoPulse, styles.bootLogoPulseMid]} />
+        <View style={[styles.bootLogoPulse, styles.bootLogoPulseShort]} />
       </View>
-      <Text style={styles.stateTitle}>正在预热首屏播放资产</Text>
-      <Text style={styles.stateText}>
-        {loadState === "loading"
-          ? "首页 Feed、剧场卡片、首集分镜和封面缓存会在进入播放前准备好"
-          : "首个视频正在进入连续播放，完成后进入首页"}
-      </Text>
-      <View style={styles.bootChecklist}>
-        {[
-          "GET /api/feed/home",
-          "GET /api/series",
-          "GET /storyboard + interaction-plans",
-          "Image.prefetch 全量首集分镜",
-          "等待首页视频开始播放"
-        ].map((item) => (
-          <View key={item} style={styles.bootChecklistRow}>
-            <View style={styles.bootChecklistDot} />
-            <Text style={styles.bootChecklistText}>{item}</Text>
-          </View>
-        ))}
-      </View>
+      <Text style={styles.bootBrandText}>DramePulse</Text>
     </View>
   ) : null;
 
@@ -211,27 +196,49 @@ const styles = StyleSheet.create({
   startupOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 50,
-    backgroundColor: colors.black
+    backgroundColor: "#FFFFFF"
   },
   centerState: {
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.xl
   },
-  bootBrand: {
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.small,
+  bootLogo: {
+    width: 86,
+    height: 86,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: "rgba(255, 106, 26, 0.48)",
-    backgroundColor: "rgba(255, 106, 26, 0.12)"
+    borderColor: "rgba(255, 106, 26, 0.22)",
+    backgroundColor: "rgba(255, 106, 26, 0.08)",
+    boxShadow: "0 18px 42px rgba(255, 74, 18, 0.18)"
+  },
+  bootLogoPulse: {
+    width: 8,
+    borderRadius: radii.pill,
+    backgroundColor: colors.accent
+  },
+  bootLogoPulseShort: {
+    height: 24,
+    opacity: 0.66
+  },
+  bootLogoPulseMid: {
+    height: 38,
+    opacity: 0.86
+  },
+  bootLogoPulseTall: {
+    height: 52,
+    backgroundColor: colors.gold
   },
   bootBrandText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: "900",
-    letterSpacing: 0
+    marginTop: spacing.lg,
+    color: colors.black,
+    fontSize: 29,
+    fontWeight: "700",
+    letterSpacing: 0.4
   },
   stateTitle: {
     color: colors.text,
@@ -246,34 +253,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     lineHeight: 19
-  },
-  bootChecklist: {
-    width: "100%",
-    maxWidth: 340,
-    marginTop: spacing.xl,
-    gap: spacing.sm
-  },
-  bootChecklistRow: {
-    minHeight: 34,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.small,
-    backgroundColor: "rgba(255, 255, 255, 0.07)"
-  },
-  bootChecklistDot: {
-    width: 7,
-    height: 7,
-    marginRight: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.accent
-  },
-  bootChecklistText: {
-    flex: 1,
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: "800"
   },
   retryButton: {
     marginTop: spacing.lg,

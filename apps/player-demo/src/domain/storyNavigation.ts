@@ -61,11 +61,11 @@ export interface TimelinePresentation {
 const DEFAULT_TIMELINE_PRESENTATION: TimelinePresentation = {
   trackHeight: 3,
   trackBorderRadius: 2,
-  thumbWidth: 11,
-  thumbHeight: 11,
-  thumbTop: -4,
-  thumbMarginLeft: -5.5,
-  thumbBorderRadius: 6,
+  thumbWidth: 7,
+  thumbHeight: 7,
+  thumbTop: -2,
+  thumbMarginLeft: -3.5,
+  thumbBorderRadius: 4,
   tickTop: -1,
   tickHeight: 5,
   tickOpacity: 0.82
@@ -75,13 +75,13 @@ const DRAGGING_TIMELINE_PRESENTATION: TimelinePresentation = {
   trackHeight: 14,
   trackBorderRadius: 7,
   thumbWidth: 7,
-  thumbHeight: 28,
-  thumbTop: -7,
+  thumbHeight: 20,
+  thumbTop: -10,
   thumbMarginLeft: -3.5,
   thumbBorderRadius: 4,
-  tickTop: 3,
-  tickHeight: 8,
-  tickOpacity: 0.35
+  tickTop: 0,
+  tickHeight: 14,
+  tickOpacity: 0.62
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {

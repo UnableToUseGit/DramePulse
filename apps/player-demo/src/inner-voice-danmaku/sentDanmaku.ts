@@ -41,6 +41,7 @@ export function toDanmakuItems(items: SentInnerVoiceDanmaku[]): DanmakuItem[] {
   return items.map((item) => ({
     danmaku_id: item.id,
     time_sec: item.timeSec,
-    text: item.text
+    text: item.text,
+    variant: "inner_voice"
   }));
 }

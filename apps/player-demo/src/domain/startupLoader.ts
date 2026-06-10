@@ -40,13 +40,15 @@ export async function loadStartupData({
   cache,
   fetcher = fetch,
   timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS,
-  prefetchImage
+  prefetchImage,
+  skipPreload = false
 }: {
   apiBaseUrl: string;
   cache: PlaybackAssetCache;
   fetcher?: FetchLike;
   timeoutMs?: number;
   prefetchImage?: ImagePrefetcher;
+  skipPreload?: boolean;
 }): Promise<StartupData> {
   const [homeVideos, theaterSeries] = await Promise.all([
     loadHomeFeedVideos({ apiBaseUrl, fetcher, timeoutMs }),
@@ -54,22 +56,24 @@ export async function loadStartupData({
   ]);
 
   const summaries = theaterSeries.map(toTheaterSeriesSummary);
-  await Promise.all([
-    homeVideos[0]
-      ? preloadInitialPlaybackAssets({
-          apiBaseUrl,
-          cache,
-          videoId: homeVideos[0].videoId,
-          fetcher,
-          timeoutMs,
-          ...(prefetchImage ? { prefetchImage } : {})
-        })
-      : Promise.resolve(),
-    prefetchSeriesCovers({
-      series: summaries,
-      ...(prefetchImage ? { prefetchImage } : {})
-    })
-  ]);
+  if (!skipPreload) {
+    await Promise.all([
+      homeVideos[0]
+        ? preloadInitialPlaybackAssets({
+            apiBaseUrl,
+            cache,
+            videoId: homeVideos[0].videoId,
+            fetcher,
+            timeoutMs,
+            ...(prefetchImage ? { prefetchImage } : {})
+          })
+        : Promise.resolve(),
+      prefetchSeriesCovers({
+        series: summaries,
+        ...(prefetchImage ? { prefetchImage } : {})
+      })
+    ]);
+  }
 
   return {
     homeVideos,
