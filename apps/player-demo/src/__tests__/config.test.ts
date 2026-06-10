@@ -42,6 +42,14 @@ describe("config", () => {
     expect(config.API_BASE_URL).toBe("http://127.0.0.1:8000");
   });
 
+  it("uses Expo public env static access so EAS builds can inline the API base URL", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/config.ts", "utf8");
+
+    expect(source).toContain("process.env.EXPO_PUBLIC_API_BASE_URL");
+    expect(source).not.toContain("process.env?.EXPO_PUBLIC_API_BASE_URL");
+  });
+
   it("keeps the interaction lab hidden unless explicitly enabled", () => {
     delete process.env.EXPO_PUBLIC_ENABLE_INTERACTION_LAB;
 

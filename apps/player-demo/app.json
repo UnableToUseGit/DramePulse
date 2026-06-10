@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.dramepulse.playerdemo",
+      "versionCode": 2,
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.RECORD_AUDIO",

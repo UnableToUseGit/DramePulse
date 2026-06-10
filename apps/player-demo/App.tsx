@@ -154,6 +154,7 @@ export default function App() {
         <StatusBar style="light" hidden />
         <Text style={styles.stateTitle}>无法加载剧场数据</Text>
         <Text style={styles.stateText}>{loadError ?? "请确认 services/api 已启动"}</Text>
+        <Text style={styles.stateText}>API 地址：{API_BASE_URL}</Text>
         <Pressable style={styles.retryButton} onPress={fetchVideos}>
           <Text style={styles.retryText}>重试</Text>
         </Pressable>
