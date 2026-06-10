@@ -56,9 +56,9 @@ export function SeriesDetailSheet({
   onSelectEpisode: (video: PlayerVideo) => void;
 }) {
   const [activeTab, setActiveTab] = useState<DetailTab>("summary");
-  const dragY = useRef(new Animated.Value(0)).current;
   const viewport = useWindowDimensions();
   const offscreenY = Math.max(1, viewport.height);
+  const dragY = useRef(new Animated.Value(offscreenY)).current;
   const episodeRanges = useMemo(() => {
     if (!series) {
       return [];
@@ -78,7 +78,7 @@ export function SeriesDetailSheet({
       if (finished) {
         onClose();
         requestAnimationFrame(() => {
-          dragY.setValue(0);
+          dragY.setValue(offscreenY);
         });
       }
     });

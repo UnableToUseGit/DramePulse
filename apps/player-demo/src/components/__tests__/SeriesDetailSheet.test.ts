@@ -29,4 +29,14 @@ describe("SeriesDetailSheet", () => {
     expect(source).toContain('animationType="none"');
     expect(source).not.toContain("dragY.setValue(0);\n            onClose();");
   });
+
+  it("keeps the sheet offscreen before the opening animation starts", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/SeriesDetailSheet.tsx", "utf8");
+
+    expect(source).toContain("useRef(new Animated.Value(offscreenY)).current");
+    expect(source).toContain("dragY.setValue(offscreenY)");
+    expect(source).not.toContain("useRef(new Animated.Value(0)).current");
+    expect(source).not.toContain("dragY.setValue(0);");
+  });
 });
