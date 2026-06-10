@@ -19,6 +19,9 @@ describe("WatchAssistantPanel", () => {
     expect(source).toContain('backgroundColor: "#FFFFFF"');
     expect(source).toContain("陪看助手");
     expect(source).toContain("要我帮你捋一捋这段剧情吗");
+    expect(source).toContain("ActivityIndicator");
+    expect(source).toContain("处理中");
+    expect(source).not.toContain("我先帮你理一下这一段。");
     expect(source).toContain("contentSection");
     expect(source).toContain("composerSection");
     expect(source).toContain("justifyContent: \"center\"");

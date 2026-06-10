@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { WatchAssistantToolCall } from "../domain/watchAssistant";
 import { colors, radii, spacing } from "../theme";
 
@@ -176,7 +176,12 @@ export function WatchAssistantPanel({
         </View>
         <View style={styles.contentSection}>
           <View style={styles.answerBox}>
-            {isLoading ? <Text style={styles.answerText}>我先帮你理一下这一段。</Text> : null}
+            {isLoading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={colors.accent} />
+                <Text style={styles.loadingText}>处理中</Text>
+              </View>
+            ) : null}
             {!isLoading && primaryAnswer ? <Text style={styles.answerText}>{primaryAnswer}</Text> : null}
             {!isLoading && error ? <Text style={styles.errorText}>{error}</Text> : null}
             {!isLoading && !primaryAnswer && !error ? (
@@ -424,6 +429,18 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: "700",
     textAlign: "center"
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm
+  },
+  loadingText: {
+    color: "#4B5563",
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "700"
   },
   hintText: {
     marginTop: spacing.xs,
