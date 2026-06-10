@@ -60,13 +60,13 @@ describe("storyNavigation", () => {
       trackHeight: 14,
       trackBorderRadius: 7,
       thumbWidth: 7,
-      thumbHeight: 28,
-      thumbTop: -7,
+      thumbHeight: 20,
+      thumbTop: -10,
       thumbMarginLeft: -3.5,
       thumbBorderRadius: 4,
-      tickTop: 3,
-      tickHeight: 8,
-      tickOpacity: 0.35
+      tickTop: 0,
+      tickHeight: 14,
+      tickOpacity: 0.62
     });
   });
 
