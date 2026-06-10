@@ -47,11 +47,11 @@ describe("storyNavigation", () => {
     expect(getTimelinePresentation(false)).toEqual({
       trackHeight: 3,
       trackBorderRadius: 2,
-      thumbWidth: 11,
-      thumbHeight: 11,
-      thumbTop: -4,
-      thumbMarginLeft: -5.5,
-      thumbBorderRadius: 6,
+      thumbWidth: 7,
+      thumbHeight: 7,
+      thumbTop: -2,
+      thumbMarginLeft: -3.5,
+      thumbBorderRadius: 4,
       tickTop: -1,
       tickHeight: 5,
       tickOpacity: 0.82

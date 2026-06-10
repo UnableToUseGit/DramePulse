@@ -20,4 +20,15 @@ describe("formatEpisodeDisplayLabel", () => {
     expect(source).toContain("<View style={styles.menuButton}>");
     expect(source).not.toContain("...playerOverlay.softPanel");
   });
+
+  it("is rendered by the feed overlay instead of each scrolling video page", () => {
+    const fs = require("fs");
+    const playerChromeSource = fs.readFileSync("src/components/PlayerChrome.tsx", "utf8");
+    const playerFeedSource = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
+
+    expect(playerChromeSource).toContain("showTopBar");
+    expect(playerFeedSource).toContain("<PlayerTopBar");
+    expect(playerFeedSource).toContain("selectedPlaybackRate");
+    expect(playerFeedSource).toContain("onSelectPlaybackRate={setSelectedPlaybackRate}");
+  });
 });

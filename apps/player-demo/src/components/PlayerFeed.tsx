@@ -24,10 +24,55 @@ import {
 } from "../domain/homeFeedPlaybackObserver";
 import type { PlayerVideo } from "../domain/playerApi";
 import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
+import { resolveStoryQaContext } from "../domain/storyQa";
+import {
+  askWatchAssistant,
+  type WatchAssistantToolCall,
+  type WatchAssistantTranscription
+} from "../domain/watchAssistant";
 import type { InteractionPresentationType } from "../interaction-examples/types";
 import { HomeFeedPlaybackDebugPanel } from "./HomeFeedPlaybackDebugPanel";
-import { PlayerPage } from "./PlayerPage";
+import { PlayerBottomTabs } from "./PlayerBottomTabs";
+import { PlayerPage, type WatchAssistantActionRequest } from "./PlayerPage";
+import { PlayerTopBar } from "./PlayerTopBar";
 import { RoleCommerceAdPage } from "./RoleCommerceAdPage";
+import type { PlaybackRate } from "./SpeedSelector";
+import { WatchAssistantPanel } from "./WatchAssistantPanel";
+
+interface WatchAssistantPanelState {
+  isOpen: boolean;
+  message: string;
+  reply?: string;
+  error?: string;
+  isLoading: boolean;
+  voiceState: "idle" | "recording" | "transcribing";
+  voiceMeta?: WatchAssistantTranscription;
+  toolCalls: WatchAssistantToolCall[];
+  executionHint?: string;
+}
+
+function resetWatchAssistantState(): WatchAssistantPanelState {
+  return {
+    isOpen: false,
+    message: "",
+    reply: undefined,
+    error: undefined,
+    isLoading: false,
+    voiceState: "idle",
+    voiceMeta: undefined,
+    toolCalls: [],
+    executionHint: undefined
+  };
+}
+
+function isWebMicrophoneBlockedByInsecureOrigin(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return window.isSecureContext === false && !isLocalhost;
+}
 
 function getNextItemLabel(item: PlayerFeedItem | undefined) {
   if (item?.itemType === "video") {
@@ -85,8 +130,14 @@ export function PlayerFeed({
   const [visualActiveIndex, setVisualActiveIndex] = useState(initialIndex);
   const [pageHeight, setPageHeight] = useState(0);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+  const [selectedPlaybackRate, setSelectedPlaybackRate] = useState<PlaybackRate>(1);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const [isAssistantInteractionBlocked, setIsAssistantInteractionBlocked] = useState(false);
+  const [assistantState, setAssistantState] = useState<WatchAssistantPanelState>(() => resetWatchAssistantState());
+  const [assistantActionRequest, setAssistantActionRequest] = useState<WatchAssistantActionRequest | undefined>();
   const listRef = useRef<FlatList<PlayerFeedItem>>(null);
   const bufferedPlaybackPositionRef = useRef<BufferedPlaybackPosition | undefined>(undefined);
+  const assistantRequestRef = useRef(0);
   const isFeedDraggingRef = useRef(false);
   const playbackPositionsRef = useRef(playbackPositions);
   const visualActiveIndexRef = useRef(initialIndex);
@@ -108,7 +159,17 @@ export function PlayerFeed({
     mode,
     hasSeriesEpisodeBar: mode === "series" && seriesEpisodeCount !== undefined
   });
-  const isFeedScrollEnabled = getFeedScrollEnabled({ isTimelineDragging });
+  const isFeedScrollEnabled = getFeedScrollEnabled({
+    isTimelineDragging: isTimelineDragging || isAssistantInteractionBlocked
+  });
+  const topBarItem = feedItems[visualActiveIndex] ?? feedItems[activeIndex];
+  const topBarEpisodeLabel =
+    topBarItem?.itemType === "video" ? topBarItem.video.episodeLabel : topBarItem?.itemType === "role_commerce_ad" ? "广告" : undefined;
+
+  useEffect(() => {
+    setSelectedPlaybackRate(1);
+    setIsSpeedMenuOpen(false);
+  }, [topBarItem?.itemId]);
 
   useEffect(() => {
     playbackPositionsRef.current = playbackPositions;
@@ -342,6 +403,125 @@ export function PlayerFeed({
     [feedItems, handleSetActiveIndex, handleSetPlaybackOwnerIndex, handleSetVisualActiveIndex]
   );
 
+  const getAssistantContextItem = useCallback(() => {
+    const playbackItem = feedItems[playbackOwnerIndex];
+    if (playbackItem?.itemType === "video") {
+      return playbackItem;
+    }
+    const activeItem = feedItems[activeIndex];
+    return activeItem?.itemType === "video" ? activeItem : undefined;
+  }, [activeIndex, feedItems, playbackOwnerIndex]);
+
+  const handleOpenWatchAssistant = useCallback(() => {
+    setAssistantState((state) => ({ ...state, isOpen: true }));
+  }, []);
+
+  const handleAssistantActionApplied = useCallback((requestId: number, executionHint?: string) => {
+    setAssistantActionRequest((current) => (current?.id === requestId ? undefined : current));
+    if (executionHint) {
+      setAssistantState((state) => ({ ...state, executionHint }));
+    }
+  }, []);
+
+  const handleSubmitWatchAssistant = useCallback(
+    (quickMessage?: string, inputMode: "text" | "voice" = "text", voiceMeta?: WatchAssistantTranscription) => {
+      const nextMessage = (quickMessage ?? assistantState.message).trim();
+      setAssistantState((state) => ({
+        ...state,
+        message: nextMessage,
+        error: undefined,
+        reply: undefined,
+        voiceMeta,
+        executionHint: undefined,
+        toolCalls: []
+      }));
+      if (!nextMessage) {
+        setAssistantState((state) => ({ ...state, error: "请输入指令或剧情问题" }));
+        return;
+      }
+
+      const contextItem = getAssistantContextItem();
+      if (!contextItem) {
+        setAssistantState((state) => ({ ...state, error: "当前页面暂不支持陪看助手" }));
+        return;
+      }
+
+      const context = resolveStoryQaContext(contextItem.video);
+      const requestId = assistantRequestRef.current + 1;
+      assistantRequestRef.current = requestId;
+      setAssistantState((state) => ({ ...state, isLoading: true }));
+      askWatchAssistant({
+        apiBaseUrl: API_BASE_URL,
+        message: nextMessage,
+        seriesId: context.seriesId,
+        videoId: contextItem.video.videoId,
+        currentEpisode: context.currentEpisode,
+        currentTime: playbackPositionsRef.current[contextItem.video.videoId] ?? 0,
+        duration: contextItem.video.duration
+      })
+        .then((response) => {
+          if (assistantRequestRef.current === requestId) {
+            setAssistantState((state) => ({
+              ...state,
+              reply: response.reply,
+              toolCalls: response.toolCalls
+            }));
+            setAssistantActionRequest({
+              id: requestId,
+              actions: response.actions,
+              rawMessage: nextMessage,
+              inputMode,
+              voiceMeta
+            });
+          }
+        })
+        .catch((error: unknown) => {
+          if (assistantRequestRef.current === requestId) {
+            setAssistantState((state) => ({
+              ...state,
+              error: error instanceof Error ? error.message : "观看助手暂时不可用"
+            }));
+          }
+        })
+        .finally(() => {
+          if (assistantRequestRef.current === requestId) {
+            setAssistantState((state) => ({ ...state, isLoading: false }));
+          }
+        });
+    },
+    [assistantState.message, getAssistantContextItem]
+  );
+
+  const handleToggleVoiceRecording = useCallback(async () => {
+    if (assistantState.isLoading) {
+      return;
+    }
+    try {
+      if (isWebMicrophoneBlockedByInsecureOrigin()) {
+        throw new Error("当前页面不是 HTTPS，浏览器不会弹出麦克风授权。请使用 HTTPS 或本地 localhost 访问。");
+      }
+      await import("expo-audio");
+      setAssistantState((state) => ({
+        ...state,
+        voiceState: "idle",
+        error: "当前先用文本调试 Watch Assistant；语音录制留到 development build 阶段启用。"
+      }));
+    } catch (error) {
+      setAssistantState((state) => ({
+        ...state,
+        voiceState: "idle",
+        error:
+          error instanceof Error && error.message.includes("HTTPS")
+            ? error.message
+            : "Expo Go 不包含 ExpoAudio 原生模块。当前先用文本调试，语音输入需要 development build。"
+      }));
+    }
+  }, [assistantState.isLoading]);
+
+  const handleCancelVoiceRecording = useCallback(() => {
+    setAssistantState((state) => ({ ...state, voiceState: "idle" }));
+  }, []);
+
   const handlePlaybackPositionChange = useCallback(
     (videoId: string, time: number) => {
       const staged = stagePlaybackPositionUpdate({
@@ -379,7 +559,7 @@ export function PlayerFeed({
           ref={listRef}
           data={feedItems}
           initialScrollIndex={initialIndex}
-          extraData={`${activeIndex}:${playbackOwnerIndex}:${visualActiveIndex}:${isFeedScrollEnabled}`}
+          extraData={`${activeIndex}:${playbackOwnerIndex}:${visualActiveIndex}:${isFeedScrollEnabled}:${assistantActionRequest?.id ?? 0}`}
           keyExtractor={(item) => item.itemId}
           renderItem={({ item, index }) => {
             const playbackPageState = getFeedPlaybackPageState({
@@ -428,6 +608,7 @@ export function PlayerFeed({
                 metaBottomOffset={feedVisualLayout.metaBottomOffset}
                 actionRailBottomOffset={feedVisualLayout.actionRailBottomOffset}
                 resumePlaybackTime={playbackPageState.resumeTime}
+                playbackRate={selectedPlaybackRate}
                 hasNextEpisode={nextItem !== undefined}
                 nextEpisodeLabel={nextItemLabel}
                 selectedPresentationType={selectedPresentationType}
@@ -438,6 +619,9 @@ export function PlayerFeed({
                   mode === "home" && index === initialIndex ? onInitialVideoPlaybackReady : undefined
                 }
                 onPlayNextEpisode={() => handlePlayNextItem(index)}
+                onOpenWatchAssistant={handleOpenWatchAssistant}
+                assistantActionRequest={playbackPageState.shouldOwnPlayback ? assistantActionRequest : undefined}
+                onAssistantActionApplied={handleAssistantActionApplied}
                 mode={mode}
                 seriesEpisodeCount={seriesEpisodeCount}
                 onOpenTheater={onOpenTheater}
@@ -472,6 +656,35 @@ export function PlayerFeed({
           windowSize={3}
           removeClippedSubviews={false}
         />
+      ) : null}
+      <PlayerTopBar
+        playbackRate={selectedPlaybackRate}
+        isSpeedMenuOpen={isSpeedMenuOpen}
+        onToggleSpeedMenu={() => setIsSpeedMenuOpen((open) => !open)}
+        onSelectPlaybackRate={setSelectedPlaybackRate}
+        mode={mode}
+        episodeLabel={topBarEpisodeLabel}
+        onBack={onBack}
+      />
+      <WatchAssistantPanel
+        visible={assistantState.isOpen}
+        message={assistantState.message}
+        reply={assistantState.reply}
+        error={assistantState.error}
+        isLoading={assistantState.isLoading}
+        voiceState={assistantState.voiceState}
+        voiceDurationSec={0}
+        toolCalls={assistantState.toolCalls}
+        executionHint={assistantState.executionHint}
+        onChangeMessage={(message) => setAssistantState((state) => ({ ...state, message }))}
+        onSubmit={handleSubmitWatchAssistant}
+        onToggleVoiceRecording={handleToggleVoiceRecording}
+        onCancelVoiceRecording={handleCancelVoiceRecording}
+        onInteractionBlockChange={setIsAssistantInteractionBlocked}
+        onClose={() => setAssistantState((state) => ({ ...state, isOpen: false }))}
+      />
+      {mode === "home" ? (
+        <PlayerBottomTabs activeTab="首页" presentation="docked" onPressTheater={onOpenTheater} />
       ) : null}
       {playbackObserver ? <HomeFeedPlaybackDebugPanel observer={playbackObserver} /> : null}
     </View>

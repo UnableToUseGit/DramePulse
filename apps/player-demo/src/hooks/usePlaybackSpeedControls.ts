@@ -4,6 +4,7 @@ import type { PlaybackRate } from "../components/SpeedSelector";
 export function usePlaybackSpeedControls({
   isActive,
   isStarted,
+  playbackRate,
   onStart,
   onResume,
   resetKey,
@@ -11,19 +12,21 @@ export function usePlaybackSpeedControls({
 }: {
   isActive: boolean;
   isStarted: boolean;
+  playbackRate?: PlaybackRate;
   onStart: () => void;
   onResume: () => void;
   resetKey: string;
   onTap: () => void;
 }) {
-  const [playbackRate, setPlaybackRate] = useState<PlaybackRate>(1);
+  const [localPlaybackRate, setLocalPlaybackRate] = useState<PlaybackRate>(1);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
   const [isHoldingFastForward, setIsHoldingFastForward] = useState(false);
   const didLongPressSpeedRef = useRef(false);
-  const effectivePlaybackRate = isHoldingFastForward ? 2 : playbackRate;
+  const resolvedPlaybackRate = playbackRate ?? localPlaybackRate;
+  const effectivePlaybackRate = isHoldingFastForward ? 2 : resolvedPlaybackRate;
 
   useEffect(() => {
-    setPlaybackRate(1);
+    setLocalPlaybackRate(1);
     setIsSpeedMenuOpen(false);
     setIsHoldingFastForward(false);
     didLongPressSpeedRef.current = false;
@@ -42,7 +45,7 @@ export function usePlaybackSpeedControls({
   }, []);
 
   const selectPlaybackRate = useCallback((rate: PlaybackRate) => {
-    setPlaybackRate(rate);
+    setLocalPlaybackRate(rate);
     setIsSpeedMenuOpen(false);
   }, []);
 
@@ -78,7 +81,7 @@ export function usePlaybackSpeedControls({
     handleRightPressOut,
     isHoldingFastForward,
     isSpeedMenuOpen,
-    playbackRate,
+    playbackRate: resolvedPlaybackRate,
     selectPlaybackRate,
     toggleSpeedMenu
   };

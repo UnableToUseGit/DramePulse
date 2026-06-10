@@ -20,6 +20,9 @@ export interface ApiVideo {
   episode_label?: string | null;
   duration?: number | null;
   stream_url: string;
+  stream_type?: string;
+  hls_url?: string;
+  mp4_url?: string;
   danmaku_url: string;
   story_chapters?: unknown;
   storyboard?: unknown;
@@ -115,7 +118,7 @@ export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo 
   const seriesName = toOptionalString(value.series_name);
   const episodeLabel = toOptionalString(value.episode_label);
   const displayTitle = seriesName || rawTitle;
-  const streamPath = toStringValue(value.stream_url);
+  const streamPath = toOptionalString(value.mp4_url) ?? toStringValue(value.stream_url);
   const danmakuPath = toStringValue(value.danmaku_url);
   if (!videoId || !rawTitle || !streamPath || !danmakuPath) {
     return undefined;
