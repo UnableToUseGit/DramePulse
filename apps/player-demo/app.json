@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "DramePulse Player",
+    "owner": "minghaoqin",
     "slug": "dramepulse-player-demo",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -18,14 +19,23 @@
     },
     "android": {
       "package": "com.dramepulse.playerdemo",
-      "usesCleartextTraffic": true,
       "edgeToEdgeEnabled": true,
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "plugins": [
       "expo-audio",
       "expo-video",
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-asset",
+      "./plugins/withAndroidCleartextTraffic"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a1128f65-aa37-41ea-b1ed-8777b60fb7f1"
+      }
+    }
   }
 }

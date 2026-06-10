@@ -134,7 +134,7 @@ npm start
 - 播放观测当前不覆盖 Series Feed、广告页、弹幕和互动组件渲染成本；
 - 剧集广告当前只负责读取服务端 slot、插入 Feed 和播放广告视频，还未接入广告曝光、点击、转化等事件上报；
 - 播放器当前的 Interaction Lab 仍是前端本地互动形态实验，不等同于完整的服务端 `Interaction Plan` 自动触发链路；
-- 播放器当前未配置 EAS Build 安装包，主要通过 Expo Go 预览；
+- 播放器已配置 EAS Build，`preview` profile 可产出 Android APK 演示包，`simulator` profile 可产出 iOS Simulator 包，`production` profile 可用于正式 iOS/Android 构建；各 profile 默认连接云端 API；
 - Expo CLI 建议使用 `apps/player-demo/.nvmrc` 指定的 Node 版本；Anaconda Node 24 可能触发 `ERR_SOCKET_BAD_PORT`。
 - TanStack Query 可以作为后续数据请求治理增强项评估；当前阶段先沿用项目已有 domain loader、启动预热器和播放资产缓存，避免在性能问题尚未收敛前引入新的全局缓存语义。
 

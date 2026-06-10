@@ -91,6 +91,38 @@ EXPO_PUBLIC_API_BASE_URL=http://<your-lan-ip>:8000 npm start
 
 如果 Expo CLI 在端口探测时报 `ERR_SOCKET_BAD_PORT`，请确认当前 Node 版本使用的是 `apps/player-demo/.nvmrc` 指定版本。
 
+### 4. 打包移动端 App
+
+播放器 Demo 已配置 EAS Build。比赛演示最快路径是先打 Android APK，安装到安卓真机即可使用云端 API。
+
+注意：下面命令必须在 `apps/player-demo/` 这个 Expo 项目目录里执行，不要在仓库根目录直接运行；否则会找不到 `.nvmrc`、`package-lock.json` 或 EAS 项目配置。
+
+```bash
+cd apps/player-demo
+nvm use
+npm ci
+npx eas-cli@latest login
+npx eas-cli@latest build -p android --profile preview
+```
+
+首次 EAS 构建可能会提示登录、创建或关联 Expo 项目，按 CLI 提示完成即可。构建完成后，EAS 会输出一个 `.apk` 下载链接；也可以在项目页面查看历史构建：
+
+```text
+https://expo.dev/accounts/minghaoqin/projects/dramepulse-player-demo
+```
+
+`preview`、`simulator` 和 `production` 构建配置默认连接云端 API：
+
+```text
+http://39.96.219.88:8000
+```
+
+iOS 真机包需要 Apple Developer 凭证，可使用 production 构建；如果只需要在 iOS Simulator 验收，可先构建 simulator profile：
+
+```bash
+npx eas-cli@latest build -p ios --profile simulator
+```
+
 ## 致谢
 
 本项目在视频分析与镜头切分能力上参考或使用了以下开源项目：
