@@ -1,10 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { WatchAssistantToolCall } from "../domain/watchAssistant";
 import { colors, radii, spacing } from "../theme";
 
 const QUICK_COMMANDS = ["刚才发生了什么", "快进到高光", "下一集", "暂停"];
+const PANEL_HIDDEN_TRANSLATE_Y = 380;
+const SWIPE_DISMISS_DISTANCE_PX = 72;
 
 export function WatchAssistantPanel({
   visible,
@@ -20,6 +22,7 @@ export function WatchAssistantPanel({
   onSubmit,
   onToggleVoiceRecording,
   onCancelVoiceRecording,
+  onInteractionBlockChange,
   onClose
 }: {
   visible: boolean;
@@ -35,42 +38,141 @@ export function WatchAssistantPanel({
   onSubmit: (message?: string) => void;
   onToggleVoiceRecording: () => void;
   onCancelVoiceRecording: () => void;
+  onInteractionBlockChange?: (isBlocked: boolean) => void;
   onClose: () => void;
 }) {
+  const [shouldRender, setShouldRender] = useState(visible);
+  const sheetProgress = useRef(new Animated.Value(visible ? 1 : 0)).current;
+  const dragTranslateY = useRef(new Animated.Value(0)).current;
+  const isAnimatingRef = useRef(false);
+
+  useEffect(() => {
+    if (visible) {
+      setShouldRender(true);
+      dragTranslateY.setValue(0);
+      isAnimatingRef.current = true;
+      Animated.parallel([
+        Animated.timing(sheetProgress, {
+          toValue: 1,
+          duration: 240,
+          useNativeDriver: true
+        }),
+        Animated.spring(dragTranslateY, {
+          toValue: 0,
+          tension: 72,
+          friction: 12,
+          useNativeDriver: true
+        })
+      ]).start(() => {
+        isAnimatingRef.current = false;
+      });
+      return;
+    }
+
+    if (!shouldRender) {
+      return;
+    }
+
+    isAnimatingRef.current = true;
+    Animated.parallel([
+      Animated.timing(sheetProgress, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true
+      }),
+      Animated.timing(dragTranslateY, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true
+      })
+    ]).start(() => {
+      isAnimatingRef.current = false;
+      setShouldRender(false);
+    });
+  }, [dragTranslateY, sheetProgress, shouldRender, visible]);
+
+  useEffect(() => {
+    onInteractionBlockChange?.(shouldRender);
+    return () => {
+      onInteractionBlockChange?.(false);
+    };
+  }, [onInteractionBlockChange, shouldRender]);
+
+  const requestClose = () => {
+    if (!visible || isAnimatingRef.current) {
+      return;
+    }
+    onClose();
+  };
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
+        onMoveShouldSetPanResponderCapture: (_event, gesture) =>
           gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderMove: (_event, gesture) => {
+          dragTranslateY.setValue(Math.max(0, gesture.dy));
+        },
         onPanResponderRelease: (_event, gesture) => {
-          if (gesture.dy > 48) {
-            onClose();
+          if (gesture.dy > SWIPE_DISMISS_DISTANCE_PX) {
+            requestClose();
+            return;
           }
+          Animated.spring(dragTranslateY, {
+            toValue: 0,
+            tension: 84,
+            friction: 11,
+            useNativeDriver: true
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(dragTranslateY, {
+            toValue: 0,
+            tension: 84,
+            friction: 11,
+            useNativeDriver: true
+          }).start();
         }
       }),
-    [onClose]
+    [dragTranslateY, visible]
   );
 
-  if (!visible) {
+  if (!shouldRender) {
     return null;
   }
 
+  const overlayOpacity = sheetProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1]
+  });
+  const translateY = Animated.add(
+    dragTranslateY,
+    sheetProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [PANEL_HIDDEN_TRANSLATE_Y, 0]
+    })
+  );
+
   return (
-    <View style={styles.overlay}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="关闭观看助手遮罩"
-        style={styles.backdrop}
-        onPress={onClose}
-      />
-      <View style={styles.root} {...panResponder.panHandlers}>
-        <View style={styles.handle} />
+    <View pointerEvents="box-none" style={styles.overlay}>
+      <Animated.View style={[styles.backdropWrap, { opacity: overlayOpacity }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="关闭观看助手遮罩"
+          style={styles.backdrop}
+          onPress={requestClose}
+        />
+      </Animated.View>
+      <Animated.View style={[styles.root, { transform: [{ translateY }] }]}>
+        <View style={styles.handleTouchArea} {...panResponder.panHandlers}>
+          <View style={styles.handle} />
+        </View>
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <MaterialCommunityIcons name="robot-outline" size={22} color={colors.gold} />
             <Text style={styles.title}>观看助手</Text>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="关闭观看助手" style={styles.closeButton} onPress={onClose}>
+          <Pressable accessibilityRole="button" accessibilityLabel="关闭观看助手" style={styles.closeButton} onPress={requestClose}>
             <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
         </View>
@@ -149,7 +251,7 @@ export function WatchAssistantPanel({
             ))}
           </View>
         ) : null}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -159,9 +261,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     zIndex: 20
   },
+  backdropWrap: {
+    ...StyleSheet.absoluteFillObject
+  },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent"
+    backgroundColor: "rgba(0,0,0,0.18)"
   },
   root: {
     position: "absolute",
@@ -179,15 +284,21 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.12)",
     zIndex: 21
   },
+  handleTouchArea: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 28,
+    marginTop: -4
+  },
   handle: {
-    alignSelf: "center",
     width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: "rgba(255,255,255,0.28)"
   },
   header: {
-    marginTop: spacing.md,
+    marginTop: spacing.xs,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

@@ -189,6 +189,8 @@ export function PlayerPage({
   const [seekVersion, setSeekVersion] = useState(0);
   const [liked, setLiked] = useState(false);
   const [isTimelineDragging, setIsTimelineDragging] = useState(false);
+  const [isInnerVoiceGestureActive, setIsInnerVoiceGestureActive] = useState(false);
+  const [isAssistantInteractionBlocked, setIsAssistantInteractionBlocked] = useState(false);
   const [sentInnerVoiceDanmaku, setSentInnerVoiceDanmaku] = useState<SentInnerVoiceDanmaku[]>([]);
   const [completedResonanceCueIds, setCompletedResonanceCueIds] = useState<Set<string>>(() => new Set());
   const [completedInteractionCueIds, setCompletedInteractionCueIds] = useState<Set<string>>(() => new Set());
@@ -451,6 +453,9 @@ export function PlayerPage({
       setUserPlaybackIntent("playing");
       setSeekRequest(undefined);
       setSeekVersion((version) => version + 1);
+      setIsTimelineDragging(false);
+      setIsInnerVoiceGestureActive(false);
+      setIsAssistantInteractionBlocked(false);
       setSentInnerVoiceDanmaku([]);
       setCompletedResonanceCueIds(new Set());
       if (videoChanged) {
@@ -608,9 +613,8 @@ export function PlayerPage({
   const handleTimelineDragStateChange = useCallback(
     (isDragging: boolean) => {
       setIsTimelineDragging(isDragging);
-      onTimelineDragStateChange?.(isDragging);
     },
-    [onTimelineDragStateChange]
+    []
   );
 
   const reportAssistantPlaybackEvent = useCallback(
@@ -694,10 +698,23 @@ export function PlayerPage({
 
   const handleInnerVoiceGestureActiveChange = useCallback(
     (isGestureActive: boolean) => {
-      onTimelineDragStateChange?.(isGestureActive);
+      setIsInnerVoiceGestureActive(isGestureActive);
     },
-    [onTimelineDragStateChange]
+    []
   );
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    onTimelineDragStateChange?.(isTimelineDragging || isInnerVoiceGestureActive || isAssistantInteractionBlocked);
+  }, [
+    isActive,
+    isAssistantInteractionBlocked,
+    isInnerVoiceGestureActive,
+    isTimelineDragging,
+    onTimelineDragStateChange
+  ]);
 
   const handleSendInnerVoiceDanmaku = useCallback(
     (cue: InnerVoiceDanmakuCue) => {
@@ -993,6 +1010,7 @@ export function PlayerPage({
           onSubmit={handleSubmitWatchAssistant}
           onToggleVoiceRecording={handleToggleVoiceRecording}
           onCancelVoiceRecording={handleCancelVoiceRecording}
+          onInteractionBlockChange={setIsAssistantInteractionBlocked}
           onClose={() => setAssistantState((state) => ({ ...state, isOpen: false }))}
         />
       ) : null}
