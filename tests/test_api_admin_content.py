@@ -127,6 +127,16 @@ class AdminContentApiTest(unittest.TestCase):
             connection.close()
         self.assertEqual(status_value, "deleted")
 
+    def test_delete_series_marks_raw_imported_videos_inactive(self) -> None:
+        self._insert_video("shibasui_tainainai_ep01", "shibasui_tainainai", "十八岁太奶奶", 1, "raw/shibasui_tainainai/ep01/video.mp4")
+
+        response = self.client.delete("/api/admin/series/shibasui_tainainai")
+        videos_response = self.client.get("/api/videos")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["deleted_episode_count"], 1)
+        self.assertNotIn("shibasui_tainainai_ep01", {item["video_id"] for item in videos_response.json()["videos"]})
+
     def test_restore_series_marks_videos_active_again(self) -> None:
         self._insert_video("tianxiadiyiwanku_ep01", "tianxiadiyiwanku", "demo", 1)
         self.client.delete("/api/admin/series/tianxiadiyiwanku")

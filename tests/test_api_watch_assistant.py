@@ -86,6 +86,23 @@ class WatchAssistantApiTest(unittest.TestCase):
         self.assertEqual(body["actions"][0]["type"], "seek")
         self.assertEqual(body["actions"][0]["target_time"], 42)
 
+    def test_llm_seek_without_arguments_keeps_highlight_target_from_message(self) -> None:
+        with (
+            patch("services.api.watch_assistant.service._parse_with_llm") as parse_with_llm,
+            patch("services.api.watch_assistant.service.list_interaction_plans") as plans,
+        ):
+            parse_with_llm.return_value = {"tools": [{"name": "seek", "arguments": {}}], "reply": ""}
+            plans.return_value = [
+                {"interaction_id": "i1", "trigger_time": 12},
+                {"interaction_id": "i2", "trigger_time": 42},
+            ]
+            response = self.post_act("快进到高光", current_time=20, duration=90)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["actions"][0]["type"], "seek")
+        self.assertEqual(body["actions"][0]["target_time"], 42)
+
     def test_transcribe_accepts_audio_upload_with_mock_backend(self) -> None:
         response = self.client.post(
             "/api/watch-assistant/transcribe",

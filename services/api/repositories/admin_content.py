@@ -382,9 +382,8 @@ def delete_series(series_id: str) -> dict[str, Any]:
                 updated_at = {now_sql}
             WHERE series_id = {placeholder}
               AND status = 'active'
-              AND oss_object_key LIKE {placeholder}
             """,
-            (clean_series_id, DRAMA_OBJECT_KEY_PREFIX),
+            (clean_series_id,),
         )
         deleted_count = int(cursor.rowcount or 0)
     if deleted_count == 0:
@@ -405,9 +404,8 @@ def restore_series(series_id: str) -> dict[str, Any]:
                 updated_at = {now_sql}
             WHERE series_id = {placeholder}
               AND status = 'deleted'
-              AND oss_object_key LIKE {placeholder}
             """,
-            (clean_series_id, DRAMA_OBJECT_KEY_PREFIX),
+            (clean_series_id,),
         )
         restored_count = int(cursor.rowcount or 0)
     if restored_count == 0:

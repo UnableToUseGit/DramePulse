@@ -95,6 +95,121 @@ class InteractionApiTest(unittest.TestCase):
         self.assertEqual(plans[0]["result_time"], 18.0)
         self.assertEqual(len(plans[0]["options"]), 3)
 
+    def test_upload_interaction_plans_requires_admin_login(self) -> None:
+        response = self.client.post(
+            "/api/admin/videos/demo_ep01/interaction-plans",
+            json=self._upload_payload(),
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_upload_interaction_plans_rejects_missing_video(self) -> None:
+        self._login_admin()
+
+        response = self.client.post(
+            "/api/admin/videos/missing_video/interaction-plans",
+            json=self._upload_payload(),
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_upload_interaction_plans_replaces_existing_and_is_readable(self) -> None:
+        self._login_admin()
+
+        response = self.client.post(
+            "/api/admin/videos/demo_ep01/interaction-plans",
+            json=self._upload_payload(),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "video_id": "demo_ep01",
+                "uploaded_count": 1,
+                "option_count": 2,
+                "disabled_existing_count": 1,
+                "active_count": 1,
+            },
+        )
+
+        list_response = self.client.get("/api/videos/demo_ep01/interaction-plans")
+        plans = list_response.json()["interaction_plans"]
+        self.assertEqual(len(plans), 1)
+        self.assertEqual(plans[0]["interaction_id"], "i_uploaded_ep01_001")
+        self.assertEqual(plans[0]["video_id"], "demo_ep01")
+        self.assertEqual(plans[0]["question"], "What should happen next?")
+        self.assertEqual([option["rank"] for option in plans[0]["options"]], [1, 2])
+
+    def test_upload_interaction_plans_forces_active_status(self) -> None:
+        self._login_admin()
+        payload = self._upload_payload()
+        payload["interaction_plans"][0]["status"] = "disabled"
+        payload["interaction_plans"][0]["options"][0]["status"] = "disabled"
+        payload["interaction_plans"][0]["options"][1]["status"] = "disabled"
+
+        response = self.client.post(
+            "/api/admin/videos/demo_ep01/interaction-plans",
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        plans = self.client.get("/api/videos/demo_ep01/interaction-plans").json()["interaction_plans"]
+        self.assertEqual(len(plans), 1)
+        self.assertEqual(plans[0]["status"], "active")
+        self.assertEqual([option["status"] for option in plans[0]["options"]], ["active", "active"])
+
+    def test_upload_interaction_plans_without_replace_keeps_existing(self) -> None:
+        self._login_admin()
+
+        response = self.client.post(
+            "/api/admin/videos/demo_ep01/interaction-plans",
+            json=self._upload_payload(replace_existing=False),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["disabled_existing_count"], 0)
+
+        plans = self.client.get("/api/videos/demo_ep01/interaction-plans").json()["interaction_plans"]
+        self.assertEqual({plan["interaction_id"] for plan in plans}, {"i_demo_ep01_001", "i_uploaded_ep01_001"})
+
+    def test_upload_interaction_plans_rejects_non_danmaku_poll(self) -> None:
+        self._login_admin()
+        payload = self._upload_payload()
+        payload["interaction_plans"][0]["interaction_type"] = "emotion_pulse"
+
+        response = self.client.post("/api/admin/videos/demo_ep01/interaction-plans", json=payload)
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_upload_interaction_plans_rejects_empty_options(self) -> None:
+        self._login_admin()
+        payload = self._upload_payload()
+        payload["interaction_plans"][0]["options"] = []
+
+        response = self.client.post("/api/admin/videos/demo_ep01/interaction-plans", json=payload)
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_upload_interaction_plans_rejects_invalid_time(self) -> None:
+        self._login_admin()
+        payload = self._upload_payload()
+        payload["interaction_plans"][0]["expire_time"] = 8.0
+
+        response = self.client.post("/api/admin/videos/demo_ep01/interaction-plans", json=payload)
+
+        self.assertEqual(response.status_code, 422)
+
+    def test_upload_interaction_plans_rejects_duplicate_option_rank(self) -> None:
+        self._login_admin()
+        payload = self._upload_payload()
+        payload["interaction_plans"][0]["options"][0]["rank"] = 1
+        payload["interaction_plans"][0]["options"][1]["rank"] = 1
+
+        response = self.client.post("/api/admin/videos/demo_ep01/interaction-plans", json=payload)
+
+        self.assertEqual(response.status_code, 422)
+
     def test_option_click_updates_results(self) -> None:
         response = self.client.post(
             "/api/events",
@@ -164,6 +279,47 @@ class InteractionApiTest(unittest.TestCase):
         payload = response.json()
         self.assertEqual(payload["total_votes"], 0)
         self.assertTrue(all(option["ratio"] == 0 for option in payload["options"]))
+
+    def _login_admin(self) -> None:
+        response = self.client.post(
+            "/api/admin/auth/login",
+            json={"username": "root", "password": "Dramepulse"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def _upload_payload(self, *, replace_existing: bool = True) -> dict[str, object]:
+        return {
+            "replace_existing": replace_existing,
+            "interaction_plans": [
+                {
+                    "interaction_id": "i_uploaded_ep01_001",
+                    "highlight_id": "h_uploaded_ep01_001",
+                    "video_id": "ignored_video_id",
+                    "trigger_time": 10.0,
+                    "expire_time": 18.0,
+                    "result_time": 20.0,
+                    "interaction_type": "danmaku_poll",
+                    "question": "What should happen next?",
+                    "options": [
+                        {
+                            "option_id": "o_uploaded_ep01_001",
+                            "text": "Option A",
+                            "danmaku_text": "I choose A",
+                            "base_score": 0.7,
+                        },
+                        {
+                            "option_id": "o_uploaded_ep01_002",
+                            "text": "Option B",
+                            "danmaku_text": "I choose B",
+                            "base_score": 0.6,
+                        },
+                    ],
+                    "feedback": {"type": "poll_result", "show_ratio": True},
+                    "display_position": "subtitle_safe_area",
+                    "status": "active",
+                }
+            ],
+        }
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class VideoResponse(BaseModel):
@@ -142,6 +142,101 @@ class InteractionPlan(BaseModel):
 class InteractionPlansResponse(BaseModel):
     video_id: str
     interaction_plans: list[InteractionPlan]
+
+
+class AdminInteractionOptionUpload(BaseModel):
+    option_id: str = Field(min_length=1)
+    text: str = Field(min_length=1)
+    danmaku_text: str = Field(min_length=1)
+    rank: int | None = Field(default=None, ge=1)
+    base_score: float | None = Field(default=None, ge=0, le=1)
+    status: str = "active"
+
+
+class AdminInteractionPlanUpload(BaseModel):
+    interaction_id: str = Field(min_length=1)
+    highlight_id: str = Field(min_length=1)
+    video_id: str | None = None
+    trigger_time: float = Field(ge=0)
+    expire_time: float = Field(ge=0)
+    result_time: float = Field(ge=0)
+    interaction_type: Literal["danmaku_poll"]
+    question: str = Field(min_length=1)
+    options: list[AdminInteractionOptionUpload] = Field(min_length=1)
+    feedback: dict[str, Any] = Field(default_factory=dict)
+    display_position: str = "subtitle_safe_area"
+    status: str = "active"
+
+    @model_validator(mode="after")
+    def validate_plan(self) -> "AdminInteractionPlanUpload":
+        if self.expire_time < self.trigger_time:
+            raise ValueError("expire_time must be greater than or equal to trigger_time")
+        if self.result_time < self.trigger_time:
+            raise ValueError("result_time must be greater than or equal to trigger_time")
+        ranks = [option.rank for option in self.options if option.rank is not None]
+        if len(ranks) != len(set(ranks)):
+            raise ValueError("option ranks must be unique")
+        option_ids = [option.option_id for option in self.options]
+        if len(option_ids) != len(set(option_ids)):
+            raise ValueError("option_id values must be unique within a plan")
+        for index, option in enumerate(self.options, start=1):
+            if option.rank is None:
+                option.rank = index
+        return self
+
+
+class AdminInteractionPlanUploadRequest(BaseModel):
+    interaction_plans: list[AdminInteractionPlanUpload] = Field(min_length=1)
+    replace_existing: bool = True
+
+
+class AdminInteractionPlanUploadResponse(BaseModel):
+    video_id: str
+    uploaded_count: int
+    option_count: int
+    disabled_existing_count: int
+    active_count: int
+
+
+class AdminVideoInteractionAssetItemUpload(BaseModel):
+    interaction_id: str = Field(min_length=1)
+    trigger_time: float = Field(ge=0)
+    expire_time: float = Field(ge=0)
+    duration_sec: float | None = Field(default=None, ge=0)
+    content: dict[str, Any] = Field(default_factory=dict)
+    status: str = "active"
+
+    @model_validator(mode="after")
+    def validate_item(self) -> "AdminVideoInteractionAssetItemUpload":
+        if self.expire_time < self.trigger_time:
+            raise ValueError("expire_time must be greater than or equal to trigger_time")
+        return self
+
+
+class AdminVideoInteractionAssetsUploadRequest(BaseModel):
+    interaction_mode: str = Field(min_length=1)
+    items: list[AdminVideoInteractionAssetItemUpload] = Field(min_length=1)
+    replace_existing: bool = True
+    source_video_id: str | None = None
+    source_series_id: str | None = None
+    canonical_series_id: str | None = None
+    episode_no: int | None = Field(default=None, ge=1)
+    asset_id: str | None = None
+
+    @model_validator(mode="after")
+    def validate_asset(self) -> "AdminVideoInteractionAssetsUploadRequest":
+        interaction_ids = [item.interaction_id for item in self.items]
+        if len(interaction_ids) != len(set(interaction_ids)):
+            raise ValueError("interaction_id values must be unique within an upload")
+        return self
+
+
+class AdminVideoInteractionAssetsUploadResponse(BaseModel):
+    video_id: str
+    interaction_mode: str
+    uploaded_count: int
+    disabled_existing_count: int
+    active_count: int
 
 
 class StoryChapter(BaseModel):
@@ -436,6 +531,7 @@ class AdminLoginRequest(BaseModel):
 class AdminAuthResponse(BaseModel):
     authenticated: bool
     username: str | None = None
+    role: str | None = None
 
 
 class AdminSeriesResponse(BaseModel):

@@ -263,19 +263,19 @@ export function PlayerPage({
         if (action.type === "seek" && typeof action.targetTime === "number") {
           handleSeekCommit(action.targetTime);
           reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
-          hint = "已执行跳转";
           return;
         }
         if (action.type === "next_episode") {
           const moved = onRequestNextEpisode();
-          hint = moved ? "已切到下一集" : "已经是最后一集";
+          if (!moved) {
+            hint = "已经是最后一集";
+          }
           return;
         }
         if (action.type === "pause") {
           setIsStarted(true);
           setIsPlaying(false);
           reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
-          hint = "已暂停";
           return;
         }
         if (action.type === "resume") {
@@ -283,7 +283,6 @@ export function PlayerPage({
           setIsStarted(true);
           setIsPlaying(true);
           reportAssistantPlaybackEvent(action, rawMessage, inputMode, voiceMeta);
-          hint = "继续播放";
         }
       });
       return hint;
@@ -323,9 +322,14 @@ export function PlayerPage({
         .then((response) => {
           if (assistantRequestRef.current === requestId) {
             const executionHint = applyAssistantActions(response.actions, nextMessage, inputMode, voiceMeta);
+            const hasAnswerAction = response.actions.some((action) => action.type === "answer");
+            const hasControlAction = response.actions.some((action) =>
+              ["seek", "next_episode", "pause", "resume"].includes(action.type)
+            );
+            const shouldSuppressControlReply = hasControlAction && !hasAnswerAction && !executionHint;
             setAssistantState((state) => ({
               ...state,
-              reply: response.reply,
+              reply: shouldSuppressControlReply ? undefined : response.reply,
               toolCalls: response.toolCalls,
               executionHint
             }));

@@ -81,6 +81,15 @@ class NewAssetsImportTest(unittest.TestCase):
         self.assertEqual(interaction_response.status_code, 200)
         self.assertEqual(interaction_response.json()["items"][0]["interaction_id"], "ivp_001")
 
+        source_id_interaction_response = client.get("/api/videos/naniandongzhi_ep01/interaction-assets?mode=inner_voice_danmaku")
+        self.assertEqual(source_id_interaction_response.status_code, 200)
+        self.assertEqual(source_id_interaction_response.json()["video_id"], "naniandonzhi_ep01")
+        self.assertEqual(source_id_interaction_response.json()["items"][0]["interaction_id"], "ivp_001")
+
+        source_id_plot_response = client.get("/api/videos/naniandongzhi_ep01/plot-beats")
+        self.assertEqual(source_id_plot_response.status_code, 200)
+        self.assertEqual(source_id_plot_response.json()["video_id"], "naniandonzhi_ep01")
+
         ad_response = client.get("/api/series/beiwang/ad-slots")
         self.assertEqual(ad_response.status_code, 200)
         self.assertEqual(ad_response.json()["slots"][0]["ad"]["ad_id"], "ad_001")
@@ -96,6 +105,93 @@ class NewAssetsImportTest(unittest.TestCase):
         self.assertEqual(range_response.status_code, 206)
         self.assertEqual(range_response.content, b"ide")
         self.assertEqual(range_response.headers["content-range"], "bytes 1-3/5")
+
+    def test_upload_interaction_assets_requires_admin_login(self) -> None:
+        client = TestClient(create_app())
+
+        response = client.post(
+            "/api/admin/videos/naniandongzhi_ep01/interaction-assets",
+            json=self._upload_interaction_assets_payload(),
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_upload_interaction_assets_rejects_missing_video(self) -> None:
+        client = TestClient(create_app())
+        self._login_admin(client)
+
+        response = client.post(
+            "/api/admin/videos/missing_ep01/interaction-assets",
+            json=self._upload_interaction_assets_payload(),
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_upload_interaction_assets_replaces_existing_and_is_readable(self) -> None:
+        source_root = self.tmp_path / "NewAssets"
+        self._write_interaction_assets(source_root)
+        import_new_assets(source_root, apply=True)
+        client = TestClient(create_app())
+        self._login_admin(client)
+
+        response = client.post(
+            "/api/admin/videos/naniandongzhi_ep01/interaction-assets",
+            json=self._upload_interaction_assets_payload(),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "video_id": "naniandonzhi_ep01",
+                "interaction_mode": "inner_voice_danmaku",
+                "uploaded_count": 1,
+                "disabled_existing_count": 1,
+                "active_count": 1,
+            },
+        )
+        get_response = client.get("/api/videos/naniandongzhi_ep01/interaction-assets?mode=inner_voice_danmaku")
+        items = get_response.json()["items"]
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["interaction_id"], "ivp_uploaded_001")
+        self.assertEqual(items[0]["video_id"], "naniandonzhi_ep01")
+        self.assertEqual(items[0]["interaction_mode"], "inner_voice_danmaku")
+        self.assertEqual(items[0]["source_asset_id"], "admin_naniandonzhi_ep01_inner_voice_danmaku")
+        self.assertEqual(items[0]["status"], "active")
+
+    def test_upload_interaction_assets_without_replace_keeps_existing(self) -> None:
+        source_root = self.tmp_path / "NewAssets"
+        self._write_interaction_assets(source_root)
+        import_new_assets(source_root, apply=True)
+        client = TestClient(create_app())
+        self._login_admin(client)
+        payload = self._upload_interaction_assets_payload(replace_existing=False)
+
+        response = client.post(
+            "/api/admin/videos/naniandongzhi_ep01/interaction-assets",
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["disabled_existing_count"], 0)
+        get_response = client.get("/api/videos/naniandongzhi_ep01/interaction-assets?mode=inner_voice_danmaku")
+        self.assertEqual(
+            {item["interaction_id"] for item in get_response.json()["items"]},
+            {"ivp_001", "ivp_uploaded_001"},
+        )
+
+    def test_upload_interaction_assets_rejects_invalid_payload(self) -> None:
+        client = TestClient(create_app())
+        self._login_admin(client)
+        payload = self._upload_interaction_assets_payload()
+        payload["items"][0]["expire_time"] = 10.0
+
+        response = client.post(
+            "/api/admin/videos/naniandongzhi_ep01/interaction-assets",
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 422)
 
     def _insert_video(self, video_id: str, series_id: str, episode_no: int) -> None:
         connection = sqlite3.connect(self.sqlite_path)
@@ -205,6 +301,30 @@ class NewAssetsImportTest(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+
+    def _login_admin(self, client: TestClient) -> None:
+        response = client.post(
+            "/api/admin/auth/login",
+            json={"username": "root", "password": "Dramepulse"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def _upload_interaction_assets_payload(self, *, replace_existing: bool = True) -> dict[str, object]:
+        return {
+            "interaction_mode": "inner_voice_danmaku",
+            "replace_existing": replace_existing,
+            "source_video_id": "ignored_source_video",
+            "items": [
+                {
+                    "interaction_id": "ivp_uploaded_001",
+                    "trigger_time": 12.0,
+                    "expire_time": 20.0,
+                    "duration_sec": 8.0,
+                    "content": {"text": "Uploaded inner voice"},
+                    "status": "disabled",
+                }
+            ],
+        }
 
 
 if __name__ == "__main__":

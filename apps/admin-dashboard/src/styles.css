@@ -21,6 +21,10 @@ button {
   font: inherit;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .app-shell {
   width: min(1440px, 100%);
   margin: 0 auto;

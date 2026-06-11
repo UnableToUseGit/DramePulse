@@ -75,7 +75,10 @@ def _parse_with_llm(payload: WatchAssistantRequest) -> dict[str, Any] | None:
         if name not in {"story_qa", "seek", "seek_relative", "next_episode", "pause", "resume", "noop"}:
             continue
         arguments = tool.get("arguments")
-        safe_tools.append({"name": name, "arguments": arguments if isinstance(arguments, dict) else {}})
+        safe_arguments = arguments if isinstance(arguments, dict) else {}
+        if name == "seek":
+            safe_arguments = _normalize_seek_arguments(payload.message, safe_arguments)
+        safe_tools.append({"name": name, "arguments": safe_arguments})
     if not safe_tools:
         return None
     reply = parsed.get("reply")
@@ -110,6 +113,17 @@ def _parse_with_rules(message: str) -> dict[str, Any]:
     if not tools:
         tools.append({"name": "story_qa", "arguments": {"question": text}})
     return {"tools": tools, "reply": ""}
+
+
+def _normalize_seek_arguments(message: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(arguments.get("target_time"), (int, float)):
+        return arguments
+    target = str(arguments.get("target") or "").lower()
+    if target in {"highlight", "highlight_point"}:
+        return {**arguments, "target": "highlight"}
+    if target in {"高光", "精彩", "爽点", "名场面"} or re.search(r"(高光|精彩|爽点|名场面)", message):
+        return {**arguments, "target": "highlight"}
+    return arguments
 
 
 def _parse_relative_seek(text: str) -> float | None:
@@ -161,6 +175,7 @@ def _execute_intent(payload: WatchAssistantRequest, intent: dict[str, Any]) -> d
             tool_calls.append({"tool": name, "arguments": {"seconds": seconds}, "status": "ok", "result": {"target_time": target_time}})
             reply_parts.append(_seek_reply(target_time))
         elif name == "seek":
+            arguments = _normalize_seek_arguments(payload.message, arguments)
             target_time = _resolve_seek_target(payload, arguments)
             if target_time is None:
                 actions.append({"type": "noop", "reason": "当前视频没有可跳转的高光点"})
@@ -210,7 +225,8 @@ def _resolve_seek_target(payload: WatchAssistantRequest, arguments: dict[str, An
     target_time = arguments.get("target_time")
     if isinstance(target_time, (int, float)):
         return float(target_time)
-    if str(arguments.get("target") or "").lower() != "highlight":
+    target = str(arguments.get("target") or "").lower()
+    if target not in {"highlight", "highlight_point"} and str(arguments.get("target") or "") not in {"高光", "精彩", "爽点", "名场面"}:
         return None
     plans = list_interaction_plans(payload.video_id)
     future_plans = [plan for plan in plans if float(plan.get("trigger_time") or 0) >= payload.current_time]

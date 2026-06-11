@@ -10,6 +10,9 @@ from ..config import get_settings
 from ..db import db_cursor, sql_placeholder, utc_now_sql
 from ..schemas import DanmakuCreate
 
+DEFAULT_DANMAKU_LIMIT = 120
+MAX_DANMAKU_LIMIT = 300
+
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
     return dict(row)
@@ -65,6 +68,55 @@ def _persisted_item_to_lightweight(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalized_limit(limit: int | None) -> int:
+    if limit is None:
+        return DEFAULT_DANMAKU_LIMIT
+    return max(1, min(int(limit), MAX_DANMAKU_LIMIT))
+
+
+def _item_time(item: dict[str, Any]) -> float:
+    return float(item.get("client_time") if item.get("client_time") is not None else item.get("time_sec") or 0)
+
+
+def _item_quality(item: dict[str, Any]) -> tuple[float, float, float]:
+    score = float(item.get("score") or 0)
+    digg_count = float(item.get("digg_count") or 0)
+    text_length = len(str(item.get("text") or ""))
+    return (score, digg_count, -float(text_length))
+
+
+def _sample_danmaku_items(items: list[dict[str, Any]], limit: int | None) -> list[dict[str, Any]]:
+    resolved_limit = _normalized_limit(limit)
+    cleaned = [item for item in items if str(item.get("text") or "").strip()]
+    if len(cleaned) <= resolved_limit:
+        return sorted(cleaned, key=lambda item: (_item_time(item), str(item.get("danmaku_id") or "")))
+
+    selected_ids: set[int] = set()
+    selected: list[dict[str, Any]] = []
+    per_second: dict[int, int] = {}
+    ranked = sorted(cleaned, key=lambda item: (_item_quality(item), -_item_time(item)), reverse=True)
+
+    for item in ranked:
+        second = int(_item_time(item))
+        if per_second.get(second, 0) >= 2:
+            continue
+        selected.append(item)
+        selected_ids.add(id(item))
+        per_second[second] = per_second.get(second, 0) + 1
+        if len(selected) >= resolved_limit:
+            break
+
+    if len(selected) < resolved_limit:
+        for item in ranked:
+            if id(item) in selected_ids:
+                continue
+            selected.append(item)
+            if len(selected) >= resolved_limit:
+                break
+
+    return sorted(selected, key=lambda item: (_item_time(item), str(item.get("danmaku_id") or "")))
+
+
 def _get_douyin_json_path(video_id: str) -> str | None:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
@@ -83,24 +135,30 @@ def _get_douyin_json_path(video_id: str) -> str | None:
         return _row_to_dict(row).get("douyin_json_path")
 
 
-def get_video_danmaku(video_id: str) -> dict[str, Any] | None:
+def get_video_danmaku(
+    video_id: str,
+    from_time: float | None = None,
+    to_time: float | None = None,
+    limit: int | None = None,
+) -> dict[str, Any] | None:
     try:
         relative_path = _get_douyin_json_path(video_id)
     except KeyError:
         return None
 
-    persisted_items = list_danmaku(video_id)
+    persisted_items = list_danmaku(video_id, from_time=from_time, to_time=to_time)
     if persisted_items:
+        sampled_items = _sample_danmaku_items(persisted_items, limit)
         items = sorted(
-            [_persisted_item_to_lightweight(item) for item in persisted_items],
+            [_persisted_item_to_lightweight(item) for item in sampled_items],
             key=lambda item: (item["time_sec"], str(item.get("danmaku_id") or "")),
         )
         return {
             "video_id": video_id,
             "available": True,
-            "count": len(items),
+            "count": len(persisted_items),
             "items": items,
-            "danmaku": persisted_items,
+            "danmaku": sampled_items,
         }
 
     if not relative_path:
@@ -112,13 +170,18 @@ def get_video_danmaku(video_id: str) -> dict[str, Any] | None:
             "danmaku": persisted_items,
         }
 
-    items = _load_danmaku_items(_resolve_local_path(str(relative_path)))
+    loaded_items = _load_danmaku_items(_resolve_local_path(str(relative_path)))
+    if from_time is not None:
+        loaded_items = [item for item in loaded_items if float(item["time_sec"]) >= from_time]
+    if to_time is not None:
+        loaded_items = [item for item in loaded_items if float(item["time_sec"]) <= to_time]
+    items = _sample_danmaku_items(loaded_items, limit)
     return {
         "video_id": video_id,
         "available": True,
-        "count": len(items),
+        "count": len(loaded_items),
         "items": items,
-        "danmaku": persisted_items,
+        "danmaku": [],
     }
 
 

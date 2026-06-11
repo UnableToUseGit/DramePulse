@@ -112,6 +112,33 @@ class DanmakuRepositoryTest(unittest.TestCase):
         finally:
             connection.close()
 
+    def insert_many_persisted_danmaku(self, count: int = 150) -> None:
+        connection = sqlite3.connect(self.tmp_path / "dramepulse.sqlite")
+        try:
+            connection.executemany(
+                """
+                INSERT INTO danmaku_items (
+                    danmaku_id, video_id, user_id, client_time, time_ms, text,
+                    source, digg_count, score, status, raw_json, created_at
+                )
+                VALUES (?, 'demo_ep01', NULL, ?, ?, ?, 'douyin', ?, ?, 'active', '{}', '')
+                """,
+                [
+                    (
+                        f"persisted_{index:03d}",
+                        float(index),
+                        index * 1000,
+                        f"persisted text {index}",
+                        index % 50,
+                        float(index % 30),
+                    )
+                    for index in range(count)
+                ],
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
     def write_douyin_json(self) -> str:
         json_path = self.data_root / "raw" / "demo" / "ep01" / "douyin.json"
         json_path.parent.mkdir(parents=True)
@@ -203,6 +230,41 @@ class DanmakuRepositoryTest(unittest.TestCase):
                 },
             ],
         )
+
+    def test_get_video_danmaku_limits_persisted_items_by_default(self) -> None:
+        self.create_videos_table(douyin_json_path="raw/demo/ep01/missing.json")
+        self.create_danmaku_table()
+        self.insert_many_persisted_danmaku()
+
+        payload = danmaku.get_video_danmaku("demo_ep01")
+
+        self.assertEqual(payload["count"], 150)
+        self.assertLessEqual(len(payload["items"]), 120)
+        self.assertLessEqual(len(payload["danmaku"]), 120)
+        times = [item["client_time"] for item in payload["danmaku"]]
+        self.assertEqual(times, sorted(times))
+
+    def test_get_video_danmaku_honors_limit(self) -> None:
+        self.create_videos_table(douyin_json_path="raw/demo/ep01/missing.json")
+        self.create_danmaku_table()
+        self.insert_many_persisted_danmaku()
+
+        payload = danmaku.get_video_danmaku("demo_ep01", limit=20)
+
+        self.assertEqual(payload["count"], 150)
+        self.assertLessEqual(len(payload["items"]), 20)
+        self.assertLessEqual(len(payload["danmaku"]), 20)
+
+    def test_get_video_danmaku_filters_time_window_before_limit(self) -> None:
+        self.create_videos_table(douyin_json_path="raw/demo/ep01/missing.json")
+        self.create_danmaku_table()
+        self.insert_many_persisted_danmaku()
+
+        payload = danmaku.get_video_danmaku("demo_ep01", from_time=10, to_time=19, limit=5)
+
+        self.assertEqual(payload["count"], 10)
+        self.assertLessEqual(len(payload["items"]), 5)
+        self.assertTrue(all(10 <= item["time_sec"] <= 19 for item in payload["items"]))
 
     def test_get_video_danmaku_returns_unavailable_when_path_is_null(self) -> None:
         self.create_videos_table(douyin_json_path=None)

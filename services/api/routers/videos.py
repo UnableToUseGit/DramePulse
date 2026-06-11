@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Header, HTTPException, Response, status
+from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 
 from ..repositories.danmaku import get_video_danmaku
 from ..oss_client import parse_range_header, read_object_range
@@ -18,7 +18,8 @@ from ..schemas import DanmakuResponse, PlaybackAssetsResponse, StoryboardRespons
 
 router = APIRouter()
 HLS_MANIFEST_MEDIA_TYPE = "application/vnd.apple.mpegurl"
-HLS_SEGMENT_MEDIA_TYPE = "video/mp2t"
+HLS_TS_SEGMENT_MEDIA_TYPE = "video/mp2t"
+HLS_FMP4_SEGMENT_MEDIA_TYPE = "video/mp4"
 
 
 @router.get("/videos", response_model=VideoListResponse)
@@ -35,8 +36,13 @@ def retrieve_video(video_id: str) -> VideoResponse:
 
 
 @router.get("/videos/{video_id}/danmaku", response_model=DanmakuResponse)
-def retrieve_video_danmaku(video_id: str) -> DanmakuResponse:
-    payload = get_video_danmaku(video_id)
+def retrieve_video_danmaku(
+    video_id: str,
+    from_time: float | None = Query(default=None, ge=0),
+    to_time: float | None = Query(default=None, ge=0),
+    limit: int = Query(default=120, ge=1, le=300),
+) -> DanmakuResponse:
+    payload = get_video_danmaku(video_id, from_time=from_time, to_time=to_time, limit=limit)
     if payload is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
     return DanmakuResponse(**payload)
@@ -58,56 +64,47 @@ def retrieve_video_storyboard(video_id: str) -> StoryboardResponse:
     return StoryboardResponse(**get_video_storyboard(video_id))
 
 
-@router.get("/videos/{video_id}/hls/index.m3u8")
-def retrieve_video_hls_manifest(video_id: str) -> Response:
-    storage = get_video_hls_storage(video_id)
-    if not storage:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS stream not found")
-
-    try:
-        body = read_object_range(str(storage["hls_object_key"]), bucket_name=str(storage["oss_bucket"]))
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS manifest not found") from exc
-    except Exception as exc:
-        if exc.__class__.__name__ == "NoSuchKey":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS manifest not found") from exc
-        raise
-
-    headers = {
-        "Content-Type": HLS_MANIFEST_MEDIA_TYPE,
-        "Content-Length": str(len(body)),
-        "Content-Disposition": "inline",
-        "Cache-Control": "public, max-age=60",
-    }
-    return Response(content=body, status_code=status.HTTP_200_OK, headers=headers, media_type=HLS_MANIFEST_MEDIA_TYPE)
+def _hls_asset_media_type(asset_name: str) -> str:
+    if asset_name.endswith(".m3u8"):
+        return HLS_MANIFEST_MEDIA_TYPE
+    if asset_name.endswith(".ts"):
+        return HLS_TS_SEGMENT_MEDIA_TYPE
+    return HLS_FMP4_SEGMENT_MEDIA_TYPE
 
 
-@router.get("/videos/{video_id}/hls/{segment_name}")
-def retrieve_video_hls_segment(video_id: str, segment_name: str) -> Response:
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+\.ts", segment_name):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found")
+def _hls_asset_cache_control(asset_name: str) -> str:
+    if asset_name.endswith(".m3u8"):
+        return "public, max-age=60"
+    return "public, max-age=31536000"
+
+
+@router.get("/videos/{video_id}/hls/{asset_name}")
+def retrieve_video_hls_asset(video_id: str, asset_name: str) -> Response:
+    if not re.fullmatch(r"(?:[A-Za-z0-9_.-]+\.(?:m3u8|ts|m4s)|init\.mp4)", asset_name):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS asset not found")
 
     storage = get_video_hls_storage(video_id)
     if not storage:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS stream not found")
 
-    object_key = f"{storage['hls_prefix']}{segment_name}"
+    object_key = f"{storage['hls_prefix']}{asset_name}"
     try:
         body = read_object_range(object_key, bucket_name=str(storage["oss_bucket"]))
     except FileNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found") from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS asset not found") from exc
     except Exception as exc:
         if exc.__class__.__name__ == "NoSuchKey":
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS segment not found") from exc
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HLS asset not found") from exc
         raise
 
+    media_type = _hls_asset_media_type(asset_name)
     headers = {
-        "Content-Type": HLS_SEGMENT_MEDIA_TYPE,
+        "Content-Type": media_type,
         "Content-Length": str(len(body)),
         "Content-Disposition": "inline",
-        "Cache-Control": "public, max-age=31536000",
+        "Cache-Control": _hls_asset_cache_control(asset_name),
     }
-    return Response(content=body, status_code=status.HTTP_200_OK, headers=headers, media_type=HLS_SEGMENT_MEDIA_TYPE)
+    return Response(content=body, status_code=status.HTTP_200_OK, headers=headers, media_type=media_type)
 
 
 @router.get("/videos/{video_id}/stream")

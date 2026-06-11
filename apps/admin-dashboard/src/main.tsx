@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import ReactDOM from "react-dom/client";
 import {
   Activity,
@@ -154,6 +154,7 @@ type ActiveTab = "dashboard" | "content" | "storyGraph";
 interface AuthState {
   authenticated: boolean;
   username?: string | null;
+  role?: string | null;
 }
 
 interface StoryGraphSummary {
@@ -442,7 +443,7 @@ function LoginView({ onLoggedIn }: { onLoggedIn: () => Promise<void> }) {
   );
 }
 
-function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged: () => Promise<void> }) {
+function DashboardView({ data, onChanged, readOnly }: { data: DashboardPayload; onChanged: () => Promise<void>; readOnly?: boolean }) {
   const [expandedSeriesIds, setExpandedSeriesIds] = React.useState<Set<string>>(new Set());
   const episodeRisks: DashboardVideo[] = [];
   const [seriesSearch, setSeriesSearch] = React.useState("");
@@ -516,7 +517,7 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
               <span>互动</span>
               <span>封面</span>
               <span>状态</span>
-              <span>Action</span>
+              {readOnly ? null : <span>Action</span>}
             </div>
             {filteredSeries.map((series) => {
               const isExpanded = expandedSeriesIds.has(series.series_id);
@@ -549,9 +550,11 @@ function DashboardView({ data, onChanged }: { data: DashboardPayload; onChanged:
                       )}
                     </span>
                     <span className={assetStatusClass(series.asset_status)}>{assetStatusLabel(series.asset_status)}</span>
-                    <button className="text-action-button" disabled={busySeriesId === series.series_id} onClick={() => void toggleSeriesStatus(series)} type="button">
-                      {series.status === "deleted" ? "恢复上架" : "下架"}
-                    </button>
+                    {readOnly ? null : (
+                      <button className="text-action-button" disabled={busySeriesId === series.series_id} onClick={() => void toggleSeriesStatus(series)} type="button">
+                        {series.status === "deleted" ? "恢复上架" : "下架"}
+                      </button>
+                    )}
                   </div>
                   {episodes.length > 0 ? (
                     <div className="series-episode-block">
@@ -1128,7 +1131,7 @@ function ContentManagementView({ onUploaded }: { onUploaded: () => Promise<void>
                     >
                       <Activity size={15} />
                       {episode.analysis_status === "failed" ? "重试解析" : "解析"}
-                    </button>
+                      </button>
                     <button
                       className="secondary-button"
                       disabled={busy || busyAnalysisVideoId === episode.video_id || !canViewAnalysis}
@@ -1690,13 +1693,13 @@ function App() {
   }, [loadAuth, loadData]);
 
   async function handleLoggedIn() {
-    setAuth({ authenticated: true, username: "root" });
+    setAuth(await loadAuth());
     await loadData();
   }
 
   async function logout() {
     await adminFetch("/api/admin/auth/logout", { method: "POST" });
-    setAuth({ authenticated: false, username: null });
+    setAuth({ authenticated: false, username: null, role: null });
     setData(null);
     setError(null);
   }
@@ -1720,6 +1723,7 @@ function App() {
   if (!data) {
     return null;
   }
+  const isReadOnly = auth.role === "readonly";
 
   return (
     <main className="app-shell">
@@ -1743,7 +1747,7 @@ function App() {
         <button className={activeTab === "dashboard" ? "tab active" : "tab"} onClick={() => setActiveTab("dashboard")} type="button">
           数据看板
         </button>
-        <button className={activeTab === "content" ? "tab active" : "tab"} onClick={() => setActiveTab("content")} type="button">
+        <button className={`${activeTab === "content" ? "tab active" : "tab"}${isReadOnly ? " hidden" : ""}`} onClick={() => setActiveTab("content")} type="button">
           内容管理
         </button>
         <button className={activeTab === "storyGraph" ? "tab active" : "tab"} onClick={() => setActiveTab("storyGraph")} type="button">
@@ -1751,8 +1755,8 @@ function App() {
         </button>
       </nav>
 
-      {activeTab === "dashboard" ? <DashboardView data={data} onChanged={loadData} /> : null}
-      {activeTab === "content" ? <ContentManagementView onUploaded={loadData} /> : null}
+      {activeTab === "dashboard" || (isReadOnly && activeTab === "content") ? <DashboardView data={data} onChanged={loadData} readOnly={isReadOnly} /> : null}
+      {activeTab === "content" && !isReadOnly ? <ContentManagementView onUploaded={loadData} /> : null}
       {activeTab === "storyGraph" ? <KnowledgeGraphView /> : null}
     </main>
   );

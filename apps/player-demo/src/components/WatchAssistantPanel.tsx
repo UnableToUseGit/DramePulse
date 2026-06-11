@@ -115,7 +115,7 @@ export function WatchAssistantPanel({
         {!isLoading && reply ? <Text style={styles.answerText}>{reply}</Text> : null}
         {!isLoading && executionHint ? <Text style={styles.hintText}>{executionHint}</Text> : null}
         {!isLoading && error ? <Text style={styles.errorText}>{error}</Text> : null}
-        {!isLoading && !reply && !error ? <Text style={styles.emptyText}>可以问剧情，也可以控制播放。</Text> : null}
+        {!isLoading && !reply && !error && !message.trim() ? <Text style={styles.emptyText}>可以问剧情，也可以控制播放。</Text> : null}
       </View>
 
       {toolCalls.length > 0 ? (

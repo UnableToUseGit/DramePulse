@@ -25,16 +25,18 @@ router = APIRouter()
 
 @router.get("/videos/{video_id}/plot-beats", response_model=PlotBeatResponse)
 def retrieve_plot_beats(video_id: str) -> PlotBeatResponse:
-    if not get_video(video_id):
+    video = get_video(video_id)
+    if not video:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
-    return PlotBeatResponse(**get_plot_beat_payload(video_id))
+    return PlotBeatResponse(**get_plot_beat_payload(str(video["video_id"])))
 
 
 @router.get("/videos/{video_id}/plot-beats/raw", response_model=RawAssetResponse)
 def retrieve_plot_beats_raw(video_id: str) -> RawAssetResponse:
-    if not get_video(video_id):
+    video = get_video(video_id)
+    if not video:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
-    payload = get_raw_plot_beat_asset(video_id)
+    payload = get_raw_plot_beat_asset(str(video["video_id"]))
     if payload is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plot beats raw asset not found")
     return RawAssetResponse(**payload)
@@ -42,9 +44,10 @@ def retrieve_plot_beats_raw(video_id: str) -> RawAssetResponse:
 
 @router.get("/videos/{video_id}/plot-beats/debug", response_model=RawAssetResponse)
 def retrieve_plot_beats_debug(video_id: str) -> RawAssetResponse:
-    if not get_video(video_id):
+    video = get_video(video_id)
+    if not video:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
-    payload = get_raw_plot_beat_asset(video_id, debug=True)
+    payload = get_raw_plot_beat_asset(str(video["video_id"]), debug=True)
     if payload is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plot beats debug asset not found")
     return RawAssetResponse(**payload)
@@ -55,9 +58,10 @@ def retrieve_video_interaction_assets(
     video_id: str,
     mode: str | None = Query(default=None, description="Optional interaction mode filter."),
 ) -> VideoInteractionAssetsResponse:
-    if not get_video(video_id):
+    video = get_video(video_id)
+    if not video:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
-    return VideoInteractionAssetsResponse(**get_video_interaction_payload(video_id, mode))
+    return VideoInteractionAssetsResponse(**get_video_interaction_payload(str(video["video_id"]), mode))
 
 
 @router.get("/series/{series_id}/ad-slots", response_model=SeriesAdSlotsResponse)

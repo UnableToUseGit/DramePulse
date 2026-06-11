@@ -12,9 +12,26 @@ from .danmaku import get_video_danmaku
 from .interactions import list_interaction_plans
 from .story_chapters import list_story_chapters
 
+SERIES_ID_ALIASES = {
+    "nanian_dongzhi": "naniandonzhi",
+    "naniandongzhi": "naniandonzhi",
+}
+
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
     return dict(row)
+
+
+def _resolve_series_id(series_id: str) -> str:
+    return SERIES_ID_ALIASES.get(series_id, series_id)
+
+
+def _resolve_video_id(video_id: str) -> str:
+    for source_series_id, canonical_series_id in SERIES_ID_ALIASES.items():
+        prefix = f"{source_series_id}_"
+        if video_id.startswith(prefix):
+            return f"{canonical_series_id}_{video_id[len(prefix):]}"
+    return video_id
 
 
 def _table_exists(cursor: Any, table_name: str) -> bool:
@@ -184,6 +201,7 @@ def list_series() -> list[dict[str, Any]]:
 def list_series_episodes(series_id: str) -> dict[str, Any] | None:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
+    canonical_series_id = _resolve_series_id(series_id)
     with db_cursor(settings) as cursor:
         cursor.execute(
             f"""
@@ -203,13 +221,13 @@ def list_series_episodes(series_id: str) -> dict[str, Any] | None:
               AND COALESCE(NULLIF(series_id, ''), video_id) = {placeholder}
             ORDER BY episode_no IS NULL, episode_no, video_id
             """,
-            (series_id,),
+            (canonical_series_id,),
         )
         videos = [_to_video_response(_row_to_dict(row)) for row in cursor.fetchall()]
     if not videos:
         return None
     return {
-        "series_id": series_id,
+        "series_id": canonical_series_id,
         "series_name": videos[0].get("series_name"),
         "episodes": videos,
     }
@@ -218,6 +236,7 @@ def list_series_episodes(series_id: str) -> dict[str, Any] | None:
 def get_series_episode(series_id: str, episode_no: int) -> dict[str, Any] | None:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
+    canonical_series_id = _resolve_series_id(series_id)
     with db_cursor(settings) as cursor:
         cursor.execute(
             f"""
@@ -237,7 +256,7 @@ def get_series_episode(series_id: str, episode_no: int) -> dict[str, Any] | None
               AND COALESCE(NULLIF(series_id, ''), video_id) = {placeholder}
               AND episode_no = {placeholder}
             """,
-            (series_id, episode_no),
+            (canonical_series_id, episode_no),
         )
         row = cursor.fetchone()
         return _to_video_response(_row_to_dict(row)) if row else None
@@ -246,6 +265,7 @@ def get_series_episode(series_id: str, episode_no: int) -> dict[str, Any] | None
 def get_video(video_id: str) -> dict[str, Any] | None:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
+    canonical_video_id = _resolve_video_id(video_id)
     with db_cursor(settings) as cursor:
         cursor.execute(
             f"""
@@ -263,7 +283,7 @@ def get_video(video_id: str) -> dict[str, Any] | None:
             FROM videos
             WHERE video_id = {placeholder} AND status = 'active'
             """,
-            (video_id,),
+            (canonical_video_id,),
         )
         row = cursor.fetchone()
         return _to_video_response(_row_to_dict(row)) if row else None

@@ -446,11 +446,60 @@ def list_video_interaction_items(video_id: str, mode: str | None = None) -> list
 
 
 def get_video_interaction_payload(video_id: str, mode: str | None = None) -> dict[str, Any]:
+    items = list_video_interaction_items(video_id, mode)
     return {
         "video_id": video_id,
         "interaction_mode": mode,
-        "available": bool(list_video_interaction_items(video_id, mode)),
-        "items": list_video_interaction_items(video_id, mode),
+        "available": bool(items),
+        "items": items,
+    }
+
+
+def upsert_admin_video_interaction_assets(
+    video_id: str,
+    payload: dict[str, Any],
+    *,
+    replace_existing: bool = True,
+) -> dict[str, Any]:
+    interaction_mode = str(payload["interaction_mode"]).strip()
+    asset_id = str(payload.get("asset_id") or f"admin_{video_id}_{interaction_mode}").strip()
+    items = [
+        {
+            **item,
+            "video_id": video_id,
+            "interaction_mode": interaction_mode,
+            "source_asset_id": asset_id,
+        }
+        for item in payload["items"]
+    ]
+    asset = {
+        "asset_id": asset_id,
+        "video_id": video_id,
+        "source_video_id": payload.get("source_video_id") or video_id,
+        "interaction_mode": interaction_mode,
+        "source_series_id": payload.get("source_series_id"),
+        "canonical_series_id": payload.get("canonical_series_id"),
+        "episode_no": payload.get("episode_no"),
+        "plan_text": json.dumps(payload["items"], ensure_ascii=False),
+        "selection_text": None,
+        "semantic_clusters_text": None,
+        "source_dir": "admin_upload",
+        "plan_source_path": None,
+        "selection_source_path": None,
+        "semantic_clusters_source_path": None,
+        "plan_parse_status": "parsed",
+        "selection_parse_status": "missing",
+        "semantic_clusters_parse_status": "missing",
+        "import_error": None,
+    }
+    disabled_existing_count = upsert_video_interaction_asset(asset, items, replace_existing=replace_existing)
+    active_count = len(list_video_interaction_items(video_id, interaction_mode))
+    return {
+        "video_id": video_id,
+        "interaction_mode": interaction_mode,
+        "uploaded_count": len(items),
+        "disabled_existing_count": disabled_existing_count,
+        "active_count": active_count,
     }
 
 
@@ -623,7 +672,7 @@ def upsert_plot_beat_asset(asset: dict[str, Any], beats: list[dict[str, Any]]) -
             )
 
 
-def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, Any]]) -> None:
+def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, Any]], *, replace_existing: bool = True) -> int:
     settings = get_settings()
     placeholder = sql_placeholder(settings)
     now_sql = utc_now_sql(settings)
@@ -664,7 +713,10 @@ def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, 
                 """,
                 _interaction_asset_values(asset),
             )
-            cursor.execute("UPDATE video_interaction_items SET status = 'disabled', updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now') WHERE video_id = ? AND interaction_mode = ? AND status = 'active'", (asset["video_id"], asset["interaction_mode"]))
+            disabled_existing_count = 0
+            if replace_existing:
+                cursor.execute("UPDATE video_interaction_items SET status = 'disabled', updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now') WHERE video_id = ? AND interaction_mode = ? AND status = 'active'", (asset["video_id"], asset["interaction_mode"]))
+                disabled_existing_count = int(cursor.rowcount or 0)
             for item in items:
                 cursor.execute(
                     """
@@ -686,7 +738,7 @@ def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, 
                     """,
                     _interaction_item_values(item),
                 )
-            return
+            return disabled_existing_count
 
         cursor.execute(
             f"""
@@ -726,10 +778,13 @@ def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, 
             """,
             _interaction_asset_values(asset),
         )
-        cursor.execute(
-            f"UPDATE video_interaction_items SET status = 'disabled', updated_at = {now_sql} WHERE video_id = {placeholder} AND interaction_mode = {placeholder} AND status = 'active'",
-            (asset["video_id"], asset["interaction_mode"]),
-        )
+        disabled_existing_count = 0
+        if replace_existing:
+            cursor.execute(
+                f"UPDATE video_interaction_items SET status = 'disabled', updated_at = {now_sql} WHERE video_id = {placeholder} AND interaction_mode = {placeholder} AND status = 'active'",
+                (asset["video_id"], asset["interaction_mode"]),
+            )
+            disabled_existing_count = int(cursor.rowcount or 0)
         for item in items:
             cursor.execute(
                 f"""
@@ -751,6 +806,7 @@ def upsert_video_interaction_asset(asset: dict[str, Any], items: list[dict[str, 
                 """,
                 _interaction_item_values(item),
             )
+        return disabled_existing_count
 
 
 def upsert_ad_slots(series_id: str, slots: list[dict[str, Any]], source_path: str, video_source_path: str | None) -> None:

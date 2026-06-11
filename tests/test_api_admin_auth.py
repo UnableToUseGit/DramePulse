@@ -57,8 +57,27 @@ class AdminAuthApiTest(unittest.TestCase):
         dashboard_response = self.client.get("/api/admin/dashboard")
 
         self.assertEqual(login_response.status_code, 200)
+        self.assertEqual(login_response.json(), {"authenticated": True, "username": "root", "role": "admin"})
         self.assertIn(ADMIN_SESSION_COOKIE, self.client.cookies)
         self.assertEqual(dashboard_response.status_code, 200)
+
+    def test_readonly_user_can_read_but_cannot_write(self) -> None:
+        login_response = self.client.post(
+            "/api/admin/auth/login",
+            json={"username": "user", "password": "123"},
+        )
+        dashboard_response = self.client.get("/api/admin/dashboard")
+        series_response = self.client.get("/api/admin/series")
+        write_response = self.client.post(
+            "/api/admin/series",
+            json={"series_id": "readonly_demo", "series_name": "Readonly Demo"},
+        )
+
+        self.assertEqual(login_response.status_code, 200)
+        self.assertEqual(login_response.json(), {"authenticated": True, "username": "user", "role": "readonly"})
+        self.assertEqual(dashboard_response.status_code, 200)
+        self.assertEqual(series_response.status_code, 200)
+        self.assertEqual(write_response.status_code, 403)
 
     def test_logout_clears_admin_access(self) -> None:
         self.client.post("/api/admin/auth/login", json={"username": "root", "password": "Dramepulse"})
@@ -74,8 +93,8 @@ class AdminAuthApiTest(unittest.TestCase):
         self.client.post("/api/admin/auth/login", json={"username": "root", "password": "Dramepulse"})
         authenticated_response = self.client.get("/api/admin/auth/me")
 
-        self.assertEqual(anonymous_response.json(), {"authenticated": False, "username": None})
-        self.assertEqual(authenticated_response.json(), {"authenticated": True, "username": "root"})
+        self.assertEqual(anonymous_response.json(), {"authenticated": False, "username": None, "role": None})
+        self.assertEqual(authenticated_response.json(), {"authenticated": True, "username": "root", "role": "admin"})
 
 
 if __name__ == "__main__":

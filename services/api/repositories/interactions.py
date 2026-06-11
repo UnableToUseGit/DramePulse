@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import HTTPException, status
 
 from ..config import get_settings
-from ..db import db_cursor, sql_placeholder
+from ..db import db_cursor, sql_placeholder, utc_now_sql
 
 
 def _json_dict(value: Any) -> dict[str, Any]:
@@ -59,6 +59,175 @@ def list_interaction_plans(video_id: str) -> list[dict[str, Any]]:
         plan["feedback"] = _json_dict(plan.pop("feedback_json", None))
         plan["options"] = options_by_interaction.get(interaction_id, [])
     return plans
+
+
+def upsert_interaction_plans(
+    video_id: str,
+    plans: list[dict[str, Any]],
+    *,
+    replace_existing: bool = True,
+) -> dict[str, Any]:
+    settings = get_settings()
+    placeholder = sql_placeholder(settings)
+    now_sql = utc_now_sql(settings)
+    option_count = sum(len(plan.get("options") or []) for plan in plans)
+    with db_cursor(settings) as cursor:
+        disabled_existing_count = 0
+        if replace_existing:
+            cursor.execute(
+                f"""
+                SELECT COUNT(*) AS count
+                FROM interaction_plans
+                WHERE video_id = {placeholder}
+                  AND status = 'active'
+                """,
+                (video_id,),
+            )
+            row = cursor.fetchone()
+            disabled_existing_count = int((dict(row) if isinstance(row, dict) else row)["count"] if row else 0)
+            if disabled_existing_count:
+                cursor.execute(
+                    f"""
+                    UPDATE interaction_options
+                    SET status = 'disabled', updated_at = {now_sql}
+                    WHERE status = 'active'
+                      AND interaction_id IN (
+                          SELECT interaction_id
+                          FROM interaction_plans
+                          WHERE video_id = {placeholder}
+                            AND status = 'active'
+                      )
+                    """,
+                    (video_id,),
+                )
+                cursor.execute(
+                    f"""
+                    UPDATE interaction_plans
+                    SET status = 'disabled', updated_at = {now_sql}
+                    WHERE video_id = {placeholder}
+                      AND status = 'active'
+                    """,
+                    (video_id,),
+                )
+
+        for plan in plans:
+            values = (
+                plan["interaction_id"],
+                plan["highlight_id"],
+                video_id,
+                plan["trigger_time"],
+                plan["expire_time"],
+                plan["result_time"],
+                plan["interaction_type"],
+                plan["question"],
+                json.dumps(plan.get("feedback") or {}, ensure_ascii=False),
+                plan.get("display_position") or "subtitle_safe_area",
+                "active",
+            )
+            if settings.mode == "local":
+                cursor.execute(
+                    """
+                    INSERT INTO interaction_plans (
+                        interaction_id, highlight_id, video_id, trigger_time, expire_time,
+                        result_time, interaction_type, question, feedback_json,
+                        display_position, status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(interaction_id) DO UPDATE SET
+                        highlight_id = excluded.highlight_id,
+                        video_id = excluded.video_id,
+                        trigger_time = excluded.trigger_time,
+                        expire_time = excluded.expire_time,
+                        result_time = excluded.result_time,
+                        interaction_type = excluded.interaction_type,
+                        question = excluded.question,
+                        feedback_json = excluded.feedback_json,
+                        display_position = excluded.display_position,
+                        status = excluded.status,
+                        updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
+                    """,
+                    values,
+                )
+            else:
+                cursor.execute(
+                    f"""
+                    INSERT INTO interaction_plans (
+                        interaction_id, highlight_id, video_id, trigger_time, expire_time,
+                        result_time, interaction_type, question, feedback_json,
+                        display_position, status
+                    )
+                    VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder},
+                            {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder}, {placeholder})
+                    ON DUPLICATE KEY UPDATE
+                        highlight_id = VALUES(highlight_id),
+                        video_id = VALUES(video_id),
+                        trigger_time = VALUES(trigger_time),
+                        expire_time = VALUES(expire_time),
+                        result_time = VALUES(result_time),
+                        interaction_type = VALUES(interaction_type),
+                        question = VALUES(question),
+                        feedback_json = VALUES(feedback_json),
+                        display_position = VALUES(display_position),
+                        status = VALUES(status),
+                        updated_at = {now_sql}
+                    """,
+                    values,
+                )
+
+            for option in plan.get("options") or []:
+                option_values = (
+                    option["option_id"],
+                    plan["interaction_id"],
+                    option["text"],
+                    option["danmaku_text"],
+                    option["rank"],
+                    option.get("base_score"),
+                    "active",
+                )
+                if settings.mode == "local":
+                    cursor.execute(
+                        """
+                        INSERT INTO interaction_options (
+                            option_id, interaction_id, text, danmaku_text, rank, base_score, status
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(option_id) DO UPDATE SET
+                            interaction_id = excluded.interaction_id,
+                            text = excluded.text,
+                            danmaku_text = excluded.danmaku_text,
+                            rank = excluded.rank,
+                            base_score = excluded.base_score,
+                            status = excluded.status,
+                            updated_at = strftime('%Y-%m-%d %H:%M:%f', 'now')
+                        """,
+                        option_values,
+                    )
+                else:
+                    cursor.execute(
+                        f"""
+                        INSERT INTO interaction_options (
+                            option_id, interaction_id, text, danmaku_text, `rank`, base_score, status
+                        )
+                        VALUES ({placeholder}, {placeholder}, {placeholder}, {placeholder},
+                                {placeholder}, {placeholder}, {placeholder})
+                        ON DUPLICATE KEY UPDATE
+                            interaction_id = VALUES(interaction_id),
+                            text = VALUES(text),
+                            danmaku_text = VALUES(danmaku_text),
+                            `rank` = VALUES(`rank`),
+                            base_score = VALUES(base_score),
+                            status = VALUES(status),
+                            updated_at = {now_sql}
+                        """,
+                        option_values,
+                    )
+    return {
+        "video_id": video_id,
+        "uploaded_count": len(plans),
+        "option_count": option_count,
+        "disabled_existing_count": disabled_existing_count,
+        "active_count": len(plans),
+    }
 
 
 def get_interaction_plan(interaction_id: str) -> dict[str, Any] | None:

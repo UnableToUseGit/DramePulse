@@ -4,12 +4,13 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 
 from ..admin_auth import (
     ADMIN_SESSION_COOKIE,
-    ADMIN_USERNAME,
+    admin_role_for_username,
     authenticate_admin,
     clear_admin_session_cookie,
+    get_admin_session_username,
     require_admin,
+    require_admin_write,
     set_admin_session_cookie,
-    validate_admin_session_token,
 )
 from ..repositories.admin_analysis import (
     create_analysis_job,
@@ -31,12 +32,17 @@ from ..repositories.admin_content import (
     upload_series_cover,
 )
 from ..repositories.admin_dashboard import get_admin_dashboard
+from ..repositories.interactions import upsert_interaction_plans
+from ..repositories.new_assets import upsert_admin_video_interaction_assets
 from ..repositories.story_graphs import get_story_graph, list_story_graphs
+from ..repositories.videos import get_video
 from ..schemas import (
     AdminAuthResponse,
     AdminDashboardResponse,
     AdminDanmakuUploadResponse,
     AdminEpisodeUploadResponse,
+    AdminInteractionPlanUploadRequest,
+    AdminInteractionPlanUploadResponse,
     AdminLoginRequest,
     AdminSeriesCreate,
     AdminSeriesDeleteResponse,
@@ -50,6 +56,8 @@ from ..schemas import (
     AdminVideoAnalysisArtifactsResponse,
     AdminVideoAnalysisJob,
     AdminVideoAnalysisResultResponse,
+    AdminVideoInteractionAssetsUploadRequest,
+    AdminVideoInteractionAssetsUploadResponse,
 )
 
 router = APIRouter()
@@ -59,20 +67,20 @@ router = APIRouter()
 def login_admin(payload: AdminLoginRequest, response: Response) -> AdminAuthResponse:
     if not authenticate_admin(payload.username, payload.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin credentials")
-    set_admin_session_cookie(response)
-    return AdminAuthResponse(authenticated=True, username=ADMIN_USERNAME)
+    set_admin_session_cookie(response, payload.username)
+    return AdminAuthResponse(authenticated=True, username=payload.username, role=admin_role_for_username(payload.username))
 
 
 @router.get("/admin/auth/me", response_model=AdminAuthResponse)
 def get_admin_auth_state(request: Request) -> AdminAuthResponse:
-    authenticated = validate_admin_session_token(request.cookies.get(ADMIN_SESSION_COOKIE))
-    return AdminAuthResponse(authenticated=authenticated, username=ADMIN_USERNAME if authenticated else None)
+    username = get_admin_session_username(request.cookies.get(ADMIN_SESSION_COOKIE))
+    return AdminAuthResponse(authenticated=username is not None, username=username, role=admin_role_for_username(username))
 
 
 @router.post("/admin/auth/logout", response_model=AdminAuthResponse)
 def logout_admin(response: Response) -> AdminAuthResponse:
     clear_admin_session_cookie(response)
-    return AdminAuthResponse(authenticated=False, username=None)
+    return AdminAuthResponse(authenticated=False, username=None, role=None)
 
 
 @router.get("/admin/dashboard", response_model=AdminDashboardResponse)
@@ -112,7 +120,7 @@ def retrieve_admin_series(series_id: str, _: None = Depends(require_admin)) -> A
 def create_admin_video_analysis_job(
     video_id: str,
     background_tasks: BackgroundTasks,
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_write),
 ) -> AdminVideoAnalysisJob:
     job = create_analysis_job(video_id)
     if job.get("_created") and job.get("job_id") and job.get("status") == "running":
@@ -141,6 +149,40 @@ def retrieve_admin_video_analysis_artifacts(
     return AdminVideoAnalysisArtifactsResponse(**list_analysis_artifacts(video_id))
 
 
+@router.post("/admin/videos/{video_id}/interaction-plans", response_model=AdminInteractionPlanUploadResponse)
+def upload_admin_interaction_plans(
+    video_id: str,
+    payload: AdminInteractionPlanUploadRequest,
+    _: None = Depends(require_admin_write),
+) -> AdminInteractionPlanUploadResponse:
+    if not get_video(video_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+    result = upsert_interaction_plans(
+        video_id,
+        [plan.model_dump() for plan in payload.interaction_plans],
+        replace_existing=payload.replace_existing,
+    )
+    return AdminInteractionPlanUploadResponse(**result)
+
+
+@router.post("/admin/videos/{video_id}/interaction-assets", response_model=AdminVideoInteractionAssetsUploadResponse)
+def upload_admin_video_interaction_assets(
+    video_id: str,
+    payload: AdminVideoInteractionAssetsUploadRequest,
+    _: None = Depends(require_admin_write),
+) -> AdminVideoInteractionAssetsUploadResponse:
+    video = get_video(video_id)
+    if not video:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video not found")
+    canonical_video_id = str(video["video_id"])
+    result = upsert_admin_video_interaction_assets(
+        canonical_video_id,
+        payload.model_dump(),
+        replace_existing=payload.replace_existing,
+    )
+    return AdminVideoInteractionAssetsUploadResponse(**result)
+
+
 @router.get("/admin/series/{series_id}/cover")
 def retrieve_admin_series_cover(series_id: str, _: None = Depends(require_admin)) -> Response:
     cover = read_series_cover(series_id)
@@ -151,17 +193,17 @@ def retrieve_admin_series_cover(series_id: str, _: None = Depends(require_admin)
 
 
 @router.delete("/admin/series/{series_id}", response_model=AdminSeriesDeleteResponse)
-def delete_admin_series(series_id: str, _: None = Depends(require_admin)) -> AdminSeriesDeleteResponse:
+def delete_admin_series(series_id: str, _: None = Depends(require_admin_write)) -> AdminSeriesDeleteResponse:
     return AdminSeriesDeleteResponse(**delete_series(series_id))
 
 
 @router.post("/admin/series/{series_id}/restore", response_model=AdminSeriesRestoreResponse)
-def restore_admin_series(series_id: str, _: None = Depends(require_admin)) -> AdminSeriesRestoreResponse:
+def restore_admin_series(series_id: str, _: None = Depends(require_admin_write)) -> AdminSeriesRestoreResponse:
     return AdminSeriesRestoreResponse(**restore_series(series_id))
 
 
 @router.post("/admin/series", response_model=AdminSeriesResponse)
-async def create_admin_series(payload: AdminSeriesCreate, _: None = Depends(require_admin)) -> AdminSeriesResponse:
+async def create_admin_series(payload: AdminSeriesCreate, _: None = Depends(require_admin_write)) -> AdminSeriesResponse:
     return AdminSeriesResponse(**await create_series(payload.series_id, payload.series_name))
 
 
@@ -169,7 +211,7 @@ async def create_admin_series(payload: AdminSeriesCreate, _: None = Depends(requ
 async def upload_admin_series_cover(
     series_id: str,
     file: UploadFile = File(...),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_write),
 ) -> AdminUploadResponse:
     return AdminUploadResponse(**await upload_series_cover(series_id, file))
 
@@ -181,7 +223,7 @@ async def upload_admin_episode(
     episode_no: int = Form(...),
     title: str = Form(...),
     video: UploadFile = File(...),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_write),
 ) -> AdminEpisodeUploadResponse:
     return AdminEpisodeUploadResponse(
         **await upload_episode_video(
@@ -198,7 +240,7 @@ async def upload_admin_episode(
 async def upload_admin_episode_chunk(
     series_id: str,
     request: Request,
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_write),
 ) -> AdminEpisodeUploadResponse:
     form = await request.form()
     chunk = form.get("chunk")
@@ -231,6 +273,6 @@ async def upload_admin_episode_danmaku(
     series_id: str,
     episode_label: str,
     file: UploadFile = File(...),
-    _: None = Depends(require_admin),
+    _: None = Depends(require_admin_write),
 ) -> AdminDanmakuUploadResponse:
     return AdminDanmakuUploadResponse(**await upload_episode_danmaku(series_id, episode_label, file))
