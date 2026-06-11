@@ -4,12 +4,12 @@ DramePulse 是一个面向移动端短剧APP的即时互动系统。其提供贴
 
 ## 核心亮点
 
-- **分层表达的即时互动设计**：DramePulse 设计了情绪按钮和心里话弹幕两种互动方式。情绪按钮承接最直接的情绪释放（“爽、甜、笑、哭”），从用户熟悉的右侧交互区域中轻轻滑入，触发后的视觉反馈干净利索；心里话弹幕则面向更高层级的语义表达，系统预生成弹幕内容，从弹幕按钮旁边轻轻冒出，用户只需轻推即可发送。两者都复用短剧用户熟悉的表达形式，在不打断播放的前提下降低表达门槛。
-- **视频结构化 Pipeline**：系统结合音频转录，镜头切分和多模态大模型等技术，搭建视频数据处理流水线。从视频解析出 “剧情章节”、“剧情节拍”、“高光触发点”、“剧情描述” 等资产并以结构化 JSON/API 的形式下发给播放器和 Agent，使短剧内容从“视频文件”变成可检索、可调度、可交互的数据资产。
-- **基于角色移情的 AIGC 互动广告页**：DramePulse 没有把 AIGC 生硬用于剧情分支，而是结合剧情语境和角色形象生成广告内容，编排进剧集播放流。广告页保留短剧播放体验，同时提供 CTA 按钮，用户点击后可打开商品详情页完成进一步了解。它利用观众对剧中角色的移情，让广告成为更自然，观众更喜闻乐见的内容转化入口。
-- **短剧智能陪看助手**：DramePulse 引入更具前瞻性的交互入口 —— Agentic Interface，让用户不只是和视频内容交互，也能和 Agent 交互。助手基于当前剧集、播放进度和结构化剧情数据，支持剧情问答、跳转高光、切换剧集、暂停/继续等能力。
-- **面向真实体验的前后端系统**：DramePulse 前端实现了首页、剧场列表页和剧集播放页等基础页面，包含完整播放器能力，并围绕移动端短剧播放流实现互动触发、章节进度条、storyboard 预览、广告页和陪看助手入口。同时，前端实现了有效的视频流管控，包括首屏资产预热、请求编排、播放资产缓存和相邻页预加载等机制。后端完成云端部署，提供 CDN + HLS 的视频传输能力，并围绕前端所需要的资产提供完整 API。项目还配套后台管理页面，用于内容管理和数据查看。
-- **面向算法迭代的标注与复核工具链**：DramePulse 配套建设了人工标注工具、算法复核工具和剧情章节查看器，并沉淀了一批人工标注验证集，让视频结构化 pipeline 的产物可以被查看、标注、对比和复核，支撑后续持续迭代。
+- **不打断的即时表达**：通过共鸣按钮和心里话弹幕，让用户在熟悉的右侧交互区和弹幕入口完成表达。前者承接“爽、甜、笑、哭”等即时情绪，后者承接更完整的观点表达。
+- **视频结构化轻资产**：结合音频转录、镜头切分和多模态大模型，将短剧解析为剧情章节、剧情节拍、caption、互动触发点等结构化资产，供播放器、互动组件和 Agent 复用。
+- **AIGC 互动广告页**：基于剧情语境和角色形象生成广告内容，并将其编排进剧集播放流。广告页支持 CTA 和商品详情页，让内容延展自然承接商业转化。
+- **短剧智能陪看助手**：基于当前剧集、播放进度和结构化剧情数据，支持剧情问答、跳转高光、切换剧集、暂停/继续等 Agentic Interface 能力。
+- **完整移动端播放体验**：前端实现首页、剧场列表页和剧集播放页，包含播放器、弹幕、章节进度条、storyboard 预览、广告页和陪看助手入口，并提供首屏预热、请求编排、缓存和相邻页预加载。
+- **可持续迭代的工具链**：后端完成云端部署、CDN + HLS 视频传输、完整 API 和后台管理页面；同时配套人工标注工具、算法复核工具和剧情章节查看器，支撑后续扩展与复核。
 
 
 ## 快速启动
@@ -145,45 +145,6 @@ dramepulse pipelines run highlight-commerce \
 ```
 
 当前 CLI registry 包含 `expression-trigger`、`story-chapter`、`inner-voice-danmaku` 和 `highlight-commerce` 四条主线。
-
-### 6. 运行高光带货视频生成 Pipeline
-
-高光带货 v2 pipeline 从剧情高光素材出发，由 LLM 生成广告脚本，再生成非仿真人卡通参考图，最后调用 Seedance 输出 12 秒竖屏带货视频。
-
-在 `.env` 中补齐火山方舟配置：
-
-```env
-ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-ARK_API_KEY=你的 API Key
-ARK_MODEL=Doubao-Seed-2.0-pro
-ARK_SEEDREAM_MODEL=doubao-seedream-5-0-260128
-ARK_SEEDANCE_MODEL=doubao-seedance-2-0-260128
-```
-
-运行示例：
-
-```bash
-python scripts/highlight_commerce/run_v2_pipeline.py \
-  --asset data/role-commerce-v2/highlight_commerce_case1.json \
-  --output-root output/role-commerce-v2
-```
-
-也可以通过统一 CLI 运行：
-
-```bash
-python -m dramepulse_cli.main pipelines run highlight-commerce \
-  --asset data/role-commerce-v2/highlight_commerce_case1.json \
-  --output-root output/role-commerce-v2
-```
-
-如果 Seedance 任务还在运行，可以用结果中的任务 ID 继续查询并下载：
-
-```bash
-python scripts/highlight_commerce/run_v2_pipeline.py \
-  --asset data/role-commerce-v2/highlight_commerce_case1.json \
-  --output-root output/role-commerce-v2 \
-  --resume-task-id <seedance_task_id>
-```
 
 ## 致谢
 
