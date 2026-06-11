@@ -36,6 +36,25 @@ class PipelineCommand:
 
 PIPELINES: tuple[PipelineCommand, ...] = (
     PipelineCommand(
+        name="video-preprocess",
+        title="Video Preprocess",
+        summary="对输入视频完成音频抽取、字幕转录和镜头切分，产出后续算法可复用的基础资产。",
+        module="scripts.video_preprocess.run_pipeline",
+        example_args=[
+            "data/case1/ep01.mp4",
+            "--video-id",
+            "case1_ep01",
+            "--output-root",
+            "output/video_preprocess",
+        ],
+        outputs=[
+            "audio/<video_id>.16k-mono.wav",
+            "transcription/<video_id>.srt",
+            "scene_detection/scene_detection.json",
+            "video_preprocess_manifest.json",
+        ],
+    ),
+    PipelineCommand(
         name="expression-trigger",
         title="Expression Trigger",
         summary="从字幕和视频帧生成表达触发点资产，用于播放器内即时互动。",
@@ -65,6 +84,23 @@ PIPELINES: tuple[PipelineCommand, ...] = (
             "output/scene_detection/case1_ep01/scene_detection.json",
         ],
         outputs=["story_chapters.json", "story_chapters.debug.json"],
+    ),
+    PipelineCommand(
+        name="plot-beat",
+        title="Plot Beat",
+        summary="基于剧情章节、字幕和章节内抽帧生成原子剧情节拍资产。",
+        module="scripts.plot_beat.run_chapter_aligned_batch",
+        example_args=[
+            "--data-root",
+            "data",
+            "--story-chapter-root",
+            "output/story_chapter",
+            "--output-root",
+            "output/plot_beat/chapter_aligned",
+            "--video-id",
+            "case1_ep01",
+        ],
+        outputs=["plot_beats.json", "plot_beats.debug.json"],
     ),
     PipelineCommand(
         name="inner-voice-danmaku",

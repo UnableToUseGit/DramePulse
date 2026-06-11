@@ -31,7 +31,9 @@ class DramePulseCliTest(unittest.TestCase):
         self.assertIn("pipelines list", output)
         self.assertIn("pipelines info <name>", output)
         self.assertIn("pipelines run <name>", output)
+        self.assertIn("video-preprocess", output)
         self.assertIn("highlight-commerce", output)
+        self.assertIn("plot-beat", output)
 
     def test_pipeline_list_and_info_show_registry_metadata(self) -> None:
         stdout = StringIO()
@@ -47,6 +49,36 @@ class DramePulseCliTest(unittest.TestCase):
         self.assertIn("高光带货", output)
         self.assertIn("scripts.highlight_commerce.run_v2_pipeline", output)
         self.assertIn("dramepulse pipelines run highlight-commerce", output)
+
+    def test_plot_beat_pipeline_is_registered(self) -> None:
+        stdout = StringIO()
+
+        with redirect_stdout(stdout):
+            list_exit = main(["pipelines", "list"])
+            info_exit = main(["pipelines", "info", "plot-beat"])
+
+        output = stdout.getvalue()
+        self.assertEqual(list_exit, 0)
+        self.assertEqual(info_exit, 0)
+        self.assertIn("plot-beat", output)
+        self.assertIn("Plot Beat", output)
+        self.assertIn("scripts.plot_beat.run_chapter_aligned_batch", output)
+        self.assertIn("plot_beats.json", output)
+
+    def test_video_preprocess_pipeline_is_registered(self) -> None:
+        stdout = StringIO()
+
+        with redirect_stdout(stdout):
+            list_exit = main(["pipelines", "list"])
+            info_exit = main(["pipelines", "info", "video-preprocess"])
+
+        output = stdout.getvalue()
+        self.assertEqual(list_exit, 0)
+        self.assertEqual(info_exit, 0)
+        self.assertIn("video-preprocess", output)
+        self.assertIn("Video Preprocess", output)
+        self.assertIn("scripts.video_preprocess.run_pipeline", output)
+        self.assertIn("video_preprocess_manifest.json", output)
 
     def test_pipeline_run_forwards_remaining_args_to_registered_runner(self) -> None:
         calls: list[list[str]] = []

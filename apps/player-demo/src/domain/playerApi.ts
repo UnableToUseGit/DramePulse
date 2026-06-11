@@ -118,7 +118,7 @@ export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo 
   const seriesName = toOptionalString(value.series_name);
   const episodeLabel = toOptionalString(value.episode_label);
   const displayTitle = seriesName || rawTitle;
-  const streamPath = toOptionalString(value.mp4_url) ?? toStringValue(value.stream_url);
+  const streamPath = toOptionalString(value.stream_url) ?? toOptionalString(value.mp4_url) ?? "";
   const danmakuPath = toStringValue(value.danmaku_url);
   if (!videoId || !rawTitle || !streamPath || !danmakuPath) {
     return undefined;
