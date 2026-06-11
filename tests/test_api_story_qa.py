@@ -35,6 +35,25 @@ class FakeNode:
 
 
 class StoryQaServiceTest(unittest.TestCase):
+    def test_pysqlite3_fallback_keeps_stdlib_sqlite_when_package_is_missing(self) -> None:
+        import sqlite3
+
+        original_sqlite = sys.modules.get("sqlite3")
+        sys.modules["sqlite3"] = sqlite3
+        original_import = __import__
+
+        def fake_import(name: str, *args: object, **kwargs: object) -> object:
+            if name == "pysqlite3":
+                raise ModuleNotFoundError("No module named 'pysqlite3'")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            service._use_pysqlite3()
+
+        self.assertIs(sys.modules["sqlite3"], sqlite3)
+        if original_sqlite is not None:
+            sys.modules["sqlite3"] = original_sqlite
+
     def test_is_visible_allows_prior_episode_and_current_time_only(self) -> None:
         previous_episode = FakeNode("previous", {"episode": 1, "end_time": 9999})
         current_visible = FakeNode("visible", {"episode": 2, "end_time": 12.0})

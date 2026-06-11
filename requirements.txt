@@ -11,7 +11,6 @@ volcengine-python-sdk>=5.0.0
 openai>=2.0.0
 opencv-python>=4.8.0
 chromadb>=0.5.0
-pysqlite3-binary>=0.5.4
 llama-index>=0.10.0
 llama-index-vector-stores-chroma>=0.1.0
 llama-index-llms-openai>=0.1.0
@@ -25,3 +24,6 @@ networkx>=3.0
 # Development and validation helpers.
 pytest>=8.0.0
 jsonschema>=4.20.0
+
+# Optional: install on Linux only if Chroma requires a newer SQLite than the system Python provides.
+# pysqlite3-binary>=0.5.4

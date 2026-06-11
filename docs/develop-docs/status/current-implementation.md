@@ -157,6 +157,7 @@ pipelines/highlight_commerce/v2_pipeline.py
 当前脚本入口：
 
 ```text
+dramepulse_cli/main.py
 scripts/transcribe_video.py
 scripts/expression_trigger/run_workflow_batch.py
 scripts/expression_trigger/run_mllm_baseline_batch.py
@@ -181,6 +182,7 @@ scripts/highlight_commerce/run_v2_pipeline.py
 
 当前能力：
 
+- 统一 Pipeline CLI 通过 `python -m dramepulse_cli.main` 或安装后的 `dramepulse` 命令提供 `--version`、ANSI banner 帮助页、`pipelines list/info/run`，用于本地开发和答辩演示；
 - Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核，输出前端可消费的表达触发资产；
 - Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕和稀疏视频帧生成语义章节草稿，再对相邻章节边界单独调用 MLLM 复核；
 - Inner Voice Danmaku pipeline 支持从真实弹幕 CSV 做语义聚类、候选筛选，并生成心里话弹幕互动方案；

@@ -123,7 +123,30 @@ iOS 真机包需要 Apple Developer 凭证，可使用 production 构建；如�
 npx eas-cli@latest build -p ios --profile simulator
 ```
 
-### 5. 运行高光带货视频生成 Pipeline
+### 5. 统一 Pipeline CLI
+
+仓库提供统一的本地 pipeline 命令入口，用于开发、调试和答辩演示。该入口会列出可运行算法能力，并把参数转发给对应 pipeline runner：
+
+```bash
+python -m dramepulse_cli.main --help
+python -m dramepulse_cli.main --version
+python -m dramepulse_cli --help
+python -m dramepulse_cli.main pipelines list
+python -m dramepulse_cli.main pipelines info highlight-commerce
+```
+
+安装为 package 后也可以直接使用 `dramepulse` 命令：
+
+```bash
+pip install -e .
+dramepulse pipelines run highlight-commerce \
+  --asset data/role-commerce-v2/highlight_commerce_case1.json \
+  --output-root output/role-commerce-v2
+```
+
+当前 CLI registry 包含 `expression-trigger`、`story-chapter`、`inner-voice-danmaku` 和 `highlight-commerce` 四条主线。
+
+### 6. 运行高光带货视频生成 Pipeline
 
 高光带货 v2 pipeline 从剧情高光素材出发，由 LLM 生成广告脚本，再生成非仿真人卡通参考图，最后调用 Seedance 输出 12 秒竖屏带货视频。
 
@@ -141,6 +164,14 @@ ARK_SEEDANCE_MODEL=doubao-seedance-2-0-260128
 
 ```bash
 python scripts/highlight_commerce/run_v2_pipeline.py \
+  --asset data/role-commerce-v2/highlight_commerce_case1.json \
+  --output-root output/role-commerce-v2
+```
+
+也可以通过统一 CLI 运行：
+
+```bash
+python -m dramepulse_cli.main pipelines run highlight-commerce \
   --asset data/role-commerce-v2/highlight_commerce_case1.json \
   --output-root output/role-commerce-v2
 ```
