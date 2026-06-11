@@ -19,6 +19,7 @@ React Native + Expo 播放器
 算法 pipeline
   -> 高光点识别
   -> 互动方案生成
+  -> 高光带货 v2 视频生成
 
 标注工具
   -> 浏览器内播放视频、查看弹幕时间轴、导出人工高光标注
@@ -146,6 +147,9 @@ npm start
 pipelines/expression_trigger/
 pipelines/story_chapter/
 pipelines/inner_voice_danmaku/
+pipelines/highlight_commerce/generation.py
+pipelines/highlight_commerce/script_generation.py
+pipelines/highlight_commerce/v2_pipeline.py
 ```
 
 旧 `highlight_candidate_generation`、`highlight_recognition` 和 `interaction_plan_generation` pipeline 已废弃并移除。Expression Trigger workflow 当前写出干净资产 `expression_triggers.json` 和调试产物 `expression_triggers.debug.json`；旧 baseline 脚本仍可能写出 `highlight_recognition.json`，评估和复核工具会优先读取新资产并兼容旧文件名。
@@ -170,6 +174,9 @@ scripts/inner_voice_danmaku/run_batch.py
 scripts/inner_voice_danmaku/semantic_clustering.py
 scripts/inner_voice_danmaku/select_candidates.py
 scripts/inner_voice_danmaku/build_interaction_plan.py
+scripts/highlight_commerce/run_cartoon_assets.py
+scripts/highlight_commerce/run_seedance_render.py
+scripts/highlight_commerce/run_v2_pipeline.py
 ```
 
 当前能力：
@@ -177,6 +184,7 @@ scripts/inner_voice_danmaku/build_interaction_plan.py
 - Expression Trigger workflow 使用字幕、全局抽帧、低台词密度视觉窗口和候选复核，输出前端可消费的表达触发资产；
 - Story Chapter subtitle-scene aligned workflow 先由 LLM 根据带 `speaker_id` 的字幕和稀疏视频帧生成语义章节草稿，再对相邻章节边界单独调用 MLLM 复核；
 - Inner Voice Danmaku pipeline 支持从真实弹幕 CSV 做语义聚类、候选筛选，并生成心里话弹幕互动方案；
+- 高光带货 v2 pipeline 支持从高光图、角色图、产品图和角色参考音频生成广告脚本、卡通参考图，并调用 Seedance 生成 12 秒竖屏带货视频；
 - 剧情导航验证 viewer 位于 `apps/story-chapter-viewer/`，由 `scripts/story_chapter/viewer_server.py` 提供数据和视频服务，支持查看算法生成章节并标注人工 gold chapter boundary；
 - 算法复核工具位于 `apps/algorithm-review-tool/`，用于对照 Expression Trigger 结果和人工标注；
 - 字幕密度工具位于 `apps/subtitle-density-tool/`，用于辅助检查低台词密度视觉窗口。
@@ -187,10 +195,14 @@ scripts/inner_voice_danmaku/build_interaction_plan.py
 - `story_chapters.debug.json`：完整诊断产物，保留字幕、场景、抽帧、MLLM raw response 和 warnings；
 - `expression_triggers.json`：干净最终产物，用于上传或被播放器/评估脚本消费；
 - `expression_triggers.debug.json`：完整诊断产物，保留 LLM 调用诊断、候选点、复核决策和 legacy `highlight_assets` 兼容转换结果。
+- `highlight_commerce_script.json`：高光带货脚本产物，包含镜头脚本、角色台词、商品引入和生成约束；
+- `highlight_commerce_cartoon_asset.json`：Seedream 生成卡通参考图后更新的广告资产；
+- `highlight_commerce_v2_result.json`：Seedance 任务状态、输出视频 URL 和本地下载路径。
 
 运行前提：
 
 - `.env` 中配置 `ARK_BASE_URL`、`ARK_API_KEY`、`ARK_MODEL`；也可通过 `LLM_PROVIDER=openai` 切换 OpenAI 兼容 client；
+- 高光带货 v2 还需要 `ARK_SEEDREAM_MODEL`、`ARK_SEEDANCE_MODEL` 和对应模型权限；
 - `data/case1/ep01.srt` 和 `data/case1/ep01.json` 已在仓库中；
 - `data/case1/ep01.mp4` 如不存在，需要从本地样例视频或外部数据源补齐。
 

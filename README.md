@@ -123,6 +123,37 @@ iOS 真机包需要 Apple Developer 凭证，可使用 production 构建；如�
 npx eas-cli@latest build -p ios --profile simulator
 ```
 
+### 5. 运行高光带货视频生成 Pipeline
+
+高光带货 v2 pipeline 从剧情高光素材出发，由 LLM 生成广告脚本，再生成非仿真人卡通参考图，最后调用 Seedance 输出 12 秒竖屏带货视频。
+
+在 `.env` 中补齐火山方舟配置：
+
+```env
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+ARK_API_KEY=你的 API Key
+ARK_MODEL=Doubao-Seed-2.0-pro
+ARK_SEEDREAM_MODEL=doubao-seedream-5-0-260128
+ARK_SEEDANCE_MODEL=doubao-seedance-2-0-260128
+```
+
+运行示例：
+
+```bash
+python scripts/highlight_commerce/run_v2_pipeline.py \
+  --asset data/role-commerce-v2/highlight_commerce_case1.json \
+  --output-root output/role-commerce-v2
+```
+
+如果 Seedance 任务还在运行，可以用结果中的任务 ID 继续查询并下载：
+
+```bash
+python scripts/highlight_commerce/run_v2_pipeline.py \
+  --asset data/role-commerce-v2/highlight_commerce_case1.json \
+  --output-root output/role-commerce-v2 \
+  --resume-task-id <seedance_task_id>
+```
+
 ## 致谢
 
 本项目在视频分析与镜头切分能力上参考或使用了以下开源项目：

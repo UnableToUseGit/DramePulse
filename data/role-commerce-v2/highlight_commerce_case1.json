@@ -1,0 +1,224 @@
+{
+  "campaign_id": "kiss_breath_freshener_001",
+  "asset_type": "highlight_commerce_clip",
+  "status": "draft",
+  "placement": "after_highlight_feed",
+  "target_duration_sec": 12,
+  "orientation": "vertical",
+  "creative_mode": "highlight_to_product_bridge",
+  "source_assets": {
+    "highlight_image_path": "data/role-commerce-v2/高光场景图.png",
+    "male_character_image_path": "data/role-commerce-v2/男主.png",
+    "female_character_image_path": "data/role-commerce-v2/女主.png",
+    "male_voice_reference_path": "data/role-commerce-v2/男方声音.mp3",
+    "female_voice_reference_path": "data/role-commerce-v2/女方声音.mp3",
+    "product_image_path": "data/role-commerce-v2/产品.jpg"
+  },
+  "highlight": {
+    "highlight_id": "kiss_close_distance_001",
+    "highlight_type": "romantic_intimacy",
+    "hook_description": "男女主在近距离亲吻后的暧昧收尾，观众注意力集中在靠近、呼吸和亲密氛围上。",
+    "continuity_goal": "前 2 秒承接高光场景，不像硬切广告；随后用近距离亲密场景自然引出口气清新需求。",
+    "must_preserve": [
+      "亲密距离",
+      "暧昧情绪",
+      "男女主关系张力",
+      "竖屏短剧质感"
+    ],
+    "avoid": [
+      "过度低俗",
+      "医疗功效暗示",
+      "夸张尴尬的硬广转场",
+      "破坏原剧情情绪"
+    ]
+  },
+  "characters": [
+    {
+      "character_id": "male_lead",
+      "character_name": "男主",
+      "role_in_clip": "承接亲吻后的反应，用一句自然台词点出口气清新场景。",
+      "image_path": "data/role-commerce-v2/男主.png",
+      "voice_profile": {
+        "voice_reference_path": "data/role-commerce-v2/男方声音.mp3",
+        "seedance_reference_clip": {
+          "start_sec": 0.0,
+          "end_sec": 5.0,
+          "output_path": "output/role-commerce-v2/kiss_breath_freshener_001/male_voice_ref.mp3"
+        },
+        "voice_description": "年轻男性，低声、克制、带一点亲密后的笑意。",
+        "speech_style": "短句，语气轻，像贴近说话，不夸张。"
+      }
+    },
+    {
+      "character_id": "female_lead",
+      "character_name": "女主",
+      "role_in_clip": "自然转向镜头，拿出产品完成主要推荐。",
+      "image_path": "data/role-commerce-v2/女主.png",
+      "voice_profile": {
+        "voice_reference_path": "data/role-commerce-v2/女方声音.mp3",
+        "seedance_reference_clip": {
+          "start_sec": 0.0,
+          "end_sec": 8.0,
+          "output_path": "output/role-commerce-v2/kiss_breath_freshener_001/female_voice_ref.mp3"
+        },
+        "voice_description": "年轻女性，清亮、自然、亲密但不卖弄。",
+        "speech_style": "轻松直接，带一点俏皮，适合近距离场景。"
+      }
+    }
+  ],
+  "product": {
+    "product_id": "breath_freshener_001",
+    "product_name": "近距离清新好物",
+    "category": "口喷",
+    "image_path": "data/role-commerce-v2/产品.jpg",
+    "use_case": "亲吻、约会、靠近说话前后的口气清新",
+    "selling_points": [
+      "随时清新",
+      "近距离也安心",
+      "小巧便携"
+    ],
+    "must_mention": [
+      "随时清新",
+      "近距离也安心"
+    ],
+    "must_avoid": [
+      "治疗口臭",
+      "医疗功效",
+      "永久清新",
+      "绝对化承诺"
+    ],
+    "visual_notes": "产品在 7-9 秒给清晰特写，包装和品类要可辨认。"
+  },
+  "storyboard": [
+    {
+      "shot_id": "shot_001_highlight_hook",
+      "start_sec": 0.0,
+      "end_sec": 2.0,
+      "description": "延续剧情高光，两人亲吻收尾，保持近距离和暧昧氛围。",
+      "visual_prompt": "Vertical short drama, romantic close-distance kiss ending, soft cinematic light, intimate but tasteful, keep drama highlight mood.",
+      "dialogue": [],
+      "product_visibility": "none"
+    },
+    {
+      "shot_id": "shot_002_male_reaction",
+      "start_sec": 2.0,
+      "end_sec": 4.0,
+      "description": "男主微怔，略带惊讶地看向女主，顺着亲吻后的近距离自然说出一句。",
+      "visual_prompt": "Male lead close-up, slightly stunned and surprised after kiss, still very close to female lead, warm romantic atmosphere, subtle smile.",
+      "dialogue": [
+        {
+          "speaker": "male_lead",
+          "text": "怎么这么香。"
+        }
+      ],
+      "product_visibility": "none"
+    },
+    {
+      "shot_id": "shot_003_female_bridge",
+      "start_sec": 4.0,
+      "end_sec": 7.0,
+      "description": "女主转头看镜头，拿出产品，语气像给观众一个亲密场景里的小提醒。",
+      "visual_prompt": "Female lead turns slightly to camera, naturally takes out the product, confident and playful, product visible in hand.",
+      "dialogue": [
+        {
+          "speaker": "female_lead",
+          "text": "亲密时刻，当然不能掉链子。"
+        }
+      ],
+      "product_visibility": "medium"
+    },
+    {
+      "shot_id": "shot_004_product_closeup",
+      "start_sec": 7.0,
+      "end_sec": 9.0,
+      "description": "产品特写，强调小巧、清新和近距离场景，画面可以有短文字但不要遮挡产品。",
+      "visual_prompt": "Clean product close-up, handheld product detail, fresh and bright visual tone, small portable breath freshener product, premium short drama ad style.",
+      "on_screen_text": [
+        "随时清新",
+        "近距离也安心"
+      ],
+      "dialogue": [],
+      "product_visibility": "high"
+    },
+    {
+      "shot_id": "shot_005_character_close",
+      "start_sec": 9.0,
+      "end_sec": 12.0,
+      "description": "回到角色镜头，女主收口，男主在旁边自然反应，保持情侣互动感。",
+      "visual_prompt": "Return to male and female leads together, female lead gives final line to camera, male lead smiles subtly, romantic short drama ending.",
+      "dialogue": [
+        {
+          "speaker": "female_lead",
+          "text": "想靠近，就别让口气拖后腿。"
+        }
+      ],
+      "product_visibility": "medium"
+    }
+  ],
+  "seedance_request_plan": {
+    "model": "doubao-seedance-2-0-260128",
+    "ratio": "9:16",
+    "duration": 12,
+    "generate_audio": true,
+    "watermark": false,
+    "reference_images": [
+      {
+        "role": "highlight_scene",
+        "path": "data/role-commerce-v2/高光场景图.png",
+        "instruction": "作为开头高光氛围、构图和亲密关系参考。"
+      },
+      {
+        "role": "male_character",
+        "path": "data/role-commerce-v2/男主.png",
+        "instruction": "作为男主形象参考。"
+      },
+      {
+        "role": "female_character",
+        "path": "data/role-commerce-v2/女主.png",
+        "instruction": "作为女主形象参考。"
+      },
+      {
+        "role": "product",
+        "path": "data/role-commerce-v2/产品.jpg",
+        "instruction": "作为商品外观和特写参考。"
+      }
+    ],
+    "reference_audio": [
+      {
+        "speaker": "male_lead",
+        "source_path": "data/role-commerce-v2/男方声音.mp3",
+        "trim_start_sec": 0.0,
+        "trim_end_sec": 5.0,
+        "role": "reference_audio"
+      },
+      {
+        "speaker": "female_lead",
+        "source_path": "data/role-commerce-v2/女方声音.mp3",
+        "trim_start_sec": 0.0,
+        "trim_end_sec": 8.0,
+        "role": "reference_audio"
+      }
+    ],
+    "prompt_notes": [
+      "第一镜头必须承接高光亲吻收尾，不能一上来像广告。",
+      "男主只说一句“怎么这么香。”，负责承接亲吻后的惊讶反应，不承担商品讲解。",
+      "女主完成商品引入和收口。",
+      "商品出现要像亲密场景的小物件，不要像直播间硬广。",
+      "保持短剧画面质感，不要生成电商直播背景。"
+    ]
+  },
+  "quality_check": {
+    "primary_success_criteria": [
+      "前 2 秒能看出是从亲吻高光自然切入。",
+      "商品需求来自近距离亲密场景，而不是强行插入。",
+      "男女主形象和声音要尽量稳定。",
+      "产品图至少出现一次清晰特写。",
+      "台词完整且不出现医疗或绝对化承诺。"
+    ],
+    "known_risks": [
+      "两段原始参考音频总时长超过 15 秒，实际请求前需要按 seedance_reference_clip 裁剪。",
+      "多角色音色可能不如单角色稳定，第一版重点观察女主音色和主台词。",
+      "高光亲吻承接可能被模型弱化，需要通过 prompt 增强前 2 秒的亲密距离。"
+    ]
+  }
+}
