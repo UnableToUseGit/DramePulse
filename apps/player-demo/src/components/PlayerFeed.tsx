@@ -27,6 +27,7 @@ import type { RoleCommerceFeedAd } from "../domain/roleCommerceAds";
 import { resolveStoryQaContext } from "../domain/storyQa";
 import {
   askWatchAssistant,
+  transcribeWatchAssistantAudio,
   type WatchAssistantToolCall,
   type WatchAssistantTranscription
 } from "../domain/watchAssistant";
@@ -46,10 +47,19 @@ interface WatchAssistantPanelState {
   error?: string;
   isLoading: boolean;
   voiceState: "idle" | "recording" | "transcribing";
+  voiceDurationSec: number;
   voiceMeta?: WatchAssistantTranscription;
   toolCalls: WatchAssistantToolCall[];
   executionHint?: string;
 }
+
+type WatchAssistantAudioRecorder = {
+  prepareToRecordAsync: () => Promise<void>;
+  record: () => void;
+  stop: () => Promise<void>;
+  uri: string | null;
+  isRecording?: boolean;
+};
 
 function resetWatchAssistantState(): WatchAssistantPanelState {
   return {
@@ -59,6 +69,7 @@ function resetWatchAssistantState(): WatchAssistantPanelState {
     error: undefined,
     isLoading: false,
     voiceState: "idle",
+    voiceDurationSec: 0,
     voiceMeta: undefined,
     toolCalls: [],
     executionHint: undefined
@@ -138,6 +149,9 @@ export function PlayerFeed({
   const listRef = useRef<FlatList<PlayerFeedItem>>(null);
   const bufferedPlaybackPositionRef = useRef<BufferedPlaybackPosition | undefined>(undefined);
   const assistantRequestRef = useRef(0);
+  const assistantRecorderRef = useRef<WatchAssistantAudioRecorder | undefined>(undefined);
+  const assistantVoiceStartedAtRef = useRef<number | undefined>(undefined);
+  const assistantVoiceTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const isFeedDraggingRef = useRef(false);
   const playbackPositionsRef = useRef(playbackPositions);
   const visualActiveIndexRef = useRef(initialIndex);
@@ -416,6 +430,25 @@ export function PlayerFeed({
     setAssistantState((state) => ({ ...state, isOpen: true }));
   }, []);
 
+  const clearAssistantVoiceTimer = useCallback(() => {
+    if (assistantVoiceTimerRef.current !== undefined) {
+      clearInterval(assistantVoiceTimerRef.current);
+      assistantVoiceTimerRef.current = undefined;
+    }
+  }, []);
+
+  useEffect(
+    () => () => {
+      clearAssistantVoiceTimer();
+      const recorder = assistantRecorderRef.current;
+      assistantRecorderRef.current = undefined;
+      if (recorder?.isRecording) {
+        recorder.stop().catch(() => undefined);
+      }
+    },
+    [clearAssistantVoiceTimer]
+  );
+
   const handleAssistantActionApplied = useCallback((requestId: number, executionHint?: string) => {
     setAssistantActionRequest((current) => (current?.id === requestId ? undefined : current));
     if (executionHint) {
@@ -492,35 +525,125 @@ export function PlayerFeed({
     [assistantState.message, getAssistantContextItem]
   );
 
+  const stopAndTranscribeWatchAssistantRecording = useCallback(async () => {
+    const recorder = assistantRecorderRef.current;
+    if (!recorder) {
+      setAssistantState((state) => ({ ...state, voiceState: "idle", voiceDurationSec: 0 }));
+      return;
+    }
+    clearAssistantVoiceTimer();
+    setAssistantState((state) => ({ ...state, voiceState: "transcribing", error: undefined }));
+    try {
+      await recorder.stop();
+      const audioUri = recorder.uri;
+      assistantRecorderRef.current = undefined;
+      if (!audioUri) {
+        throw new Error("No recording is available to upload");
+      }
+
+      const contextItem = getAssistantContextItem();
+      if (!contextItem) {
+        throw new Error("Watch assistant is not available on this page");
+      }
+
+      const context = resolveStoryQaContext(contextItem.video);
+      const transcription = await transcribeWatchAssistantAudio({
+        apiBaseUrl: API_BASE_URL,
+        audioUri,
+        seriesId: context.seriesId,
+        videoId: contextItem.video.videoId,
+        currentEpisode: context.currentEpisode,
+        currentTime: playbackPositionsRef.current[contextItem.video.videoId] ?? 0,
+        duration: contextItem.video.duration
+      });
+      setAssistantState((state) => ({
+        ...state,
+        message: transcription.text,
+        voiceState: "idle",
+        voiceDurationSec: Math.max(0, Math.round(transcription.durationMs / 1000)),
+        voiceMeta: transcription,
+        error: undefined
+      }));
+      handleSubmitWatchAssistant(transcription.text, "voice", transcription);
+    } catch (error) {
+      assistantRecorderRef.current = undefined;
+      setAssistantState((state) => ({
+        ...state,
+        voiceState: "idle",
+        voiceDurationSec: 0,
+        error: error instanceof Error ? error.message : "Voice transcription failed. Please try again."
+      }));
+    }
+  }, [clearAssistantVoiceTimer, getAssistantContextItem, handleSubmitWatchAssistant]);
+
   const handleToggleVoiceRecording = useCallback(async () => {
-    if (assistantState.isLoading) {
+    if (assistantState.isLoading || assistantState.voiceState === "transcribing") {
+      return;
+    }
+    if (assistantState.voiceState === "recording") {
+      await stopAndTranscribeWatchAssistantRecording();
       return;
     }
     try {
       if (isWebMicrophoneBlockedByInsecureOrigin()) {
-        throw new Error("当前页面不是 HTTPS，浏览器不会弹出麦克风授权。请使用 HTTPS 或本地 localhost 访问。");
+        throw new Error("Microphone access requires HTTPS or localhost.");
       }
-      await import("expo-audio");
+      const audio = await import("expo-audio");
+      const permission = await audio.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        throw new Error("Microphone permission is required for voice input.");
+      }
+      await audio.setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true
+      });
+      const recorder = new audio.AudioModule.AudioRecorder(audio.RecordingPresets.HIGH_QUALITY) as WatchAssistantAudioRecorder;
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      assistantRecorderRef.current = recorder;
+      assistantVoiceStartedAtRef.current = Date.now();
+      clearAssistantVoiceTimer();
+      assistantVoiceTimerRef.current = setInterval(() => {
+        const startedAt = assistantVoiceStartedAtRef.current;
+        if (startedAt !== undefined) {
+          const nextDurationSec = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+          setAssistantState((state) => ({ ...state, voiceDurationSec: nextDurationSec }));
+        }
+      }, 250);
       setAssistantState((state) => ({
         ...state,
-        voiceState: "idle",
-        error: "当前先用文本调试 Watch Assistant；语音录制留到 development build 阶段启用。"
+        voiceState: "recording",
+        voiceDurationSec: 0,
+        error: undefined,
+        reply: undefined,
+        executionHint: undefined
       }));
     } catch (error) {
+      clearAssistantVoiceTimer();
+      assistantRecorderRef.current = undefined;
       setAssistantState((state) => ({
         ...state,
         voiceState: "idle",
-        error:
-          error instanceof Error && error.message.includes("HTTPS")
-            ? error.message
-            : "Expo Go 不包含 ExpoAudio 原生模块。当前先用文本调试，语音输入需要 development build。"
+        voiceDurationSec: 0,
+        error: error instanceof Error ? error.message : "Voice input is unavailable. Please type your question."
       }));
     }
-  }, [assistantState.isLoading]);
+  }, [
+    assistantState.isLoading,
+    assistantState.voiceState,
+    clearAssistantVoiceTimer,
+    stopAndTranscribeWatchAssistantRecording
+  ]);
 
   const handleCancelVoiceRecording = useCallback(() => {
-    setAssistantState((state) => ({ ...state, voiceState: "idle" }));
-  }, []);
+    clearAssistantVoiceTimer();
+    const recorder = assistantRecorderRef.current;
+    assistantRecorderRef.current = undefined;
+    if (recorder?.isRecording) {
+      recorder.stop().catch(() => undefined);
+    }
+    setAssistantState((state) => ({ ...state, voiceState: "idle", voiceDurationSec: 0 }));
+  }, [clearAssistantVoiceTimer]);
 
   const handlePlaybackPositionChange = useCallback(
     (videoId: string, time: number) => {
@@ -673,7 +796,7 @@ export function PlayerFeed({
         error={assistantState.error}
         isLoading={assistantState.isLoading}
         voiceState={assistantState.voiceState}
-        voiceDurationSec={0}
+        voiceDurationSec={assistantState.voiceDurationSec}
         toolCalls={assistantState.toolCalls}
         executionHint={assistantState.executionHint}
         onChangeMessage={(message) => setAssistantState((state) => ({ ...state, message }))}

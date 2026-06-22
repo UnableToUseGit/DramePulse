@@ -90,4 +90,15 @@ describe("VideoStage render safety", () => {
     expect(feedSource).not.toContain('from "expo-audio"');
     expect(feedSource).toContain('import("expo-audio")');
   });
+
+  it("transcribes recorded watch assistant audio before submitting a voice command", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/PlayerFeed.tsx", "utf8");
+
+    expect(source).toContain("transcribeWatchAssistantAudio");
+    expect(source).toContain("requestRecordingPermissionsAsync");
+    expect(source).toContain("prepareToRecordAsync");
+    expect(source).toContain('handleSubmitWatchAssistant(transcription.text, "voice", transcription)');
+    expect(source).toContain("voiceDurationSec={assistantState.voiceDurationSec}");
+  });
 });
