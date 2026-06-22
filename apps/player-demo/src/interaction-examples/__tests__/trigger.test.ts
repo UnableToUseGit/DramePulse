@@ -1,24 +1,40 @@
 import { DEFAULT_INTERACTION_EXAMPLE } from "../examples";
-import { getPresentationLabel, shouldResetExample, shouldShowExample } from "../trigger";
+import {
+  getPresentationLabel,
+  isActionRailResonancePresentation,
+  shouldResetExample,
+  shouldShowExample
+} from "../trigger";
 
 describe("interaction example trigger helpers", () => {
   it("maps presentation types to developer-facing labels", () => {
     expect(getPresentationLabel("none")).toBe("Off");
-    expect(getPresentationLabel("poll_bar")).toBe("Poll Bar");
     expect(getPresentationLabel("danmaku_poll")).toBe("Danmaku Poll");
-    expect(getPresentationLabel("emoji_hold")).toBe("Emoji Hold");
+    expect(getPresentationLabel("inner_voice_danmaku")).toBe("Inner Voice");
+    expect(getPresentationLabel("action_rail_thrill")).toBe("Rail 爽点");
+    expect(getPresentationLabel("action_rail_candy")).toBe("Rail 撒糖");
+    expect(getPresentationLabel("action_rail_laugh")).toBe("Rail 大笑");
+    expect(getPresentationLabel("action_rail_tear")).toBe("Rail 泪目");
   });
 
-  it("shows the fixed example only after playback starts and reaches the trigger", () => {
+  it("identifies action rail resonance debug presentations", () => {
+    expect(isActionRailResonancePresentation("action_rail_thrill")).toBe(true);
+    expect(isActionRailResonancePresentation("action_rail_candy")).toBe(true);
+    expect(isActionRailResonancePresentation("action_rail_laugh")).toBe(true);
+    expect(isActionRailResonancePresentation("action_rail_tear")).toBe(true);
+    expect(isActionRailResonancePresentation("danmaku_poll")).toBe(false);
+  });
+
+  it("shows the selected example immediately after playback starts", () => {
     expect(
       shouldShowExample({
         example: DEFAULT_INTERACTION_EXAMPLE,
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec - 0.1,
         isStarted: true,
         dismissed: false,
-        presentationType: "poll_bar"
+        presentationType: "danmaku_poll"
       })
-    ).toBe(false);
+    ).toBe(true);
 
     expect(
       shouldShowExample({
@@ -26,7 +42,7 @@ describe("interaction example trigger helpers", () => {
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec,
         isStarted: false,
         dismissed: false,
-        presentationType: "poll_bar"
+        presentationType: "danmaku_poll"
       })
     ).toBe(false);
 
@@ -36,7 +52,7 @@ describe("interaction example trigger helpers", () => {
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec,
         isStarted: true,
         dismissed: false,
-        presentationType: "poll_bar"
+        presentationType: "danmaku_poll"
       })
     ).toBe(true);
   });
@@ -58,7 +74,7 @@ describe("interaction example trigger helpers", () => {
         currentTime: DEFAULT_INTERACTION_EXAMPLE.triggerTimeSec + 1,
         isStarted: true,
         dismissed: true,
-        presentationType: "emoji_hold"
+        presentationType: "action_rail_candy"
       })
     ).toBe(false);
   });

@@ -1,212 +1,135 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../theme";
+import { StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import type { ResonanceTapState } from "../action-rail-resonance/tapState";
+import type { ActionRailResonanceCue } from "../action-rail-resonance/types";
+import type { InnerVoiceDanmakuCue } from "../inner-voice-danmaku/types";
+import { PlayerActionRail } from "./PlayerActionRail";
+import { PlayerMeta } from "./PlayerMeta";
+import { PlaybackRate } from "./SpeedSelector";
+import { PlayerTopBar } from "./PlayerTopBar";
 
 export function PlayerChrome({
-  onToggleDebug,
+  liked,
+  onToggleLike,
   onOpenWatchAssistant,
-  seriesName,
+  onOpenTheater,
+  onBack,
+  playbackRate,
+  isSpeedMenuOpen,
+  onToggleSpeedMenu,
+  onSelectPlaybackRate,
   title,
-  episodeLabel
+  plotSummary,
+  episodeLabel,
+  metaTags,
+  metaBottomOffset,
+  actionRailBottomOffset,
+  preTitleAccessory,
+  showTopBar = true,
+  showActionRail = true,
+  showMeta = true,
+  showDanmakuEntry = true,
+  mode = "home",
+  currentTime,
+  isActive,
+  showInnerVoice,
+  innerVoiceCue,
+  showInnerVoiceExample,
+  onInnerVoiceGestureActiveChange,
+  onSendInnerVoiceDanmaku,
+  onInnerVoiceExitComplete,
+  resonanceCue,
+  resonanceTapState,
+  onParticipateResonance,
+  children
 }: {
-  onToggleDebug: () => void;
+  liked: boolean;
+  onToggleLike: () => void;
   onOpenWatchAssistant: () => void;
-  seriesName?: string;
+  onOpenTheater?: () => void;
+  onBack?: () => void;
+  playbackRate: PlaybackRate;
+  isSpeedMenuOpen: boolean;
+  onToggleSpeedMenu: () => void;
+  onSelectPlaybackRate: (rate: PlaybackRate) => void;
   title: string;
+  plotSummary: string;
   episodeLabel?: string;
+  metaTags?: string[];
+  metaBottomOffset?: number;
+  actionRailBottomOffset?: number;
+  preTitleAccessory?: ReactNode;
+  showTopBar?: boolean;
+  showActionRail?: boolean;
+  showMeta?: boolean;
+  showDanmakuEntry?: boolean;
+  mode?: "home" | "series";
+  currentTime: number;
+  isActive: boolean;
+  showInnerVoice: boolean;
+  innerVoiceCue?: InnerVoiceDanmakuCue;
+  showInnerVoiceExample?: boolean;
+  onInnerVoiceGestureActiveChange: (active: boolean) => void;
+  onSendInnerVoiceDanmaku: (cue: InnerVoiceDanmakuCue) => void;
+  onInnerVoiceExitComplete: (cue: InnerVoiceDanmakuCue) => void;
+  resonanceCue?: ActionRailResonanceCue;
+  resonanceTapState: ResonanceTapState;
+  onParticipateResonance: (cue: ActionRailResonanceCue, nextState: ResonanceTapState) => void;
+  children?: ReactNode;
 }) {
   return (
     <View pointerEvents="box-none" style={styles.root}>
-      <View style={styles.top}>
-        <Ionicons name="menu" size={30} color="#fff" />
-        <View style={styles.topActions}>
-          <Ionicons name="search" size={27} color="#fff" />
-          <Pressable style={styles.debugButton} onPress={onToggleDebug}>
-            <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={colors.accent} />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.rail}>
-        <RailIcon icon="star" count="199.4万" />
-        <RailIcon icon="sparkles" count="助手" onPress={onOpenWatchAssistant} />
-        <RailIcon icon="heart" count="30.8万" />
-        <RailIcon icon="arrow-redo" count="5.3万" />
-      </View>
-
-      <View style={styles.meta}>
-        <View style={styles.badge}>
-          <Ionicons name="play" size={14} color="#fff" />
-          <Text style={styles.badgeText}>i说 系列剧 · {seriesName ?? "DramePulse"}</Text>
-        </View>
-        <Text numberOfLines={2} style={styles.title}>
-          {title}
-        </Text>
-        <View style={styles.tags}>
-          <Text style={styles.tag}>{episodeLabel ?? "短剧"}</Text>
-          <Text style={styles.tag}>都市爱情</Text>
-          <Text style={styles.tag}>真实弹幕</Text>
-        </View>
-        <Text numberOfLines={1} style={styles.description}>
-          短剧高光互动 Demo
-        </Text>
-      </View>
-
-      <View style={styles.bottomTab}>
-        {["首页", "剧场", "商城", "福利", "我的"].map((item, index) => (
-          <Text key={item} style={[styles.tabText, index === 0 ? styles.activeTab : null]}>
-            {item}
-          </Text>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function RailIcon({
-  icon,
-  count,
-  onPress
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  count: string;
-  onPress?: () => void;
-}) {
-  const content = (
-    <>
-      <Ionicons name={icon} size={42} color="#fff" />
-      <Text style={styles.railText}>{count}</Text>
-    </>
-  );
-  if (onPress) {
-    return (
-      <Pressable accessibilityRole="button" accessibilityLabel="观看助手" style={styles.railItem} onPress={onPress}>
-        {content}
-      </Pressable>
-    );
-  }
-  return (
-    <View style={styles.railItem}>
-      {content}
+      {showTopBar ? (
+        <PlayerTopBar
+          playbackRate={playbackRate}
+          isSpeedMenuOpen={isSpeedMenuOpen}
+          onToggleSpeedMenu={onToggleSpeedMenu}
+          onSelectPlaybackRate={onSelectPlaybackRate}
+          mode={mode}
+          episodeLabel={episodeLabel}
+          onBack={onBack}
+        />
+      ) : null}
+      {showActionRail ? (
+        <PlayerActionRail
+          liked={liked}
+          onToggleLike={onToggleLike}
+          bottomOffset={actionRailBottomOffset}
+          resonanceCue={resonanceCue}
+          resonanceTapState={resonanceTapState}
+          onParticipateResonance={onParticipateResonance}
+        />
+      ) : null}
+      {showMeta ? (
+        <PlayerMeta
+          title={title}
+          plotSummary={plotSummary}
+          episodeLabel={episodeLabel}
+          metaTags={metaTags}
+          bottomOffset={metaBottomOffset}
+          preTitleAccessory={preTitleAccessory}
+          currentTime={currentTime}
+          isActive={isActive}
+          showInnerVoice={showInnerVoice}
+          innerVoiceCue={innerVoiceCue}
+          showInnerVoiceExample={showInnerVoiceExample}
+          showDanmakuEntry={showDanmakuEntry}
+          onOpenWatchAssistant={onOpenWatchAssistant}
+          showTags={mode !== "series"}
+          summaryPresentation="inline"
+          reserveActionRail={showActionRail}
+          onInnerVoiceGestureActiveChange={onInnerVoiceGestureActiveChange}
+          onSendInnerVoiceDanmaku={onSendInnerVoiceDanmaku}
+          onInnerVoiceExitComplete={onInnerVoiceExitComplete}
+        />
+      ) : null}
+      {showMeta ? children : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 5
-  },
-  top: {
-    position: "absolute",
-    top: 48,
-    left: spacing.lg,
-    right: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  topActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md
-  },
-  debugButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-    backgroundColor: colors.panel
-  },
-  rail: {
-    position: "absolute",
-    right: spacing.md,
-    bottom: 158,
-    alignItems: "center",
-    gap: spacing.lg,
-    zIndex: 8
-  },
-  railItem: {
-    alignItems: "center",
-    gap: spacing.xs,
-    minWidth: 56,
-    minHeight: 58
-  },
-  railText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.68)",
-    textShadowRadius: 4
-  },
-  meta: {
-    position: "absolute",
-    left: spacing.lg,
-    right: 88,
-    bottom: 92
-  },
-  badge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.small,
-    backgroundColor: "rgba(0,0,0,0.44)"
-  },
-  badgeText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  title: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    marginTop: spacing.sm
-  },
-  tag: {
-    overflow: "hidden",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.small,
-    color: colors.text,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  description: {
-    marginTop: spacing.sm,
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "700"
-  },
-  bottomTab: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 74,
-    paddingHorizontal: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(18,18,18,0.94)"
-  },
-  tabText: {
-    color: "rgba(255,255,255,0.52)",
-    fontSize: 20,
-    fontWeight: "900"
-  },
-  activeTab: {
-    color: colors.text
+    ...StyleSheet.absoluteFillObject
   }
 });

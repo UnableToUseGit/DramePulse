@@ -211,9 +211,9 @@ export async function askWatchAssistant({
   }
   return {
     reply: payload.reply,
-    actions: Array.isArray(payload.actions) ? payload.actions.map(normalizeAction).filter(Boolean) as WatchAssistantAction[] : [],
+    actions: Array.isArray(payload.actions) ? (payload.actions.map(normalizeAction).filter(Boolean) as WatchAssistantAction[]) : [],
     toolCalls: Array.isArray(payload.tool_calls)
-      ? payload.tool_calls.map(normalizeToolCall).filter(Boolean) as WatchAssistantToolCall[]
+      ? (payload.tool_calls.map(normalizeToolCall).filter(Boolean) as WatchAssistantToolCall[])
       : [],
     sources: normalizeSources(payload.sources)
   };

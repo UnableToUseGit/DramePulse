@@ -1,0 +1,8 @@
+appId: com.dramepulse.playerdemo
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "首页"
+    timeout: 30000
+- assertVisible: "剧场"
+- takeScreenshot: player-demo-home

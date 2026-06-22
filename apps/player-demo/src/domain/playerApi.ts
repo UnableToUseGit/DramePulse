@@ -1,16 +1,31 @@
 import { sampleMobileDanmaku } from "./danmakuSampling";
+import {
+  normalizeStoryboardManifest,
+  normalizeStoryChapters,
+  StoryboardManifest,
+  StoryChapter
+} from "./storyNavigation";
 import type { DanmakuItem } from "./types";
+
+export const DEFAULT_API_REQUEST_TIMEOUT_MS = 8000;
 
 export interface ApiVideo {
   video_id: string;
   series_id?: string | null;
   series_name?: string | null;
   title: string;
+  description?: string | null;
+  synopsis?: string | null;
   episode_no?: number | null;
   episode_label?: string | null;
   duration?: number | null;
   stream_url: string;
+  stream_type?: string;
+  hls_url?: string;
+  mp4_url?: string;
   danmaku_url: string;
+  story_chapters?: unknown;
+  storyboard?: unknown;
   source?: string;
   douyin_video_id?: string | null;
 }
@@ -19,12 +34,15 @@ export interface PlayerVideo {
   videoId: string;
   seriesId?: string;
   title: string;
+  plotSummary: string;
   seriesName?: string;
   episodeNo?: number;
   episodeLabel?: string;
   duration: number;
   streamUrl: string;
   danmakuUrl: string;
+  storyChapters?: StoryChapter[];
+  storyboard?: StoryboardManifest;
 }
 
 export interface PlayerData {
@@ -33,14 +51,14 @@ export interface PlayerData {
 }
 
 export interface FetchLike {
-  (input: string): Promise<{
+  (input: string, init?: { signal?: AbortSignal }): Promise<{
     ok: boolean;
     status: number;
     json: () => Promise<unknown>;
   }>;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
@@ -57,11 +75,37 @@ function toNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function joinUrl(baseUrl: string, path: string): string {
+export function joinUrl(baseUrl: string, path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
   return `${baseUrl.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+function buildPlotSummary({
+  title,
+  description,
+  synopsis
+}: {
+  title: string;
+  description?: string;
+  synopsis?: string;
+}) {
+  const explicitSummary = synopsis || description;
+  if (explicitSummary) {
+    return explicitSummary;
+  }
+  return title;
+}
+
+function resolveStoryboardUrls(storyboard: StoryboardManifest, apiBaseUrl: string): StoryboardManifest {
+  return {
+    ...storyboard,
+    sheets: storyboard.sheets.map((sheet) => ({
+      ...sheet,
+      url: joinUrl(apiBaseUrl, sheet.url)
+    }))
+  };
 }
 
 export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo | undefined {
@@ -69,34 +113,39 @@ export function normalizeVideo(value: unknown, apiBaseUrl: string): PlayerVideo 
     return undefined;
   }
   const videoId = toStringValue(value.video_id);
-  const title = toStringValue(value.title);
-  const streamPath = toStringValue(value.stream_url);
+  const seriesId = toOptionalString(value.series_id);
+  const rawTitle = toStringValue(value.title);
+  const seriesName = toOptionalString(value.series_name);
+  const episodeLabel = toOptionalString(value.episode_label);
+  const displayTitle = seriesName || rawTitle;
+  const streamPath = toOptionalString(value.stream_url) ?? toOptionalString(value.mp4_url) ?? "";
   const danmakuPath = toStringValue(value.danmaku_url);
-  if (!videoId || !title || !streamPath || !danmakuPath) {
+  if (!videoId || !rawTitle || !streamPath || !danmakuPath) {
     return undefined;
   }
   const video: PlayerVideo = {
     videoId,
-    title,
+    ...(seriesId ? { seriesId } : {}),
+    title: displayTitle,
+    plotSummary: buildPlotSummary({
+      title: rawTitle,
+      description: toOptionalString(value.description),
+      synopsis: toOptionalString(value.synopsis)
+    }),
+    ...(seriesName ? { seriesName } : {}),
+    ...(typeof value.episode_no === "number" ? { episodeNo: value.episode_no } : {}),
+    ...(episodeLabel ? { episodeLabel } : {}),
     duration: toNumber(value.duration, 120),
     streamUrl: joinUrl(apiBaseUrl, streamPath),
     danmakuUrl: joinUrl(apiBaseUrl, danmakuPath)
   };
-  const seriesId = toOptionalString(value.series_id);
-  const seriesName = toOptionalString(value.series_name);
-  const episodeNo = typeof value.episode_no === "number" ? value.episode_no : undefined;
-  const episodeLabel = toOptionalString(value.episode_label);
-  if (seriesId) {
-    video.seriesId = seriesId;
+  const storyChapters = normalizeStoryChapters(value.story_chapters ?? value.storyChapters);
+  const storyboard = normalizeStoryboardManifest(value.storyboard);
+  if (storyChapters.length > 0) {
+    video.storyChapters = storyChapters;
   }
-  if (seriesName) {
-    video.seriesName = seriesName;
-  }
-  if (episodeNo !== undefined) {
-    video.episodeNo = episodeNo;
-  }
-  if (episodeLabel) {
-    video.episodeLabel = episodeLabel;
+  if (storyboard) {
+    video.storyboard = resolveStoryboardUrls(storyboard, apiBaseUrl);
   }
   return video;
 }
@@ -119,40 +168,66 @@ export function normalizeDanmakuResponse(value: unknown): DanmakuItem[] {
   return sampleMobileDanmaku(items);
 }
 
-async function fetchJson(fetcher: FetchLike, url: string): Promise<unknown> {
-  const response = await fetcher(url);
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status}: ${url}`);
+export async function fetchJson(
+  fetcher: FetchLike,
+  url: string,
+  timeoutMs = DEFAULT_API_REQUEST_TIMEOUT_MS
+): Promise<unknown> {
+  const abortController = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+  const timeoutId =
+    abortController && timeoutMs > 0
+      ? setTimeout(() => {
+          abortController.abort();
+        }, timeoutMs)
+      : undefined;
+  try {
+    const response = await fetcher(url, abortController ? { signal: abortController.signal } : undefined);
+    if (!response.ok) {
+      throw new Error(`Request failed ${response.status}: ${url}`);
+    }
+    return response.json();
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${url}`);
+    }
+    throw error;
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   }
-  return response.json();
 }
 
 export async function loadPlayerData({
   apiBaseUrl,
-  fetcher = fetch
+  fetcher = fetch,
+  timeoutMs
 }: {
   apiBaseUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<PlayerData> {
-  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher });
+  const videos = await loadPlayerVideos({ apiBaseUrl, fetcher, timeoutMs });
   const video = videos[0];
   if (!video) {
     throw new Error("No playable videos returned by API");
   }
   return {
     video,
-    danmaku: await loadVideoDanmaku({ danmakuUrl: video.danmakuUrl, fetcher })
+    danmaku: await loadVideoDanmaku({ danmakuUrl: video.danmakuUrl, fetcher, timeoutMs })
   };
 }
 
 export async function loadPlayerVideos({
   apiBaseUrl,
-  fetcher = fetch
+  fetcher = fetch,
+  timeoutMs
 }: {
   apiBaseUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<PlayerVideo[]> {
-  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"));
+  const videosPayload = await fetchJson(fetcher, joinUrl(apiBaseUrl, "/api/videos"), timeoutMs);
   const rawVideos = isRecord(videosPayload) && Array.isArray(videosPayload.videos) ? videosPayload.videos : [];
   const videos = rawVideos
     .map((item) => normalizeVideo(item, apiBaseUrl))
@@ -164,12 +239,13 @@ export async function loadPlayerVideos({
 }
 
 export async function loadVideoDanmaku({
-  danmakuUrl,
-  fetcher = fetch
+  danmakuUrl: _danmakuUrl,
+  fetcher: _fetcher = fetch,
+  timeoutMs: _timeoutMs
 }: {
   danmakuUrl: string;
   fetcher?: FetchLike;
+  timeoutMs?: number;
 }): Promise<DanmakuItem[]> {
-  const danmakuPayload = await fetchJson(fetcher, danmakuUrl);
-  return normalizeDanmakuResponse(danmakuPayload);
+  return [];
 }

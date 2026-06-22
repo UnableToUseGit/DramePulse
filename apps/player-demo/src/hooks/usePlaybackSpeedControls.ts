@@ -1,0 +1,88 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PlaybackRate } from "../components/SpeedSelector";
+
+export function usePlaybackSpeedControls({
+  isActive,
+  isStarted,
+  playbackRate,
+  onStart,
+  onResume,
+  resetKey,
+  onTap
+}: {
+  isActive: boolean;
+  isStarted: boolean;
+  playbackRate?: PlaybackRate;
+  onStart: () => void;
+  onResume: () => void;
+  resetKey: string;
+  onTap: () => void;
+}) {
+  const [localPlaybackRate, setLocalPlaybackRate] = useState<PlaybackRate>(1);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const [isHoldingFastForward, setIsHoldingFastForward] = useState(false);
+  const didLongPressSpeedRef = useRef(false);
+  const resolvedPlaybackRate = playbackRate ?? localPlaybackRate;
+  const effectivePlaybackRate = isHoldingFastForward ? 2 : resolvedPlaybackRate;
+
+  useEffect(() => {
+    setLocalPlaybackRate(1);
+    setIsSpeedMenuOpen(false);
+    setIsHoldingFastForward(false);
+    didLongPressSpeedRef.current = false;
+  }, [resetKey]);
+
+  useEffect(() => {
+    if (!isActive) {
+      setIsHoldingFastForward(false);
+      setIsSpeedMenuOpen(false);
+      didLongPressSpeedRef.current = false;
+    }
+  }, [isActive]);
+
+  const toggleSpeedMenu = useCallback(() => {
+    setIsSpeedMenuOpen((open) => !open);
+  }, []);
+
+  const selectPlaybackRate = useCallback((rate: PlaybackRate) => {
+    setLocalPlaybackRate(rate);
+    setIsSpeedMenuOpen(false);
+  }, []);
+
+  const handleRightPress = useCallback(() => {
+    if (didLongPressSpeedRef.current) {
+      didLongPressSpeedRef.current = false;
+      return;
+    }
+    onTap();
+  }, [onTap]);
+
+  const handleRightLongPress = useCallback(() => {
+    if (!isActive) {
+      return;
+    }
+    didLongPressSpeedRef.current = true;
+    if (!isStarted) {
+      onStart();
+    } else {
+      onResume();
+    }
+    setIsHoldingFastForward(true);
+  }, [isActive, isStarted, onResume, onStart]);
+
+  const handleRightPressOut = useCallback(() => {
+    setIsHoldingFastForward(false);
+  }, []);
+
+  return {
+    effectivePlaybackRate,
+    handleRightLongPress,
+    handleRightPress,
+    handleRightPressOut,
+    isHoldingFastForward,
+    isSpeedMenuOpen,
+    playbackRate: resolvedPlaybackRate,
+    selectPlaybackRate,
+    toggleSpeedMenu
+  };
+}

@@ -71,6 +71,7 @@ describe("storyQa", () => {
         videoId: "v1",
         seriesId: "series-a",
         title: "第一集",
+        plotSummary: "第一集",
         episodeNo: 3,
         episodeLabel: "ep03",
         duration: 60,
@@ -83,6 +84,7 @@ describe("storyQa", () => {
       resolveStoryQaContext({
         videoId: "v2",
         title: "第二集",
+        plotSummary: "第二集",
         episodeLabel: "ep02",
         duration: 60,
         streamUrl: "/stream",

@@ -2,13 +2,25 @@ import type { InteractionExample, InteractionPresentationType } from "./types";
 
 const LABELS: Record<InteractionPresentationType, string> = {
   none: "Off",
-  poll_bar: "Poll Bar",
   danmaku_poll: "Danmaku Poll",
-  emoji_hold: "Emoji Hold"
+  inner_voice_danmaku: "Inner Voice",
+  action_rail_thrill: "Rail 爽点",
+  action_rail_candy: "Rail 撒糖",
+  action_rail_laugh: "Rail 大笑",
+  action_rail_tear: "Rail 泪目"
 };
 
 export function getPresentationLabel(type: InteractionPresentationType) {
   return LABELS[type];
+}
+
+export function isActionRailResonancePresentation(type: InteractionPresentationType) {
+  return (
+    type === "action_rail_thrill" ||
+    type === "action_rail_candy" ||
+    type === "action_rail_laugh" ||
+    type === "action_rail_tear"
+  );
 }
 
 export function shouldShowExample({
@@ -24,7 +36,9 @@ export function shouldShowExample({
   dismissed: boolean;
   presentationType: InteractionPresentationType;
 }) {
-  return presentationType !== "none" && isStarted && !dismissed && currentTime >= example.triggerTimeSec;
+  void example;
+  void currentTime;
+  return presentationType !== "none" && isStarted && !dismissed;
 }
 
 export function shouldResetExample({

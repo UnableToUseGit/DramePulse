@@ -23,8 +23,6 @@ export interface StoryQaFetchLike {
     ok: boolean;
     status: number;
     json: () => Promise<unknown>;
-    text?: () => Promise<string>;
-    body?: ReadableStream<Uint8Array> | null;
   }>;
 }
 
@@ -104,83 +102,4 @@ export async function askStoryQa({
     answer: payload.answer,
     sources: normalizeSources(payload.sources)
   };
-}
-
-export async function askStoryQaStream({
-  apiBaseUrl,
-  question,
-  seriesId,
-  currentEpisode,
-  currentTime,
-  onDelta,
-  fetcher = fetch
-}: {
-  apiBaseUrl: string;
-  question: string;
-  seriesId: string;
-  currentEpisode: number;
-  currentTime: number;
-  onDelta: (text: string) => void;
-  fetcher?: StoryQaFetchLike;
-}): Promise<string> {
-  const trimmedQuestion = question.trim();
-  if (!trimmedQuestion) {
-    throw new Error("请输入问题");
-  }
-
-  const response = await fetcher(joinUrl(apiBaseUrl, "/api/story-qa/ask-stream"), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      question: trimmedQuestion,
-      series_id: seriesId,
-      current_episode: currentEpisode,
-      current_time: Math.max(0, currentTime)
-    })
-  });
-
-  if (!response.ok) {
-    let detail: string | undefined;
-    try {
-      const payload = await response.json();
-      detail = isRecord(payload) && typeof payload.detail === "string" ? payload.detail : undefined;
-    } catch {
-      detail = undefined;
-    }
-    throw new Error(detail || `鍓ф儏闂瓟璇锋眰澶辫触 (${response.status})`);
-  }
-
-  let answer = "";
-  if (response.body?.getReader) {
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) {
-        break;
-      }
-      const delta = decoder.decode(value, { stream: true });
-      if (delta) {
-        answer += delta;
-        onDelta(delta);
-      }
-    }
-    const tail = decoder.decode();
-    if (tail) {
-      answer += tail;
-      onDelta(tail);
-    }
-  } else if (response.text) {
-    answer = await response.text();
-    if (answer) {
-      onDelta(answer);
-    }
-  }
-
-  if (!answer.trim()) {
-    throw new Error("鏆傛椂娌℃湁鍙睍绀虹殑鍥炵瓟");
-  }
-  return answer;
 }

@@ -4,6 +4,7 @@ export interface PendingDanmakuItem {
   id: string;
   text: string;
   timeSec: number;
+  variant?: DanmakuItem["variant"];
 }
 
 export interface RunningDanmakuItem extends PendingDanmakuItem {
@@ -39,6 +40,19 @@ export function calculateDanmakuDuration({
   return stageWidth / speed;
 }
 
+export function calculateDanmakuPlaybackDelta({
+  deltaSec,
+  playbackRate
+}: {
+  deltaSec: number;
+  playbackRate: number;
+}): number {
+  if (!Number.isFinite(playbackRate) || playbackRate <= 0) {
+    return deltaSec;
+  }
+  return deltaSec * playbackRate;
+}
+
 export function findStartPositionAfterSeek(danmaku: DanmakuItem[], seekTime: number): number {
   let left = 0;
   let right = danmaku.length;
@@ -53,6 +67,29 @@ export function findStartPositionAfterSeek(danmaku: DanmakuItem[], seekTime: num
   }
 
   return left;
+}
+
+export function getNextPositionAfterDanmakuUpdate({
+  previousDanmaku,
+  nextDanmaku,
+  previousPosition
+}: {
+  previousDanmaku: DanmakuItem[];
+  nextDanmaku: DanmakuItem[];
+  previousPosition: number;
+  currentTime?: number;
+}): number {
+  const previousScannedItems = previousDanmaku.slice(0, previousPosition);
+  let nextPosition = 0;
+
+  for (const item of previousScannedItems) {
+    const nextIndex = nextDanmaku.findIndex((nextItem) => getDanmakuId(nextItem) === getDanmakuId(item));
+    if (nextIndex >= nextPosition) {
+      nextPosition = nextIndex + 1;
+    }
+  }
+
+  return nextPosition;
 }
 
 export function getPendingDanmaku({
@@ -81,7 +118,8 @@ export function getPendingDanmaku({
       items.push({
         id: getDanmakuId(item),
         text: item.text,
-        timeSec: item.time_sec
+        timeSec: item.time_sec,
+        ...(item.variant ? { variant: item.variant } : {})
       });
     }
     nextPosition += 1;

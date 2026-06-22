@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Story Chapter Viewer</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="episode-rail">
+        <div class="rail-header">
+          <p class="eyebrow">DramePulse</p>
+          <h1>Story Chapter Viewer</h1>
+        </div>
+        <div class="rail-tools">
+          <input id="episodeSearch" type="search" placeholder="搜索剧名或集数" />
+          <div id="episodeCount" class="count-text">加载中</div>
+        </div>
+        <div id="episodeList" class="episode-list"></div>
+      </aside>
+
+      <main class="workspace">
+        <section class="player-panel">
+          <div class="panel-header">
+            <div>
+              <p id="activeSeries" class="eyebrow">未选择</p>
+              <h2 id="activeTitle">加载分集...</h2>
+            </div>
+            <div class="stats-strip">
+              <span id="durationStat">--:--</span>
+              <span id="sceneStat">0 scenes</span>
+              <span id="chapterStat">0 chapters</span>
+            </div>
+          </div>
+
+          <div class="video-frame">
+            <video id="video" controls playsinline preload="metadata"></video>
+          </div>
+
+          <div class="timeline-card">
+            <div class="timeline-head">
+              <span id="timeReadout">00:00 / 00:00</span>
+              <span id="activeChapterLabel">无当前章节</span>
+            </div>
+            <div id="timeline" class="timeline" aria-label="story chapter timeline">
+              <div id="sceneLayer" class="scene-layer"></div>
+              <div id="chapterLayer" class="chapter-layer"></div>
+              <div id="goldBoundaryLayer" class="gold-boundary-layer"></div>
+              <div id="playhead" class="playhead"></div>
+            </div>
+            <div id="timelineScale" class="timeline-scale"></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="chapter-panel">
+        <div class="panel-header compact">
+          <div>
+            <p class="eyebrow">Chapters</p>
+            <h2>章节检查</h2>
+          </div>
+        </div>
+        <div id="warningList" class="warning-list"></div>
+        <section class="annotation-editor" aria-label="gold boundary annotation">
+          <div class="annotation-head">
+            <div>
+              <p class="eyebrow">Gold Chapters</p>
+              <h3>章节段标注</h3>
+            </div>
+            <span id="annotationCount" class="count-pill">0 boundaries</span>
+          </div>
+          <div class="annotation-actions">
+            <button id="addBoundaryButton" type="button" class="primary-action">添加当前点</button>
+            <button id="saveAnnotationButton" type="button" class="secondary-action">保存</button>
+          </div>
+          <div id="annotationStatus" class="annotation-status"></div>
+          <div id="boundaryList" class="boundary-list"></div>
+        </section>
+        <div id="chapterList" class="chapter-list"></div>
+      </aside>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

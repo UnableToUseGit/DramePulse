@@ -1,0 +1,26 @@
+appId: com.dramepulse.playerdemo
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "首页"
+    timeout: 30000
+- tapOn: "剧场"
+- extendedWaitUntil:
+    visible: "搜索短剧名、角色或高光剧情"
+    timeout: 10000
+- tapOn:
+    point: "25%,34%"
+- extendedWaitUntil:
+    visible: "打开选集"
+    timeout: 10000
+- takeScreenshot: player-demo-series-player
+- tapOn: "打开选集"
+- extendedWaitUntil:
+    visible: "剧情简介面板"
+    timeout: 10000
+- takeScreenshot: player-demo-series-summary
+- tapOn: "查看选集"
+- extendedWaitUntil:
+    visible: "选集列表"
+    timeout: 10000
+- takeScreenshot: player-demo-series-episodes

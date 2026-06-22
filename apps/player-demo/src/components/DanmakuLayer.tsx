@@ -3,7 +3,9 @@ import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
 import {
   advanceRunningDanmaku,
   calculateDanmakuDuration,
+  calculateDanmakuPlaybackDelta,
   findStartPositionAfterSeek,
+  getNextPositionAfterDanmakuUpdate,
   getPendingDanmaku,
   PendingDanmakuItem,
   PositionedDanmakuItem,
@@ -16,16 +18,19 @@ const SPEED_PX_PER_SEC = 58;
 const MAX_PENDING_PER_TICK = 2;
 const ESTIMATED_TEXT_WIDTH = 180;
 const ESTIMATED_TEXT_HEIGHT = 28;
+const MIN_RENDER_INTERVAL_MS = 16;
 
 export function DanmakuLayer({
   currentTime,
   danmaku,
   isPlaying,
+  playbackRate = 1,
   seekVersion
 }: {
   currentTime: number;
   danmaku: DanmakuItem[];
   isPlaying: boolean;
+  playbackRate?: number;
   seekVersion: number;
 }) {
   const [stageWidth, setStageWidth] = useState(0);
@@ -36,8 +41,10 @@ export function DanmakuLayer({
   const runningItemsRef = useRef<RunningDanmakuItem[]>([]);
   const frameRef = useRef<number | undefined>(undefined);
   const lastFrameMs = useRef<number | undefined>(undefined);
+  const lastRenderMs = useRef(0);
   const measuredSizeRef = useRef<Map<string, { width: number; height: number }>>(new Map());
   const nextLaneRef = useRef(0);
+  const previousDanmakuRef = useRef(danmaku);
 
   const durationSec = useMemo(
     () => calculateDanmakuDuration({ stageWidth, speed: SPEED_PX_PER_SEC }),
@@ -46,10 +53,17 @@ export function DanmakuLayer({
 
   useEffect(() => {
     currentTimeRef.current = currentTime;
-    if (!isPlaying) {
-      clockSecRef.current = currentTime;
-    }
-  }, [currentTime, isPlaying]);
+  }, [currentTime]);
+
+  useEffect(() => {
+    const previousDanmaku = previousDanmakuRef.current;
+    previousDanmakuRef.current = danmaku;
+    positionRef.current = getNextPositionAfterDanmakuUpdate({
+      previousDanmaku,
+      nextDanmaku: danmaku,
+      previousPosition: positionRef.current
+    });
+  }, [danmaku]);
 
   useEffect(() => {
     positionRef.current = findStartPositionAfterSeek(danmaku, currentTime);
@@ -58,7 +72,7 @@ export function DanmakuLayer({
     nextLaneRef.current = 0;
     runningItemsRef.current = [];
     setPositionedItems([]);
-  }, [danmaku, seekVersion]);
+  }, [seekVersion]);
 
   useEffect(() => {
     if (!isPlaying || stageWidth <= 0) {
@@ -70,13 +84,11 @@ export function DanmakuLayer({
       return;
     }
 
-    clockSecRef.current = currentTimeRef.current;
-
     const tick = (frameMs: number) => {
       const previousFrameMs = lastFrameMs.current ?? frameMs;
       const deltaSec = Math.max(0, (frameMs - previousFrameMs) / 1000);
       lastFrameMs.current = frameMs;
-      clockSecRef.current += deltaSec;
+      clockSecRef.current += calculateDanmakuPlaybackDelta({ deltaSec, playbackRate });
       const clockSec = clockSecRef.current;
       const pending = getPendingDanmaku({
         danmaku,
@@ -102,7 +114,10 @@ export function DanmakuLayer({
         durationSec
       });
       runningItemsRef.current = nextRunning;
-      setPositionedItems(nextPositioned);
+      if (frameMs - lastRenderMs.current >= MIN_RENDER_INTERVAL_MS) {
+        lastRenderMs.current = frameMs;
+        setPositionedItems(nextPositioned);
+      }
 
       frameRef.current = requestAnimationFrame(tick);
     };
@@ -114,8 +129,9 @@ export function DanmakuLayer({
         frameRef.current = undefined;
       }
       lastFrameMs.current = undefined;
+      lastRenderMs.current = 0;
     };
-  }, [danmaku, durationSec, isPlaying, stageWidth]);
+  }, [danmaku, durationSec, isPlaying, playbackRate, stageWidth]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     setStageWidth(event.nativeEvent.layout.width);
@@ -169,9 +185,13 @@ const DanmakuText = memo(function DanmakuText({
   return (
     <View
       onLayout={(event) => onLayout(item.id, event)}
-      style={[styles.item, { top: LANES[item.laneIndex], transform: [{ translateX: item.x }] }]}
+      style={[
+        styles.item,
+        item.variant === "inner_voice" ? styles.innerVoiceItem : null,
+        { top: LANES[item.laneIndex], transform: [{ translateX: item.x }] }
+      ]}
     >
-      <Text numberOfLines={1} style={styles.text}>
+      <Text numberOfLines={1} style={[styles.text, item.variant === "inner_voice" ? styles.innerVoiceText : null]}>
         {item.text}
       </Text>
     </View>
@@ -184,17 +204,25 @@ const styles = StyleSheet.create({
   },
   item: {
     position: "absolute",
+    paddingHorizontal: 4,
+    paddingVertical: 3
+  },
+  innerVoiceItem: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.18)"
+    borderWidth: 1,
+    borderColor: "rgba(255,213,138,0.9)"
   },
   text: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
-    textShadowColor: "rgba(0,0,0,0.74)",
+    textShadowColor: "rgba(0,0,0,0.86)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4
+    textShadowRadius: 5
+  },
+  innerVoiceText: {
+    color: "#fff"
   }
 });

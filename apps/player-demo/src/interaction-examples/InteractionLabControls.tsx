@@ -5,7 +5,15 @@ import { colors, radii, spacing } from "../theme";
 import { getPresentationLabel } from "./trigger";
 import type { InteractionPresentationType } from "./types";
 
-const OPTIONS: InteractionPresentationType[] = ["none", "poll_bar", "danmaku_poll", "emoji_hold"];
+const OPTIONS: InteractionPresentationType[] = [
+  "none",
+  "danmaku_poll",
+  "inner_voice_danmaku",
+  "action_rail_thrill",
+  "action_rail_candy",
+  "action_rail_laugh",
+  "action_rail_tear"
+];
 
 export function InteractionLabControls({
   selectedType,
@@ -62,7 +70,7 @@ export function InteractionLabControls({
 const styles = StyleSheet.create({
   root: {
     position: "absolute",
-    top: 44,
+    top: 92,
     left: spacing.lg,
     alignItems: "flex-start",
     zIndex: 20
@@ -82,9 +90,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,213,138,0.78)"
   },
   panel: {
-    width: 178,
+    width: 188,
     marginTop: spacing.sm,
-    padding: spacing.sm,
+    padding: 7,
     borderRadius: radii.panel,
     backgroundColor: "rgba(0, 0, 0, 0.72)",
     borderWidth: 1,
@@ -100,12 +108,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase"
   },
   options: {
-    gap: spacing.xs
+    gap: 5
   },
   option: {
     alignItems: "flex-start",
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: 7,
     borderRadius: radii.small,
     backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
