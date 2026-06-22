@@ -208,7 +208,9 @@ scripts/highlight_commerce/run_v2_pipeline.py
 - `data/case1/ep01.srt` 和 `data/case1/ep01.json` 已在仓库中；
 - `data/case1/ep01.mp4` 如不存在，需要从本地样例视频或外部数据源补齐。
 
-## 5. 人工标注工具
+## 5. 人工工具链
+
+### 5.1 高光人工标注工具
 
 代码入口：
 
@@ -237,6 +239,47 @@ http://127.0.0.1:8770/apps/annotation-tool/
 - 支持记录高光 `start_time`、`end_time`、`emotion`、`reason`；
 - 支持导出人工标注 JSON；
 - 可通过 `api_base_url` 指向本地后端或云端后端。
+
+### 5.2 Interaction Plan Editor
+
+代码入口：
+
+```text
+apps/interaction-plan-editor/
+scripts/serve_interaction_plan_editor.py
+scripts/upload_curated_interaction_assets.py
+```
+
+启动方式：
+
+```bash
+python scripts/serve_interaction_plan_editor.py --port 8783
+```
+
+访问：
+
+```text
+http://127.0.0.1:8783/
+```
+
+当前能力：
+
+- 从本地 `DataForAlgorithm` 剧集目录扫描 `video.mp4`；
+- 从 `output/interaction_plan` 读取算法生成的互动方案；
+- 同时合并 `emotional_button` 和 `inner_voice_danmaku` 等多来源 interaction plan；
+- 在浏览器内播放视频，并在时间轴上展示 interaction marker；
+- 支持编辑 `trigger_time`、`duration_sec`、`interaction_mode` 和 `content`；
+- 支持新增、删除、恢复原始 interaction；
+- 保存人工精修结果到 `output/interaction_plan_curated/<video_id>/interaction_plan.json`；
+- 同步写出 `interaction_plan.edits.json`，记录新增、删除和字段修改；
+- 通过 `scripts/upload_curated_interaction_assets.py` 将人工精修结果转换为后端 `interaction-assets` 管理接口 payload。
+
+当前边界：
+
+- 编辑器是本地工具，不属于线上用户界面；
+- 上传脚本默认 dry-run，只有显式传入 `--execute` 才会写入后端；
+- 真实上传依赖后台登录 cookies，默认 cookies 路径为 `/Users/qinminghao/Desktop/cookies.txt`；
+- 编辑器当前面向算法产物人工精修，不替代播放器端互动触发逻辑。
 
 ## 6. 共享数据契约
 

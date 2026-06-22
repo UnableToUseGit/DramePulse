@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interaction Plan Editor</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="episode-rail">
+        <div class="rail-header">
+          <p class="eyebrow">DramePulse</p>
+          <h1>Interaction Plan Editor</h1>
+        </div>
+        <div class="rail-tools">
+          <input id="episodeSearch" type="search" placeholder="搜索 video_id / 剧名" />
+          <div id="episodeCount" class="count-text">加载中</div>
+        </div>
+        <div id="episodeList" class="episode-list"></div>
+      </aside>
+
+      <main class="workspace">
+        <section class="player-panel">
+          <div class="panel-header">
+            <div>
+              <p id="activeSeries" class="eyebrow">未选择</p>
+              <h2 id="activeTitle">选择一个分集开始编辑</h2>
+            </div>
+            <div class="stats-strip">
+              <span id="durationStat">--:--</span>
+              <span id="planStat">0 interactions</span>
+              <span id="curatedStat">raw</span>
+            </div>
+          </div>
+
+          <div class="video-frame">
+            <video id="video" controls playsinline preload="metadata"></video>
+          </div>
+
+          <div class="timeline-card">
+            <div class="timeline-head">
+              <span id="timeReadout">00:00 / 00:00</span>
+              <span id="activeInteractionLabel">无当前 interaction</span>
+            </div>
+            <div id="timeline" class="timeline" aria-label="interaction timeline">
+              <div id="interactionLayer" class="interaction-layer"></div>
+              <div id="playhead" class="playhead"></div>
+            </div>
+            <div id="timelineScale" class="timeline-scale"></div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="editor-panel">
+        <div class="panel-header compact">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2>人工精修</h2>
+          </div>
+          <button id="saveButton" type="button" class="primary-action">保存</button>
+        </div>
+
+        <div id="saveStatus" class="save-status">尚未修改</div>
+
+        <section class="interaction-list-section">
+          <div class="section-head">
+            <span>Interactions</span>
+            <div class="section-actions">
+              <button id="addExpressionButton" type="button" class="secondary-action">新增表情点</button>
+              <button id="addInnerVoiceButton" type="button" class="secondary-action">新增心声</button>
+              <button id="resetButton" type="button" class="secondary-action">恢复原始</button>
+            </div>
+          </div>
+          <div id="interactionList" class="interaction-list"></div>
+        </section>
+
+        <section class="form-section" aria-label="interaction editor">
+          <label>
+            <span>interaction_id</span>
+            <input id="interactionIdInput" type="text" readonly />
+          </label>
+          <label>
+            <span>interaction_mode</span>
+            <select id="interactionModeInput">
+              <option value="emotional_button">emotional_button</option>
+              <option value="inner_voice_danmaku">inner_voice_danmaku</option>
+            </select>
+          </label>
+          <div class="field-grid">
+            <label>
+              <span>trigger_time</span>
+              <input id="triggerTimeInput" type="number" step="0.1" min="0" />
+            </label>
+            <label>
+              <span>duration_sec</span>
+              <input id="durationInput" type="number" step="0.1" min="0" />
+            </label>
+          </div>
+          <label>
+            <span>expire_time</span>
+            <input id="expireTimeInput" type="number" step="0.1" min="0" readonly />
+          </label>
+          <div id="emotionalFields" class="mode-fields">
+            <label>
+              <span>expression_type</span>
+              <select id="expressionTypeInput">
+                <option value="爽点">爽点</option>
+                <option value="笑点">笑点</option>
+                <option value="泪点">泪点</option>
+                <option value="甜点">甜点</option>
+              </select>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span>source_start_time</span>
+                <input id="sourceStartInput" type="number" step="0.1" min="0" />
+              </label>
+              <label>
+                <span>source_end_time</span>
+                <input id="sourceEndInput" type="number" step="0.1" min="0" />
+              </label>
+            </div>
+            <label>
+              <span>source_trigger_id</span>
+              <input id="sourceTriggerInput" type="text" readonly />
+            </label>
+          </div>
+          <div id="innerVoiceFields" class="mode-fields">
+            <label>
+              <span>content.text</span>
+              <input id="innerVoiceTextInput" type="text" />
+            </label>
+            <label>
+              <span>candidate_id</span>
+              <input id="candidateIdInput" type="text" readonly />
+            </label>
+          </div>
+          <button id="deleteButton" type="button" class="danger-action">删除当前 interaction</button>
+          <div id="formError" class="form-error"></div>
+        </section>
+      </aside>
+    </div>
+
+    <script src="/editor.js"></script>
+  </body>
+</html>

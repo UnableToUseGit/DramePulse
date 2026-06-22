@@ -146,6 +146,41 @@ dramepulse pipelines run highlight-commerce \
 
 当前 CLI registry 包含 `expression-trigger`、`story-chapter`、`inner-voice-danmaku` 和 `highlight-commerce` 四条主线。
 
+### 6. 互动方案人工精修工具
+
+如果需要人工检查并微调算法生成的互动触发点，可以启动 Interaction Plan Editor：
+
+```bash
+python scripts/serve_interaction_plan_editor.py --port 8783
+```
+
+访问：
+
+```text
+http://127.0.0.1:8783/
+```
+
+默认读取：
+
+```text
+/Users/qinminghao/Desktop/ByteDance/DataForAlgorithm
+output/interaction_plan
+```
+
+保存后的人工精修结果写入：
+
+```text
+output/interaction_plan_curated
+```
+
+精修结果可以通过上传脚本同步到后端 `interaction-assets`。默认是 dry-run，不会发起真实写入：
+
+```bash
+python scripts/upload_curated_interaction_assets.py --video-id beiwang_ep01
+```
+
+确认 payload 后再加 `--execute` 并提供有效后台登录 cookies。
+
 ## 致谢
 
 本项目在视频分析与镜头切分能力上参考或使用了以下开源项目：
