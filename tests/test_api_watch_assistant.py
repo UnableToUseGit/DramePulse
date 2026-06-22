@@ -83,6 +83,24 @@ class WatchAssistantApiTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         body = response.json()
+        self.assertEqual(len(body["actions"]), 1)
+        self.assertEqual(body["actions"][0]["type"], "seek")
+        self.assertEqual(body["actions"][0]["target_time"], 42)
+
+    def test_highlight_seek_falls_back_to_video_interaction_items(self) -> None:
+        with (
+            patch("services.api.watch_assistant.service.list_interaction_plans") as plans,
+            patch("services.api.watch_assistant.service.list_video_interaction_items") as items,
+        ):
+            plans.return_value = []
+            items.return_value = [
+                {"interaction_id": "ia1", "trigger_time": 12},
+                {"interaction_id": "ia2", "trigger_time": 42},
+            ]
+            response = self.post_act("跳到下一个高光点", current_time=20, duration=90)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
         self.assertEqual(body["actions"][0]["type"], "seek")
         self.assertEqual(body["actions"][0]["target_time"], 42)
 
@@ -102,6 +120,28 @@ class WatchAssistantApiTest(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["actions"][0]["type"], "seek")
         self.assertEqual(body["actions"][0]["target_time"], 42)
+
+    def test_chinese_next_highlight_prefers_rule_over_llm_reply(self) -> None:
+        with (
+            patch("services.api.watch_assistant.service._parse_with_llm") as parse_with_llm,
+            patch("services.api.watch_assistant.service.list_interaction_plans") as plans,
+        ):
+            parse_with_llm.return_value = {
+                "tools": [{"name": "seek", "arguments": {}}],
+                "reply": "请提供具体的高光点时间或描述",
+            }
+            plans.return_value = [
+                {"interaction_id": "i1", "trigger_time": 12},
+                {"interaction_id": "i2", "trigger_time": 42},
+            ]
+            response = self.post_act("跳到下一个高光点", current_time=20, duration=90)
+
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["actions"][0]["type"], "seek")
+        self.assertEqual(body["actions"][0]["target_time"], 42)
+        self.assertNotIn("请提供具体的高光点时间或描述", body["reply"])
+        parse_with_llm.assert_not_called()
 
     def test_transcribe_accepts_audio_upload_with_mock_backend(self) -> None:
         response = self.client.post(

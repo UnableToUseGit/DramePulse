@@ -68,30 +68,24 @@ class VideoRepositoryCdnTest(unittest.TestCase):
         )
         self.assertEqual(video["source"], "cdn")
 
-    def test_cloud_mode_with_episode_hls_prefers_cdn_manifest(self) -> None:
+    def test_cloud_mode_with_episode_hls_prefers_api_proxy_manifest(self) -> None:
         os.environ["DRAMEPULSE_MODE"] = "cloud"
         os.environ["CDN_BASE_URL"] = "http://cdn.threekeyboardists.top/"
 
         video = videos._to_video_response(self.episode_row)
 
-        self.assertEqual(
-            video["stream_url"],
-            "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
-        )
+        self.assertEqual(video["stream_url"], "/api/videos/beiwang_ep01/hls/index.m3u8")
         self.assertEqual(video["stream_type"], "hls")
-        self.assertEqual(
-            video["hls_url"],
-            "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/index.m3u8",
-        )
+        self.assertEqual(video["hls_url"], "/api/videos/beiwang_ep01/hls/index.m3u8")
         self.assertEqual(
             video["mp4_url"],
             "http://cdn.threekeyboardists.top/dramas/beiwang/episodes/ep01/video.mp4",
         )
-        self.assertEqual(video["source"], "cdn")
+        self.assertEqual(video["source"], "oss")
 
     def test_cloud_mode_without_cdn_falls_back_to_api_stream_url(self) -> None:
         os.environ["DRAMEPULSE_MODE"] = "cloud"
-        os.environ.pop("CDN_BASE_URL", None)
+        os.environ["CDN_BASE_URL"] = ""
 
         video = videos._to_video_response(self.row)
 
@@ -101,7 +95,7 @@ class VideoRepositoryCdnTest(unittest.TestCase):
 
     def test_cloud_mode_without_cdn_uses_api_hls_manifest_for_episode_video(self) -> None:
         os.environ["DRAMEPULSE_MODE"] = "cloud"
-        os.environ.pop("CDN_BASE_URL", None)
+        os.environ["CDN_BASE_URL"] = ""
 
         video = videos._to_video_response(self.episode_row)
 

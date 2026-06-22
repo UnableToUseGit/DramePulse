@@ -6,6 +6,7 @@ from typing import Any
 
 from ..config import Settings, get_settings
 from ..db import db_cursor, sql_placeholder, utc_now_sql
+from .videos import _resolve_series_id
 
 
 def create_new_asset_tables_sqlite(cursor: Any) -> None:
@@ -504,6 +505,7 @@ def upsert_admin_video_interaction_assets(
 
 
 def list_series_ad_slots(series_id: str) -> dict[str, Any]:
+    canonical_series_id = _resolve_series_id(series_id)
     settings = get_settings()
     placeholder = sql_placeholder(settings)
     try:
@@ -521,13 +523,13 @@ def list_series_ad_slots(series_id: str) -> dict[str, Any]:
                   AND a.status = 'active'
                 ORDER BY s.after_episode_no, s.slot_id
                 """,
-                (series_id,),
+                (canonical_series_id,),
             )
             slots = [_ad_slot_response(dict(row)) for row in cursor.fetchall()]
-            return {"series_id": series_id, "slots": slots}
+            return {"series_id": canonical_series_id, "slots": slots}
     except Exception as exc:
         if _is_missing_table_error(exc):
-            return {"series_id": series_id, "slots": []}
+            return {"series_id": canonical_series_id, "slots": []}
         raise
 
 

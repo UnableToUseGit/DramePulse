@@ -6,6 +6,7 @@ from typing import Any
 
 from ..config import get_settings
 from ..repositories.interactions import list_interaction_plans
+from ..repositories.new_assets import list_video_interaction_items
 from ..schemas import WatchAssistantRequest
 from ..story_qa import service as story_qa_service
 
@@ -15,8 +16,16 @@ STORY_QA_KEYWORDS = ("谁", "什么", "为什么", "怎么", "关系", "刚才",
 
 
 def act(payload: WatchAssistantRequest) -> dict[str, Any]:
-    intent = _parse_with_llm(payload) or _parse_with_rules(payload.message)
+    rule_intent = _parse_with_rules(payload.message)
+    if _has_control_tool(rule_intent):
+        intent = rule_intent
+    else:
+        intent = _parse_with_llm(payload) or rule_intent
     return _execute_intent(payload, intent)
+
+
+def _has_control_tool(intent: dict[str, Any]) -> bool:
+    return any(str(tool.get("name") or "") in CONTROL_TOOLS for tool in intent.get("tools", []) if isinstance(tool, dict))
 
 
 def _parse_with_llm(payload: WatchAssistantRequest) -> dict[str, Any] | None:
@@ -89,6 +98,9 @@ def _parse_with_rules(message: str) -> dict[str, Any]:
     text = message.strip()
     tools: list[dict[str, Any]] = []
 
+    if _mentions_highlight_target(text):
+        tools.append({"name": "seek", "arguments": {"target": "highlight"}})
+
     if re.search(r"(下一集|下.?一[集话]|next)", text, re.IGNORECASE):
         tools.append({"name": "next_episode", "arguments": {}})
     if re.search(r"(暂停|停一下|pause)", text, re.IGNORECASE):
@@ -112,7 +124,21 @@ def _parse_with_rules(message: str) -> dict[str, Any]:
 
     if not tools:
         tools.append({"name": "story_qa", "arguments": {"question": text}})
-    return {"tools": tools, "reply": ""}
+    return {"tools": _dedupe_tools(tools), "reply": ""}
+
+
+def _dedupe_tools(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for tool in tools:
+        name = str(tool.get("name") or "")
+        arguments = tool.get("arguments") if isinstance(tool.get("arguments"), dict) else {}
+        key = (name, json.dumps(arguments, ensure_ascii=False, sort_keys=True))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(tool)
+    return deduped
 
 
 def _normalize_seek_arguments(message: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -121,9 +147,17 @@ def _normalize_seek_arguments(message: str, arguments: dict[str, Any]) -> dict[s
     target = str(arguments.get("target") or "").lower()
     if target in {"highlight", "highlight_point"}:
         return {**arguments, "target": "highlight"}
+    if target in {"高光", "高光点", "精彩", "爽点", "名场面"} or _mentions_highlight_target(message):
+        return {**arguments, "target": "highlight"}
     if target in {"高光", "精彩", "爽点", "名场面"} or re.search(r"(高光|精彩|爽点|名场面)", message):
         return {**arguments, "target": "highlight"}
     return arguments
+
+
+def _mentions_highlight_target(text: str) -> bool:
+    has_highlight_word = re.search(r"(楂樺厜|绮惧僵|鐖界偣|鍚嶅満闈?|高光|高光点|精彩|爽点|名场面)", text)
+    has_seek_word = re.search(r"(璺冲埌|蹇繘|跳|跳到|切|切到|到|下一个|下个|下一处|下一段|next)", text, re.IGNORECASE)
+    return bool(has_highlight_word and has_seek_word)
 
 
 def _parse_relative_seek(text: str) -> float | None:
@@ -231,9 +265,15 @@ def _resolve_seek_target(payload: WatchAssistantRequest, arguments: dict[str, An
     plans = list_interaction_plans(payload.video_id)
     future_plans = [plan for plan in plans if float(plan.get("trigger_time") or 0) >= payload.current_time]
     selected = future_plans[0] if future_plans else (plans[0] if plans else None)
-    if not selected:
+    if selected:
+        return float(selected.get("trigger_time") or 0)
+
+    items = list_video_interaction_items(payload.video_id)
+    future_items = [item for item in items if float(item.get("trigger_time") or 0) >= payload.current_time]
+    selected_item = future_items[0] if future_items else (items[0] if items else None)
+    if not selected_item:
         return None
-    return float(selected.get("trigger_time") or 0)
+    return float(selected_item.get("trigger_time") or 0)
 
 
 def _float_arg(value: Any, fallback: float) -> float:

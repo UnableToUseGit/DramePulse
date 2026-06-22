@@ -81,9 +81,6 @@ def _hls_stream_url(video_id: str, row: dict[str, Any]) -> str | None:
     hls_key = _hls_object_key(row)
     if not hls_key:
         return None
-    cdn_url = _cdn_object_url(hls_key)
-    if cdn_url:
-        return cdn_url
     return f"/api/videos/{video_id}/hls/index.m3u8"
 
 

@@ -95,6 +95,14 @@ class NewAssetsImportTest(unittest.TestCase):
         self.assertEqual(ad_response.json()["slots"][0]["ad"]["ad_id"], "ad_001")
         self.assertEqual(ad_response.json()["slots"][0]["ad"]["stream_url"], "/api/ads/ad_001/stream")
 
+        alias_root = self.tmp_path / "AliasNewAssets"
+        self._write_ads(alias_root, series_id="naniandonzhi")
+        import_new_assets(alias_root, apply=True)
+        alias_ad_response = client.get("/api/series/naniandongzhi/ad-slots")
+        self.assertEqual(alias_ad_response.status_code, 200)
+        self.assertEqual(alias_ad_response.json()["series_id"], "naniandonzhi")
+        self.assertEqual(alias_ad_response.json()["slots"][0]["series_id"], "naniandonzhi")
+
         stream_response = client.get("/api/ads/ad_001/stream")
         self.assertEqual(stream_response.status_code, 200)
         self.assertEqual(stream_response.content, b"video")
@@ -274,14 +282,14 @@ class NewAssetsImportTest(unittest.TestCase):
         (inner_voice / "inner_voice_selection.json").write_text(json.dumps({"items": []}), encoding="utf-8")
         (inner_voice / "semantic_clusters.json").write_text(json.dumps({"clusters": []}), encoding="utf-8")
 
-    def _write_ads(self, root: Path) -> None:
+    def _write_ads(self, root: Path, *, series_id: str = "beiwang") -> None:
         path = root / "广告"
         path.mkdir(parents=True, exist_ok=True)
         (path / "ads.mp4").write_bytes(b"video")
         (path / "item.json").write_text(
             json.dumps(
                 {
-                    "series_id": "beiwang",
+                    "series_id": series_id,
                     "slots": [
                         {
                             "slot_id": "beiwang_after_ep02_ad01",
