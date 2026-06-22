@@ -12,6 +12,7 @@ import {
   type VideoReadinessEvent,
   type VideoReadinessState
 } from "../domain/videoReadiness";
+import { getVideoSeekOperation } from "../domain/videoSeek";
 import { buildVideoStageSource } from "../domain/videoSource";
 import { colors, radii, spacing } from "../theme";
 
@@ -218,8 +219,27 @@ export const VideoStage = memo(function VideoStage({
       lastHandledSeekIdRef.current = seekRequest.id;
       recordObservation("seek_requested", { time: seekRequest.time, reason: seekRequest.reason });
       ignoreReleasedPlayerError(() => {
-        player.currentTime = seekRequest.time;
-        recordObservation("seek_applied", { time: seekRequest.time, reason: seekRequest.reason });
+        const seekOperation = getVideoSeekOperation({
+          playerCurrentTime: player.currentTime,
+          reason: seekRequest.reason,
+          targetTime: seekRequest.time
+        });
+        if (seekOperation.type === "relative") {
+          player.seekBy(seekOperation.delta);
+          recordObservation("seek_applied", {
+            time: seekRequest.time,
+            reason: seekRequest.reason,
+            seekMode: "relative",
+            seekDelta: seekOperation.delta
+          });
+        } else {
+          player.currentTime = seekOperation.targetTime;
+          recordObservation("seek_applied", {
+            time: seekRequest.time,
+            reason: seekRequest.reason,
+            seekMode: "exact"
+          });
+        }
       });
       onTimeChangeRef.current(seekRequest.time);
       onSeekHandled();
