@@ -84,6 +84,8 @@ const DRAGGING_TIMELINE_PRESENTATION: TimelinePresentation = {
   tickOpacity: 0.62
 };
 
+const OPTIMISTIC_TIMELINE_RELEASE_THRESHOLD_SEC = 0.5;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -153,6 +155,50 @@ export function getTimelineTimeFromPageX({
   }
   const ratio = clamp((pageX - trackPageX) / trackWidth, 0, 1);
   return ratio * duration;
+}
+
+export function getTimelineDragTimeFromPageX({
+  currentPageX,
+  dragStartPageX,
+  dragStartTime,
+  trackWidth,
+  duration
+}: {
+  currentPageX: number;
+  dragStartPageX: number;
+  dragStartTime: number;
+  trackWidth: number;
+  duration: number;
+}) {
+  if (trackWidth <= 0 || duration <= 0) {
+    return 0;
+  }
+  const deltaTime = ((currentPageX - dragStartPageX) / trackWidth) * duration;
+  return clamp(dragStartTime + deltaTime, 0, duration);
+}
+
+export function getTimelineVisibleTime({
+  currentTime,
+  dragTime,
+  optimisticTime
+}: {
+  currentTime: number;
+  dragTime?: number;
+  optimisticTime?: number;
+}) {
+  return dragTime ?? optimisticTime ?? currentTime;
+}
+
+export function shouldReleaseOptimisticTimelineTime({
+  currentTime,
+  optimisticTime,
+  releaseThresholdSec = OPTIMISTIC_TIMELINE_RELEASE_THRESHOLD_SEC
+}: {
+  currentTime: number;
+  optimisticTime: number;
+  releaseThresholdSec?: number;
+}) {
+  return Math.abs(currentTime - optimisticTime) <= releaseThresholdSec;
 }
 
 export function getSnappedTimelineTime({

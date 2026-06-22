@@ -27,6 +27,17 @@ describe("VideoStage render safety", () => {
     expect(source).toContain("allowsVideoFrameAnalysis={false}");
   });
 
+  it("does not synthesize a playback time update when applying a seek request", () => {
+    const fs = require("fs");
+    const source = fs.readFileSync("src/components/VideoStage.tsx", "utf8");
+    const seekEffectStart = source.indexOf("if (seekRequest && seekRequest.id !== lastHandledSeekIdRef.current)");
+    const seekEffectEnd = source.indexOf("}, [onSeekHandled, player, seekRequest]);", seekEffectStart);
+    const seekEffectSource = source.slice(seekEffectStart, seekEffectEnd);
+
+    expect(seekEffectSource).toContain('recordObservation("seek_applied"');
+    expect(seekEffectSource).not.toContain("onTimeChangeRef.current(seekRequest.time)");
+  });
+
   it("bubbles playback readiness out of VideoStage and PlayerPage", () => {
     const fs = require("fs");
     const videoStageSource = fs.readFileSync("src/components/VideoStage.tsx", "utf8");

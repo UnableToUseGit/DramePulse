@@ -27,6 +27,7 @@ import type { HomeFeedPlaybackObserver } from "../domain/homeFeedPlaybackObserve
 import type { PlaybackAssetCache } from "../domain/playbackAssetCache";
 import { prefetchStoryboardSheets } from "../domain/playbackAssetPreloader";
 import { PlayerVideo } from "../domain/playerApi";
+import { shouldHoldOptimisticSeekTime } from "../domain/videoSeek";
 import {
   getExpiredInteractionCueIds,
   getSeekSkippedInteractionCueIds,
@@ -191,6 +192,7 @@ export function PlayerPage({
   const previousTimeRef = useRef(0);
   const lastPublishedTimeRef = useRef(0);
   const didCompleteRef = useRef(false);
+  const pendingSeekTargetTimeRef = useRef<number | undefined>(undefined);
   const wasActiveRef = useRef(false);
   const previousVideoIdRef = useRef(video.videoId);
   const lastReportedPositionRef = useRef(0);
@@ -443,6 +445,7 @@ export function PlayerPage({
       previousTimeRef.current = resumeTime;
       lastPublishedTimeRef.current = resumeTime;
       lastReportedPositionRef.current = resumeTime;
+      pendingSeekTargetTimeRef.current = undefined;
       didCompleteRef.current = false;
       previousVideoIdRef.current = video.videoId;
     }
@@ -469,6 +472,16 @@ export function PlayerPage({
   const handleTimeChange = useCallback(
     (time: number) => {
       if (isActive) {
+        if (
+          pendingSeekTargetTimeRef.current !== undefined &&
+          shouldHoldOptimisticSeekTime({
+            currentTime: time,
+            targetTime: pendingSeekTargetTimeRef.current
+          })
+        ) {
+          return;
+        }
+        pendingSeekTargetTimeRef.current = undefined;
         if (
           shouldResetExample({
             previousTime: previousTimeRef.current,
@@ -575,6 +588,7 @@ export function PlayerPage({
       }
       setUserPlaybackIntent("playing");
       setSeekVersion((version) => version + 1);
+      pendingSeekTargetTimeRef.current = time;
       setSeekRequest({ id: Date.now(), time, reason: "user_seek" });
     },
     [

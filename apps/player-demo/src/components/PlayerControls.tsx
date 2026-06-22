@@ -8,8 +8,11 @@ import {
   getSnappedTimelineTime,
   getStoryboardCell,
   getStoryChapterAtTime,
+  getTimelineDragTimeFromPageX,
   getTimelinePresentation,
   getTimelineTimeFromPageX,
+  getTimelineVisibleTime,
+  shouldReleaseOptimisticTimelineTime,
   StoryboardManifest,
   StoryChapter
 } from "../domain/storyNavigation";
@@ -49,14 +52,16 @@ export function PlayerControls({
   const safeDuration = duration > 0 ? duration : 1;
   const viewport = useWindowDimensions();
   const [dragTime, setDragTime] = useState<number | undefined>(undefined);
+  const [optimisticTime, setOptimisticTime] = useState<number | undefined>(undefined);
   const [trackWidth, setTrackWidth] = useState(0);
   const [trackPageX, setTrackPageX] = useState(0);
   const onSeekCommitRef = useRef(onSeekCommit);
   const trackTapTargetRef = useRef<View>(null);
   const dragStartXRef = useRef(0);
+  const dragStartTimeRef = useRef(0);
   const didActivateDragRef = useRef(false);
   const isDragging = dragTime !== undefined;
-  const visibleTime = dragTime ?? currentTime;
+  const visibleTime = getTimelineVisibleTime({ currentTime, dragTime, optimisticTime });
   const progressRatio = clamp(visibleTime / safeDuration, 0, 1);
   const remainingSeconds = Math.ceil(duration - currentTime);
   const shouldShowNextEpisodeHint = hasNextEpisode && !isDragging && remainingSeconds >= 1 && remainingSeconds <= 3;
@@ -75,6 +80,18 @@ export function PlayerControls({
     onDragStateChange?.(isDragging);
   }, [isDragging, onDragStateChange]);
 
+  useEffect(() => {
+    if (
+      optimisticTime !== undefined &&
+      shouldReleaseOptimisticTimelineTime({
+        currentTime,
+        optimisticTime
+      })
+    ) {
+      setOptimisticTime(undefined);
+    }
+  }, [currentTime, optimisticTime]);
+
   const getTimeFromPageX = (pageX: number) => {
     if (trackWidth <= 0) {
       return visibleTime;
@@ -82,6 +99,29 @@ export function PlayerControls({
     const rawTime = getTimelineTimeFromPageX({
       pageX,
       trackPageX,
+      trackWidth,
+      duration: safeDuration
+    });
+    const snapped = getSnappedTimelineTime({
+      time: rawTime,
+      chapters: storyChapters,
+      snapThresholdSeconds: CHAPTER_SNAP_THRESHOLD_SECONDS
+    });
+    if (snapped.boundaryId && lastHapticBoundaryRef.current !== snapped.boundaryId) {
+      lastHapticBoundaryRef.current = snapped.boundaryId;
+      Haptics.selectionAsync().catch(() => undefined);
+    }
+    if (!snapped.boundaryId) {
+      lastHapticBoundaryRef.current = undefined;
+    }
+    return snapped.time;
+  };
+
+  const getDragTimeFromPageX = (pageX: number) => {
+    const rawTime = getTimelineDragTimeFromPageX({
+      currentPageX: pageX,
+      dragStartPageX: dragStartXRef.current,
+      dragStartTime: dragStartTimeRef.current,
       trackWidth,
       duration: safeDuration
     });
@@ -129,10 +169,12 @@ export function PlayerControls({
           onStartShouldSetResponder={() => true}
           onMoveShouldSetResponder={() => true}
           onResponderMove={(event) => {
-            setDragTime(getTimeFromPageX(event.nativeEvent.pageX));
+            setDragTime(getDragTimeFromPageX(event.nativeEvent.pageX));
           }}
           onResponderRelease={(event) => {
-            onSeekCommitRef.current(getTimeFromPageX(event.nativeEvent.pageX));
+            const nextTime = getDragTimeFromPageX(event.nativeEvent.pageX);
+            setOptimisticTime(nextTime);
+            onSeekCommitRef.current(nextTime);
             didActivateDragRef.current = false;
             lastHapticBoundaryRef.current = undefined;
             setDragTime(undefined);
@@ -155,6 +197,7 @@ export function PlayerControls({
           onResponderGrant={(event) => {
             measureTrackPosition();
             dragStartXRef.current = event.nativeEvent.pageX;
+            dragStartTimeRef.current = visibleTime;
             didActivateDragRef.current = false;
           }}
           onResponderMove={(event) => {
@@ -163,11 +206,12 @@ export function PlayerControls({
               return;
             }
             didActivateDragRef.current = true;
-            setDragTime(getTimeFromPageX(event.nativeEvent.pageX));
+            setDragTime(getDragTimeFromPageX(event.nativeEvent.pageX));
           }}
           onResponderRelease={(event) => {
             if (didActivateDragRef.current) {
-              const nextTime = getTimeFromPageX(event.nativeEvent.pageX);
+              const nextTime = getDragTimeFromPageX(event.nativeEvent.pageX);
+              setOptimisticTime(nextTime);
               onSeekCommitRef.current(nextTime);
             }
             didActivateDragRef.current = false;

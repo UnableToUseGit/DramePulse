@@ -2,6 +2,9 @@ import {
   getChapterTicks,
   getChapterTitleRailItems,
   getSnappedTimelineTime,
+  getTimelineDragTimeFromPageX,
+  getTimelineVisibleTime,
+  shouldReleaseOptimisticTimelineTime,
   getTimelineTimeFromPageX,
   getStoryboardCell,
   getStoryChapterAtTime,
@@ -76,6 +79,52 @@ describe("storyNavigation", () => {
     expect(getTimelineTimeFromPageX({ pageX: 220, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
     expect(getTimelineTimeFromPageX({ pageX: -200, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(0);
     expect(getTimelineTimeFromPageX({ pageX: 420, trackPageX: 20, trackWidth: 200, duration: 100 })).toBe(100);
+  });
+
+  it("moves timeline drag time by finger delta instead of jumping to the touch point", () => {
+    expect(
+      getTimelineDragTimeFromPageX({
+        currentPageX: 210,
+        dragStartPageX: 180,
+        dragStartTime: 40,
+        trackWidth: 300,
+        duration: 120
+      })
+    ).toBe(52);
+  });
+
+  it("clamps delta-based timeline dragging to the video bounds", () => {
+    expect(
+      getTimelineDragTimeFromPageX({
+        currentPageX: 20,
+        dragStartPageX: 180,
+        dragStartTime: 10,
+        trackWidth: 300,
+        duration: 120
+      })
+    ).toBe(0);
+    expect(
+      getTimelineDragTimeFromPageX({
+        currentPageX: 380,
+        dragStartPageX: 180,
+        dragStartTime: 80,
+        trackWidth: 300,
+        duration: 120
+      })
+    ).toBe(120);
+  });
+
+  it("keeps optimistic timeline time visible after drag release", () => {
+    expect(getTimelineVisibleTime({ currentTime: 12, optimisticTime: 80 })).toBe(80);
+  });
+
+  it("lets active dragging override optimistic timeline time", () => {
+    expect(getTimelineVisibleTime({ currentTime: 12, dragTime: 52, optimisticTime: 80 })).toBe(52);
+  });
+
+  it("releases optimistic timeline time after playback catches up", () => {
+    expect(shouldReleaseOptimisticTimelineTime({ currentTime: 79.8, optimisticTime: 80 })).toBe(true);
+    expect(shouldReleaseOptimisticTimelineTime({ currentTime: 12, optimisticTime: 80 })).toBe(false);
   });
 
   it("snaps timeline time to nearby chapter boundaries", () => {

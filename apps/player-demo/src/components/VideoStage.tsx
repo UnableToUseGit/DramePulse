@@ -241,7 +241,6 @@ export const VideoStage = memo(function VideoStage({
           });
         }
       });
-      onTimeChangeRef.current(seekRequest.time);
       onSeekHandled();
     }
   }, [onSeekHandled, player, seekRequest]);

@@ -6,6 +6,7 @@ export type VideoSeekOperation =
 
 const RELATIVE_SEEK_REASONS = new Set<VideoSeekReason>(["user_seek", "assistant_seek"]);
 const MIN_RELATIVE_SEEK_DELTA_SEC = 0.05;
+const OPTIMISTIC_SEEK_RELEASE_THRESHOLD_SEC = 0.5;
 
 export function getVideoSeekOperation({
   playerCurrentTime,
@@ -30,4 +31,20 @@ export function getVideoSeekOperation({
     type: "exact",
     targetTime
   };
+}
+
+export function shouldHoldOptimisticSeekTime({
+  currentTime,
+  targetTime,
+  releaseThresholdSec = OPTIMISTIC_SEEK_RELEASE_THRESHOLD_SEC
+}: {
+  currentTime: number;
+  targetTime: number;
+  releaseThresholdSec?: number;
+}) {
+  return (
+    Number.isFinite(currentTime) &&
+    Number.isFinite(targetTime) &&
+    Math.abs(currentTime - targetTime) > releaseThresholdSec
+  );
 }
